@@ -1,0 +1,7 @@
+interface:
+  display_name: "Performance Guardian Docs"
+  short_description: "Maintain evidence-grounded project documentation"
+  default_prompt: "Use $godot-performance-guardian-docs to update this repository README and documentation trajectory from verified evidence."
+
+policy:
+  allow_implicit_invocation: true
