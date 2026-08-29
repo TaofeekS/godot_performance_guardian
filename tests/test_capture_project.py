@@ -168,8 +168,16 @@ class ReusableWorkflowTests(unittest.TestCase):
         self.assertIn("continue-on-error: true", workflow)
         self.assertIn("CAPTURE_OUTCOME: ${{ steps.capture.outcome }}", workflow)
         self.assertIn("incomplete-capture", workflow)
-        self.assertIn("if: always()", workflow)
-        self.assertIn("retention-days: 14", workflow)
+        upload_step = workflow.split("- name: Upload performance evidence", maxsplit=1)[1]
+        self.assertIn("if: always()", upload_step)
+        self.assertIn("include-hidden-files: true", upload_step)
+        self.assertIn("${{ inputs['project-path'] }}/.performance-guardian", upload_step)
+        self.assertIn("${{ runner.temp }}/capture-manifest.json", upload_step)
+        self.assertIn("${{ runner.temp }}/guardian-report.json", upload_step)
+        self.assertIn("retention-days: 14", upload_step)
+        self.assertNotIn(".performance-guardian-tooling", upload_step)
+        self.assertNotIn("${{ github.workspace }}", upload_step)
+        self.assertNotIn("OPENAI_API_KEY", upload_step)
         self.assertNotRegex(workflow, r"(?m)^  push:\s*$")
         self.assertIn(
             'description: "Optional AI mode: never, on-failure, or always."',

@@ -1588,3 +1588,34 @@ The five focused files were staged after a clean staged whitespace check and rev
 The planned GitHub CLI query could not run because `gh` is not installed on this machine. No repository state changed as a result. A read-only query to GitHub's public REST API then reported `Performance Guardian` and `Reusable Performance Guardian` as `active`. The reusable workflow content at commit `580606b` had blob SHA `80cf79ea20e8ec3440ea0135c524b6ada18ef11f`, exactly matching `git hash-object` for the verified local workflow.
 
 This confirms the correction is pushed and GitHub recognizes the definition. It does not establish successful hosted capture. The consumer repository must update its reusable-workflow reference to full commit `580606bcf603bb0279d90a957c6498947d366182`, correct its separate budget path to `performance_budgets.json`, and rerun. No consumer repository was modified or dispatched during this task.
+
+## 2026-08-29 — Hosted raw-evidence artifact correction
+
+### Request and observed evidence
+
+After the executable correction, the user supplied `performance-guardian-main_scene-33276123451-1.zip` and reported that `never` worked. Read-only ZIP inspection found exactly two entries: `_temp/capture-manifest.json` and `_temp/guardian-report.json`. The manifest reported status `passed`, three requested and completed runs, 120 warmup frames, 600 measured frames, sampling interval 1, and six expected relative evidence paths: three capture JSON files and three Godot logs beneath `.performance-guardian/`.
+
+The canonical gate report returned authoritative exit `0`: all three candidates validated, process p95 passed at `0.093 ms <= 2 ms`, peak nodes passed at `12 <= 100`, and investigation outcome was `not_requested`. The measurements and deterministic verdict were therefore valid, but the downloaded artifact did not preserve the raw capture and log paths named by the manifest.
+
+The user approved the plan beginning:
+
+> PLEASE IMPLEMENT THIS PLAN:
+> # Preserve Raw Capture Evidence in Hosted Artifacts
+
+The approved approach was the artifact action's supported hidden-file input on the existing narrow path list, not a workspace-wide upload or a copy into another staging directory. Delivery requires commit, push, public definition verification, and a new immutable SHA; the consumer repository remains outside this task.
+
+### Implementation and local verification
+
+The reusable workflow now sets `include-hidden-files: true` on the unconditional upload step. Its only paths remain the consumer project's `.performance-guardian/` directory, runner-temporary capture manifest, and runner-temporary Guardian report. The regression test isolates the upload step, requires those inputs and 14-day retention, and rejects `.performance-guardian-tooling`, `${{ github.workspace }}`, and `OPENAI_API_KEY` from the upload scope.
+
+Both focused reusable-workflow tests passed. The complete suite reported:
+
+```text
+Ran 130 tests in 1.014s
+
+OK
+```
+
+Python byte compilation returned `0`, and `pip check` reported no broken requirements. Both workflows parsed successfully with PyYAML `6.0.3`, supplied only through a uniquely named system-temporary directory that was validated before recursive removal. The official documentation-skill validator printed `Skill is valid!`. All checked Markdown links resolved, README retained its 17 numbered sections, all evidence documents ended with newlines, and `git diff --check` found no whitespace error. Filename-only credential-pattern scans found zero matching working-tree, tracked, staged, or reachable-history files or commits.
+
+No Godot process, benchmark, OpenAI request, fixture or budget change, or consumer-repository mutation occurred. README and the Experiment 11 record now treat the hosted deterministic run as verified while keeping corrected raw artifact preservation pending a new consumer ZIP. Commit, push, and public metadata checks follow this entry.
