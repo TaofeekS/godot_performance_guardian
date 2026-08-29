@@ -8,9 +8,9 @@ Godot Performance Budget Guardian is a synthetic Godot 4.5 benchmark that detect
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; and a locally tested, read-only investigator with deterministic evidence IDs and a post-generation grounding gate. |
+| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; and a locally tested, read-only investigator with schema-driven evidence citations, a post-generation grounding gate, and a deterministic fallback. |
 | Partially implemented | Performance budgets are embedded as controller tolerances and validator assertions. There is no standalone, user-editable budget file or stored golden baseline. |
-| Unverified | The first live investigator run completed before Experiment 3, but its report was partly speculative. The grounded implementation has not yet received a post-change live evaluation. |
+| Unverified | A post-Experiment-3 live report was rejected by the grounding gate. Experiment 4's deterministic fallback is locally verified but has not yet been exercised by another live request. |
 | Planned | Configurable budgets, ten evaluation fixtures, a reusable Godot editor dock/plugin, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -29,7 +29,7 @@ The current baseline:
 - Collects raw timing, memory, object, node, and scenario-owned measurements.
 - Compares a multi-run result set against embedded cleanup, growth, and relative CPU thresholds.
 - Reports pass or fail through the validator's output and exit code.
-- Does not load configurable budgets. An optional investigator can validate stored evidence, cite stable evidence IDs, and produce constrained hypotheses. A deterministic local gate blocks reports that violate its grounding contract, but the investigator cannot prove root causes or modify the project.
+- Does not load configurable budgets. An optional investigator can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
 
 It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the complete editor plugin or automated repair product.
 
@@ -165,6 +165,7 @@ The investigator exits nonzero when it cannot obtain a model response. Its messa
 | HTTP 429 with `code=insufficient_quota` or `type=insufficient_quota` | The API project has no available quota. Check its API billing, credits, and project usage limits. Repeating the command will not repair this condition. |
 | Other HTTP 429 | The request was throttled. The message includes a numeric retry delay when the server provides one. Wait before retrying and inspect the API project's rate limits if it persists. |
 | `PermissionDeniedError` or `NotFoundError` for the selected model | Verify that the API project can access `OPENAI_MODEL`. Do not switch models unless the error evidence indicates model-specific access or limits. |
+| `WARNING: model output failed grounding (...)` | The API returned a report that violated one or more grounding rules. The rejected text is not printed; a deterministic cited fallback follows without another API request. |
 
 The installed OpenAI Python client already retries HTTP 429 twice. The investigator deliberately does not wrap the entire agent run in another retry loop, which avoids duplicate tool execution and additional requests when quota is exhausted. A request ID is printed when available so it can support diagnosis without exposing request content.
 
@@ -294,15 +295,27 @@ Benchmark suite passed.
 
 This is evidence from one machine, not a portable performance promise. The same scenarios and validator logic are deterministic enough for controlled comparisons, while timing values remain noisy.
 
-The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. The tool invokes the validator's `--evidence-json` mode, which returns a deterministic JSON-compatible packet containing validation status, a repository-relative result directory, stable evidence IDs `E1` through `E22`, aggregate timing comparisons, cleanup evidence for all three scenarios, allowlisted controller behavior, and explicit limitations. The normal validator command and human-readable output remain unchanged.
+The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. The tool invokes the validator's `--evidence-json` mode, which returns a deterministic JSON-compatible packet containing validation status, a repository-relative result directory, opaque evidence IDs, aggregate timing comparisons, cleanup evidence for all three scenarios, allowlisted controller behavior, and explicit limitations. The normal validator command and human-readable output remain unchanged.
 
-SDK configuration requires the tool on the first model turn and then allows a five-section report: Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty. Verified numerical statements must cite evidence such as `[E4]`. After generation, a local gate checks section order, evidence references, supported numeric values, scenario coverage, causal language, the required root-cause uncertainty statement, and read-only evidence-linked recommendations. A rejected report is not printed, the CLI exits nonzero with safe rule IDs, and application code does not retry the model. A validator pass means only that the configured assertions passed; it is not proof that the project has no other performance issue.
+SDK configuration requires the tool on the first model turn and then allows a five-section report: Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty. Verified statements cite the opaque ID supplied by their packet item. The gate and fallback locate required facts through `metric`, `scenario`, `source_type`, unit, and value shape, so renumbering evidence or adding unrelated items does not change behavior. Missing or duplicate required semantic matches fail safely.
+
+After generation, the local gate checks section order, evidence references, supported numeric values, scenario coverage, causal language, the required root-cause uncertainty statement, and read-only evidence-linked recommendations. When model output fails, the rejected text is not printed or stored. The CLI emits safe rule IDs and a five-section report beginning with:
+
+```text
+Report source: Deterministic fallback generated after model output failed grounding.
+```
+
+The fallback is generated only from the validated packet, is checked by the same gate, and does not cause another API request. It returns success when deterministic validation passed; validator failure remains nonzero. A validator pass means only that the configured assertions passed, not that the project has no other performance issue.
 
 Experiment 3 local verification on 2026-08-29 ran 32 standard-library unit tests without an API request and passed all 21 JSON files in `demo_project/results/`. The deterministic packet records healthy and CPU-spike median p95 workload times of 148 µs and 8,549 µs, a 57.76× ratio, process medians of 0.408 ms and 12.5885 ms, median durations of 4,976.010 ms and 6,406.270 ms, and a correctly calculated duration increase of approximately 28.7%. It also records 120 retained nodes in every node-leak run and zero in every healthy and CPU-spike run.
 
 The expanded result directory contains nine healthy runs, six node-leak runs, and six CPU-spike runs. Its CPU-spike files mix three historical `160 x 160` runs with three `240 x 240` runs. The packet therefore labels the 21-file aggregate as descriptive rather than a single controlled-configuration comparison. Stored result files also lack a source revision/hash, so current allowlisted controller evidence cannot prove the exact source revision used for every historical file. This safety check does not replace or revise the accepted nine-file Baseline 0.
 
 The pre-Experiment-3 live report was useful enough to reproduce the principal timing measurements, but it omitted node-leak evidence, misstated the duration increase as about 25%, and introduced unsupported possible causes. Those observations are the “before” evaluation. Because no API key was configured during the implementation verification, the new grounding behavior has been exercised through fixed report fixtures and mocks only; post-change live report quality remains unverified.
+
+Experiment 4 followed a real post-change live rejection containing `G03`, `G04`, `G07`, `G08`, `G11`, and `G13`. Local verification ran 39 tests without an API request. The tests prove that renumbered evidence still passes, unrelated evidence is ignored, missing or duplicate semantic evidence fails safely, rejected model text is never emitted, the SDK runner is called once, and a grounded fallback is returned successfully when validation passed.
+
+The current result directory contains 31 validated files: 13 healthy, nine node-leak, and nine CPU-spike runs. Its current aggregate is healthy/CPU-spike median p95 workload of 163 µs/11,510 µs (70.61×), process p95 of 0.605 ms/12.537 ms, and duration of 4,976.010 ms/7,285.752 ms. Every leak run retained 120 nodes; healthy and CPU-spike retained zero. The CPU results mix three `160 x 160` and six `240 x 240` configurations, so this remains a regression-safety set rather than a new controlled baseline.
 
 ## 13. Reproducibility notes
 
@@ -325,8 +338,8 @@ The pre-Experiment-3 live report was useful enough to reproduce the principal ti
 - Thresholds are duplicated in code rather than loaded from a configurable budget file.
 - There is no committed golden baseline or baseline/iteration/final result organization.
 - There is no reusable editor dock or repair workflow. The investigator receives only validator-produced evidence, including narrowly allowlisted controller facts, and cannot establish root cause by itself.
-- The first live report predates deterministic grounding and was partly speculative. Post-change live report quality remains unverified.
-- The current 21-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
+- The first live report predates deterministic grounding and was partly speculative; the next live report was rejected by the gate. The deterministic fallback has not yet been exercised live.
+- The current 31-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
 - Individual result JSON does not contain a consolidated budget verdict or structured error object.
 
@@ -338,14 +351,14 @@ The pre-Experiment-3 live report was useful enough to reproduce the principal ti
 | 2. Configurable budgets | Partial/planned | Replace embedded thresholds with a single documented budget schema and explicit per-run verdicts. |
 | 3. Ten evaluation fixtures | Planned | Add a broader, objective regression fixture set. |
 | 4. Reusable Godot editor dock | Planned | Run and inspect budgets from a reusable editor plugin. |
-| 5. Agent-assisted investigation | Partial | A read-only command-line investigator now receives deterministic cited evidence and blocks ungrounded reports locally; post-change live report quality is unverified. |
+| 5. Agent-assisted investigation | Partial | A read-only command-line investigator now uses semantic evidence matching, blocks ungrounded reports, and generates a locally verified deterministic fallback; live fallback behavior remains unverified. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
 
 ## 16. Hackathon evidence
 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
-- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator boundary, failure diagnosis, and deterministic-grounding experiments.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator boundary, failure diagnosis, deterministic grounding, and schema-driven fallback experiments.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 

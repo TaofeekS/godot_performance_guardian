@@ -32,8 +32,9 @@ Treat the tool result as the only verified benchmark evidence available to you.
 A successful validator exit means only that the supplied result set passed the
 validator's configured assertions. It does not prove that the project has no
 performance problems. Cite every numerical claim and every verified factual
-claim with one or more evidence IDs in the form [E1]. Cover healthy, node_leak,
-and cpu_spike. You may connect scenario behavior to an observed result only
+claim with the opaque evidence ID supplied by the matching packet item, using
+square brackets. Cover healthy, node_leak, and cpu_spike. You may connect
+scenario behavior to an observed result only
 when citing both validated-result evidence and allowlisted-source evidence.
 
 Do not introduce thermal throttling, scheduling delays, locking, contention,
@@ -51,6 +52,13 @@ Return a concise Markdown report using exactly these section headings:
 ## Possible explanations
 ## Recommended next investigation
 ## Remaining uncertainty
+
+Use this content skeleton. Validation status cites the validated-file-count
+item. Verified facts cite workload, process, duration, retained-node,
+configuration, and scenario-behavior items for all three scenarios. Possible
+explanations connect observations only to allowlisted scenario behavior.
+Every recommendation begins with a read-only test action and cites the evidence
+that motivated it. Remaining uncertainty includes the exact required sentence.
 
 If validation fails or the tool returns an error, explain that limitation and
 recommend resolving it before interpreting performance. Never propose edits as
@@ -73,6 +81,33 @@ BANNED_SPECULATION = (
     "resource contention",
     "system load",
 )
+REPORT_SOURCE_DISCLOSURE = (
+    "Report source: Deterministic fallback generated after model output failed "
+    "grounding."
+)
+EVIDENCE_CITATION = re.compile(r"\[([A-Za-z][A-Za-z0-9_.:-]{0,63})\]")
+REQUIRED_EVIDENCE = {
+    "validated_count": ("validated_file_count", "all", "validated_result", "files", "number"),
+    "healthy_workload": ("median_p95_workload_time", "healthy", "validated_aggregate", "usec", "number"),
+    "cpu_workload": ("median_p95_workload_time", "cpu_spike", "validated_aggregate", "usec", "number"),
+    "workload_ratio": ("workload_time_ratio", "cpu_spike_vs_healthy", "validated_aggregate", "x", "number"),
+    "healthy_process": ("median_p95_process_time", "healthy", "validated_aggregate", "ms", "number"),
+    "cpu_process": ("median_p95_process_time", "cpu_spike", "validated_aggregate", "ms", "number"),
+    "healthy_duration": ("median_scenario_duration", "healthy", "validated_aggregate", "ms", "number"),
+    "cpu_duration": ("median_scenario_duration", "cpu_spike", "validated_aggregate", "ms", "number"),
+    "duration_increase": ("scenario_duration_increase", "cpu_spike_vs_healthy", "validated_aggregate", "percent", "number"),
+    "healthy_retained": ("post_cleanup_retained_nodes", "healthy", "validated_result", "nodes", "number"),
+    "leak_retained": ("post_cleanup_retained_nodes", "node_leak", "validated_result", "nodes", "number"),
+    "cpu_retained": ("post_cleanup_retained_nodes", "cpu_spike", "validated_result", "nodes", "number"),
+    "cpu_configurations": ("cpu_workload_configurations", "cpu_spike", "validated_result", None, "mapping"),
+    "healthy_behavior": ("scenario_behavior", "healthy", "allowlisted_source", None, "string"),
+    "leak_behavior": ("scenario_behavior", "node_leak", "allowlisted_source", None, "string"),
+    "cpu_behavior": ("scenario_behavior", "cpu_spike", "allowlisted_source", None, "string"),
+}
+
+
+class EvidenceSchemaError(ValueError):
+    """The evidence packet cannot satisfy the semantic reporting contract."""
 
 
 def resolve_results_directory(results_directory: str) -> tuple[Path, str, int]:
@@ -369,6 +404,138 @@ def _report_sections(report: str) -> dict[str, str] | None:
     return sections
 
 
+def _semantic_evidence(packet: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Resolve required evidence by semantics; IDs are opaque citation labels."""
+
+    evidence = packet.get("evidence")
+    if not isinstance(evidence, list):
+        raise EvidenceSchemaError("evidence must be a list")
+
+    identifiers: list[str] = []
+    for item in evidence:
+        if not isinstance(item, dict):
+            raise EvidenceSchemaError("evidence items must be objects")
+        identifier = item.get("id")
+        if not isinstance(identifier, str) or not re.fullmatch(
+            r"[A-Za-z][A-Za-z0-9_.:-]{0,63}", identifier
+        ):
+            raise EvidenceSchemaError("evidence IDs must be safe opaque labels")
+        identifiers.append(identifier)
+    if len(identifiers) != len(set(identifiers)):
+        raise EvidenceSchemaError("evidence IDs must be unique")
+
+    resolved: dict[str, dict[str, Any]] = {}
+    for name, (metric, scenario, source_type, unit, value_kind) in REQUIRED_EVIDENCE.items():
+        matches = [
+            item
+            for item in evidence
+            if item.get("metric") == metric
+            and item.get("scenario") == scenario
+            and item.get("source_type") == source_type
+        ]
+        if len(matches) != 1:
+            raise EvidenceSchemaError(f"semantic evidence {name!r} is missing or ambiguous")
+        item = matches[0]
+        if item.get("unit") != unit:
+            raise EvidenceSchemaError(f"semantic evidence {name!r} has an invalid unit")
+        value = item.get("value")
+        if value_kind == "number" and (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+        ):
+            raise EvidenceSchemaError(f"semantic evidence {name!r} must be numeric")
+        if value_kind == "mapping" and (
+            not isinstance(value, dict) or not value
+        ):
+            raise EvidenceSchemaError(f"semantic evidence {name!r} must be a mapping")
+        if value_kind == "string" and (
+            not isinstance(value, str) or not value
+        ):
+            raise EvidenceSchemaError(f"semantic evidence {name!r} must be a string")
+        if metric == "post_cleanup_retained_nodes" and (
+            not isinstance(item.get("run_count"), int)
+            or isinstance(item.get("run_count"), bool)
+            or item["run_count"] <= 0
+        ):
+            raise EvidenceSchemaError(f"semantic evidence {name!r} needs a run count")
+        if value_kind == "mapping" and any(
+            not isinstance(key, str)
+            or not key
+            or not isinstance(count, int)
+            or isinstance(count, bool)
+            or count <= 0
+            for key, count in value.items()
+        ):
+            raise EvidenceSchemaError(f"semantic evidence {name!r} has invalid entries")
+        resolved[name] = item
+    return resolved
+
+
+def _citation(item: dict[str, Any]) -> str:
+    return f"[{item['id']}]"
+
+
+def _formatted_number(value: int | float, decimal_places: int) -> str:
+    return f"{float(value):,.{decimal_places}f}"
+
+
+def render_deterministic_fallback(packet: dict[str, Any]) -> str:
+    """Render a report using only semantically matched packet evidence."""
+
+    validation = packet.get("validation")
+    passed = isinstance(validation, dict) and validation.get("status") == "passed"
+    if not passed:
+        return f"""## Validation status
+{REPORT_SOURCE_DISCLOSURE}
+Deterministic validation failed, so no benchmark fact is treated as verified.
+
+## Verified facts
+No benchmark facts are available.
+
+## Possible explanations
+The validation failure must be resolved before interpreting performance.
+
+## Recommended next investigation
+- Resolve the validator failure and run validation again.
+
+## Remaining uncertainty
+{REQUIRED_UNCERTAINTY}
+"""
+
+    evidence = _semantic_evidence(packet)
+    configurations = evidence["cpu_configurations"]["value"]
+    configuration_text = ", ".join(
+        f"{configuration} across {run_count} runs"
+        for configuration, run_count in sorted(configurations.items())
+    )
+    return f"""## Validation status
+{REPORT_SOURCE_DISCLOSURE}
+The validator passed {_formatted_number(evidence['validated_count']['value'], 0)} files under its configured checks {_citation(evidence['validated_count'])}.
+
+## Verified facts
+The healthy median p95 workload was {_formatted_number(evidence['healthy_workload']['value'], 3)} usec and the cpu_spike value was {_formatted_number(evidence['cpu_workload']['value'], 3)} usec, a {_formatted_number(evidence['workload_ratio']['value'], 2)}x ratio {_citation(evidence['healthy_workload'])} {_citation(evidence['cpu_workload'])} {_citation(evidence['workload_ratio'])}.
+The corresponding process medians were {_formatted_number(evidence['healthy_process']['value'], 6)} ms and {_formatted_number(evidence['cpu_process']['value'], 6)} ms {_citation(evidence['healthy_process'])} {_citation(evidence['cpu_process'])}.
+Median duration increased from {_formatted_number(evidence['healthy_duration']['value'], 3)} ms to {_formatted_number(evidence['cpu_duration']['value'], 3)} ms, an increase of {_formatted_number(evidence['duration_increase']['value'], 1)} percent {_citation(evidence['healthy_duration'])} {_citation(evidence['cpu_duration'])} {_citation(evidence['duration_increase'])}.
+Every node_leak run retained {_formatted_number(evidence['leak_retained']['value'], 0)} nodes across {_formatted_number(evidence['leak_retained'].get('run_count', 0), 0)} runs {_citation(evidence['leak_retained'])}. Healthy retained {_formatted_number(evidence['healthy_retained']['value'], 0)} across {_formatted_number(evidence['healthy_retained'].get('run_count', 0), 0)} runs {_citation(evidence['healthy_retained'])}, and cpu_spike retained {_formatted_number(evidence['cpu_retained']['value'], 0)} across {_formatted_number(evidence['cpu_retained'].get('run_count', 0), 0)} runs {_citation(evidence['cpu_retained'])}.
+Stored CPU configurations were {configuration_text} {_citation(evidence['cpu_configurations'])}.
+The current controller gives healthy the actor workload only {_citation(evidence['healthy_behavior'])}, routes cpu_spike through the nested numerical workload {_citation(evidence['cpu_behavior'])}, and periodically retains node_leak nodes {_citation(evidence['leak_behavior'])}.
+
+## Possible explanations
+The observed cpu_spike timing is consistent with its intentional nested numerical workload {_citation(evidence['cpu_workload'])} {_citation(evidence['cpu_behavior'])}.
+The node_leak retention is consistent with the controller's intentional periodic retention branch {_citation(evidence['leak_retained'])} {_citation(evidence['leak_behavior'])}.
+
+## Recommended next investigation
+- Compare each CPU configuration separately to avoid mixing stored configurations {_citation(evidence['cpu_configurations'])}.
+- Inspect repeated healthy and cpu_spike runs under one fixed configuration {_citation(evidence['healthy_workload'])} {_citation(evidence['cpu_workload'])} {_citation(evidence['cpu_configurations'])}.
+- Measure node growth over the node_leak samples against its retention behavior {_citation(evidence['leak_retained'])} {_citation(evidence['leak_behavior'])}.
+
+## Remaining uncertainty
+Validator success proves only that the configured checks passed; it does not prove that no other performance problem exists {_citation(evidence['validated_count'])}.
+{REQUIRED_UNCERTAINTY}
+"""
+
+
 def _supported_number(token: str, cited_items: list[dict[str, Any]]) -> bool:
     normalized = token.replace(",", "")
     try:
@@ -414,7 +581,7 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
         for item in evidence_items
         if isinstance(item, dict) and isinstance(item.get("id"), str)
     }
-    citations = re.findall(r"\[(E\d+)\]", report)
+    citations = EVIDENCE_CITATION.findall(report)
     if any(citation not in by_id for citation in citations):
         errors.add("G02_UNKNOWN_EVIDENCE")
 
@@ -422,11 +589,13 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
     passed = isinstance(validation, dict) and validation.get("status") == "passed"
     lowered = report.lower()
     if passed:
-        required = {
-            "E1", "E2", "E3", "E4", "E6", "E7", "E10", "E11", "E13",
-            "E14", "E15", "E16", "E19", "E20", "E21", "E22",
-        }
-        if not required.issubset(set(citations)):
+        try:
+            semantic = _semantic_evidence(packet)
+        except EvidenceSchemaError:
+            semantic = {}
+            errors.add("G15_EVIDENCE_SCHEMA")
+        required_ids = {item["id"] for item in semantic.values()}
+        if not required_ids.issubset(set(citations)):
             errors.add("G03_REQUIRED_EVIDENCE_MISSING")
         for scenario in ("healthy", "node_leak", "cpu_spike"):
             if scenario not in lowered:
@@ -437,8 +606,8 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
     for line in report.splitlines():
         if line.startswith("##"):
             continue
-        line_citations = re.findall(r"\[(E\d+)\]", line)
-        numeric_text = re.sub(r"\[E\d+\]", "", line)
+        line_citations = EVIDENCE_CITATION.findall(line)
+        numeric_text = EVIDENCE_CITATION.sub("", line)
         numeric_text = re.sub(r"(?<=\d)[x×](?=\d)", " ", numeric_text)
         numbers = re.findall(r"(?<![A-Za-z_0-9])\d[\d,]*(?:\.\d+)?", numeric_text)
         if numbers and not line_citations:
@@ -451,7 +620,11 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
         for heading in ("## Validation status", "## Verified facts"):
             for line in sections[heading].splitlines():
                 content = line.strip().lstrip("-* ")
-                if content and not re.search(r"\[E\d+\]", content):
+                if (
+                    content
+                    and content != REPORT_SOURCE_DISCLOSURE
+                    and not EVIDENCE_CITATION.search(content)
+                ):
                     errors.add("G14_UNCITED_VERIFIED_FACT")
 
     if REQUIRED_UNCERTAINTY not in sections["## Remaining uncertainty"]:
@@ -462,13 +635,18 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
             errors.add("G09_UNSUPPORTED_CAUSE")
 
     if passed:
+        behavior_ids = {
+            semantic[name]["id"]
+            for name in ("healthy_behavior", "leak_behavior", "cpu_behavior")
+            if name in semantic
+        }
         explanations = sections["## Possible explanations"]
         for line in explanations.splitlines():
             content = line.strip().lstrip("-* ")
             if not content or content == REQUIRED_UNCERTAINTY:
                 continue
-            cited = set(re.findall(r"\[(E\d+)\]", content))
-            if "hypothesis" not in content.lower() and not cited.intersection({"E20", "E21", "E22"}):
+            cited = set(EVIDENCE_CITATION.findall(content))
+            if "hypothesis" not in content.lower() and not cited.intersection(behavior_ids):
                 errors.add("G10_UNGROUNDED_EXPLANATION")
 
     recommendations = sections["## Recommended next investigation"]
@@ -476,7 +654,7 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
         content = line.strip().lstrip("-* ")
         if not content:
             continue
-        if passed and not re.search(r"\[E\d+\]", content):
+        if passed and not EVIDENCE_CITATION.search(content):
             errors.add("G11_UNCITED_RECOMMENDATION")
         if re.search(r"\b(modify|edit|delete|overwrite|repair|fix|write)\b", content.lower()):
             errors.add("G12_MUTATING_RECOMMENDATION")
@@ -533,13 +711,30 @@ def main(argv: list[str] | None = None) -> int:
     grounding_errors = validate_grounded_report(report, packet)
     if grounding_errors:
         print(
-            f"ERROR: investigator grounding failed ({','.join(grounding_errors)}).",
+            f"WARNING: model output failed grounding ({','.join(grounding_errors)}); "
+            "using deterministic fallback.",
             file=sys.stderr,
         )
-        return 1
+        try:
+            report = render_deterministic_fallback(packet)
+        except EvidenceSchemaError:
+            print("ERROR: investigator grounding failed (G15_EVIDENCE_SCHEMA).", file=sys.stderr)
+            return 1
+        fallback_errors = validate_grounded_report(report, packet)
+        if fallback_errors:
+            print(
+                f"ERROR: deterministic fallback failed grounding "
+                f"({','.join(fallback_errors)}).",
+                file=sys.stderr,
+            )
+            return 1
+        validation = packet.get("validation", {})
+        print(report)
+        return 0 if validation.get("status") == "passed" else 1
 
+    validation = packet.get("validation", {})
     print(report)
-    return 0
+    return 0 if validation.get("status") == "passed" else 1
 
 
 if __name__ == "__main__":

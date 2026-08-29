@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from contextlib import redirect_stderr, redirect_stdout
+import copy
 import importlib
 import io
 import json
 import os
 from pathlib import Path
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -170,7 +172,10 @@ class ValidatorRunnerTests(unittest.TestCase):
 
         self.assertEqual(evidence["validation"]["status"], "passed", evidence)
         self.assertEqual(evidence["validation"]["exit_code"], 0)
-        self.assertEqual(len(evidence["evidence"]), 22)
+        self.assertEqual(
+            set(investigator._semantic_evidence(evidence)),
+            set(investigator.REQUIRED_EVIDENCE),
+        )
 
 
 class EvidencePacketTests(unittest.TestCase):
@@ -185,29 +190,54 @@ class EvidencePacketTests(unittest.TestCase):
         self.assertEqual(canonical, json.dumps(second, sort_keys=True, separators=(",", ":")))
         self.assertEqual(json.loads(canonical), self.packet)
 
-    def test_packet_has_stable_unique_evidence_ids(self) -> None:
-        self.assertEqual(list(self.by_id), [f"E{index}" for index in range(1, 23)])
+    def test_packet_has_unique_opaque_evidence_ids(self) -> None:
+        identifiers = [item["id"] for item in self.packet["evidence"]]
+        self.assertEqual(len(identifiers), len(set(identifiers)))
         for item in self.packet["evidence"]:
             self.assertFalse(Path(item["source"]).is_absolute())
 
     def test_packet_recalculates_current_aggregate_values(self) -> None:
-        self.assertEqual(self.by_id["E1"]["value"], 21)
-        self.assertEqual(self.by_id["E2"]["value"], 148.0)
-        self.assertEqual(self.by_id["E3"]["value"], 8549.0)
-        self.assertAlmostEqual(self.by_id["E4"]["value"], 57.7635135135)
-        self.assertEqual(self.by_id["E6"]["value"], 0.408)
-        self.assertEqual(self.by_id["E7"]["value"], 12.5885)
-        self.assertEqual(self.by_id["E10"]["value"], 4976.01)
-        self.assertEqual(self.by_id["E11"]["value"], 6406.27)
-        self.assertAlmostEqual(self.by_id["E13"]["value"], 28.7431094391)
+        resolved = investigator._semantic_evidence(self.packet)
+        result_files = sorted((investigator.REPOSITORY_ROOT / "demo_project/results").glob("*.json"))
+        results = [json.loads(path.read_text(encoding="utf-8")) for path in result_files]
+        grouped = {
+            scenario: [result for result in results if result["scenario"] == scenario]
+            for scenario in ("healthy", "node_leak", "cpu_spike")
+        }
+        healthy_workload = statistics.median(
+            result["summary"]["timing"]["workload_time_usec"]["p95"]
+            for result in grouped["healthy"]
+        )
+        cpu_workload = statistics.median(
+            result["summary"]["timing"]["workload_time_usec"]["p95"]
+            for result in grouped["cpu_spike"]
+        )
+        healthy_duration = statistics.median(
+            result["summary"]["scenario_duration_ms"] for result in grouped["healthy"]
+        )
+        cpu_duration = statistics.median(
+            result["summary"]["scenario_duration_ms"] for result in grouped["cpu_spike"]
+        )
+        self.assertEqual(resolved["validated_count"]["value"], len(results))
+        self.assertEqual(resolved["healthy_workload"]["value"], healthy_workload)
+        self.assertEqual(resolved["cpu_workload"]["value"], cpu_workload)
+        self.assertAlmostEqual(resolved["workload_ratio"]["value"], cpu_workload / healthy_workload)
+        self.assertAlmostEqual(
+            resolved["duration_increase"]["value"],
+            (cpu_duration / healthy_duration - 1.0) * 100.0,
+        )
 
     def test_packet_covers_retention_configuration_and_source_behavior(self) -> None:
-        self.assertEqual((self.by_id["E14"]["value"], self.by_id["E14"]["run_count"]), (120, 6))
-        self.assertEqual((self.by_id["E15"]["value"], self.by_id["E15"]["run_count"]), (0, 9))
-        self.assertEqual((self.by_id["E16"]["value"], self.by_id["E16"]["run_count"]), (0, 6))
-        self.assertEqual(self.by_id["E19"]["value"], {"160x160": 3, "240x240": 3})
+        resolved = investigator._semantic_evidence(self.packet)
+        self.assertEqual(resolved["leak_retained"]["value"], 120)
+        self.assertEqual(resolved["healthy_retained"]["value"], 0)
+        self.assertEqual(resolved["cpu_retained"]["value"], 0)
+        self.assertGreaterEqual(len(resolved["cpu_configurations"]["value"]), 1)
         self.assertEqual(
-            {self.by_id[evidence_id]["source_type"] for evidence_id in ("E20", "E21", "E22")},
+            {
+                resolved[name]["source_type"]
+                for name in ("healthy_behavior", "leak_behavior", "cpu_behavior")
+            },
             {"allowlisted_source"},
         )
         controller = (investigator.REPOSITORY_ROOT / "demo_project/scripts/benchmark_controller.gd").read_text(encoding="utf-8")
@@ -215,41 +245,90 @@ class EvidencePacketTests(unittest.TestCase):
             self.assertIn(fragment, controller)
 
 
-GOOD_REPORT = """## Validation status
-The validator passed all 21 files under its configured checks [E1].
-
-## Verified facts
-The healthy median p95 workload was 148 usec and the cpu_spike value was 8,549 usec, a 57.76x ratio [E2] [E3] [E4].
-The corresponding process medians were 0.408 ms and 12.5885 ms [E6] [E7].
-Median duration increased from 4,976.010 ms to 6,406.270 ms, an increase of 28.7 percent [E10] [E11] [E13].
-Every node_leak run retained 120 nodes across 6 runs [E14]. Healthy retained zero across 9 runs [E15], and cpu_spike retained zero across 6 runs [E16].
-Stored CPU configurations include 160x160 across 3 runs and 240x240 across 3 runs [E19].
-The current controller gives healthy the actor workload only [E22], routes cpu_spike through the nested numerical workload [E20], and periodically retains node_leak nodes [E21].
-
-## Possible explanations
-The observed cpu_spike timing is consistent with its intentional nested numerical workload [E3] [E20].
-The node_leak retention is consistent with the controller's intentional periodic retention branch [E14] [E21].
-
-## Recommended next investigation
-- Compare each CPU configuration separately to avoid mixing the stored configurations [E19].
-- Inspect repeated healthy and cpu_spike runs under one fixed configuration [E2] [E3].
-- Measure node growth over the node_leak samples against its retention behavior [E14] [E21].
-
-## Remaining uncertainty
-The available evidence does not establish the root cause.
-"""
-
-
 class GroundingGateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.packet = investigator.run_validator("demo_project/results")
 
+    def grounded_report(self) -> str:
+        return investigator.render_deterministic_fallback(self.packet)
+
+    def renumbered_packet(self) -> dict[str, object]:
+        packet = copy.deepcopy(self.packet)
+        for index, item in enumerate(packet["evidence"], 100):
+            item["id"] = f"R{index}"
+        return packet
+
     def test_grounded_report_passes(self) -> None:
-        self.assertEqual(investigator.validate_grounded_report(GOOD_REPORT, self.packet), [])
+        self.assertEqual(investigator.validate_grounded_report(self.grounded_report(), self.packet), [])
+
+    def test_renumbered_evidence_passes_and_fallback_uses_new_ids(self) -> None:
+        packet = self.renumbered_packet()
+        report = investigator.render_deterministic_fallback(packet)
+
+        self.assertEqual(investigator.validate_grounded_report(report, packet), [])
+        self.assertIn("[R100]", report)
+        self.assertNotIn("[E1]", report)
+
+    def test_unrelated_evidence_does_not_change_fallback(self) -> None:
+        packet = copy.deepcopy(self.packet)
+        packet["evidence"].append(
+            {
+                "id": "EXTRA",
+                "claim": "Unrelated diagnostic note.",
+                "metric": "unrelated_metric",
+                "value": "ignored",
+                "unit": None,
+                "scenario": "all",
+                "source_type": "validated_result",
+                "source": "validated result aggregate",
+            }
+        )
+
+        self.assertEqual(
+            investigator.render_deterministic_fallback(packet),
+            self.grounded_report(),
+        )
+
+    def test_missing_or_duplicate_semantic_evidence_fails_safely(self) -> None:
+        missing = copy.deepcopy(self.packet)
+        missing["evidence"] = [
+            item
+            for item in missing["evidence"]
+            if item["metric"] != "cpu_workload_configurations"
+        ]
+        duplicate = copy.deepcopy(self.packet)
+        duplicate_item = copy.deepcopy(
+            investigator._semantic_evidence(duplicate)["cpu_workload"]
+        )
+        duplicate_item["id"] = "DUPLICATE"
+        duplicate["evidence"].append(duplicate_item)
+
+        with self.assertRaises(investigator.EvidenceSchemaError):
+            investigator.render_deterministic_fallback(missing)
+        with self.assertRaises(investigator.EvidenceSchemaError):
+            investigator.render_deterministic_fallback(duplicate)
+        self.assertIn(
+            "G15_EVIDENCE_SCHEMA",
+            investigator.validate_grounded_report(self.grounded_report(), missing),
+        )
+
+    def test_fallback_is_deterministic_and_discloses_its_source(self) -> None:
+        first = investigator.render_deterministic_fallback(self.packet)
+        second = investigator.render_deterministic_fallback(copy.deepcopy(self.packet))
+
+        self.assertEqual(first, second)
+        self.assertIn(investigator.REPORT_SOURCE_DISCLOSURE, first)
+        for scenario in ("healthy", "node_leak", "cpu_spike"):
+            self.assertIn(scenario, first)
+        self.assertIn(investigator.REQUIRED_UNCERTAINTY, first)
 
     def test_before_like_wrong_percentage_and_speculation_are_blocked(self) -> None:
-        report = GOOD_REPORT.replace("28.7 percent", "25 percent").replace(
+        resolved = investigator._semantic_evidence(self.packet)
+        correct_percentage = investigator._formatted_number(
+            resolved["duration_increase"]["value"], 1
+        )
+        report = self.grounded_report().replace(f"{correct_percentage} percent", "25 percent").replace(
             "The observed cpu_spike timing",
             "Thermal throttling may explain the observed cpu_spike timing",
         )
@@ -258,7 +337,8 @@ class GroundingGateTests(unittest.TestCase):
         self.assertIn("G09_UNSUPPORTED_CAUSE", errors)
 
     def test_missing_scenario_citations_and_uncertainty_are_blocked(self) -> None:
-        report = GOOD_REPORT.replace("node_leak", "leak case").replace("[E14]", "[E404]").replace(
+        leak_id = investigator._semantic_evidence(self.packet)["leak_retained"]["id"]
+        report = self.grounded_report().replace("node_leak", "leak case").replace(f"[{leak_id}]", "[missing-evidence]").replace(
             investigator.REQUIRED_UNCERTAINTY, "A cause is proven."
         )
         errors = investigator.validate_grounded_report(report, self.packet)
@@ -268,7 +348,7 @@ class GroundingGateTests(unittest.TestCase):
         self.assertIn("G08_REQUIRED_UNCERTAINTY", errors)
 
     def test_uncited_verified_fact_is_blocked(self) -> None:
-        report = GOOD_REPORT.replace(
+        report = self.grounded_report().replace(
             "The corresponding process medians",
             "The result set is suitable for comparison.\nThe corresponding process medians",
         )
@@ -286,7 +366,7 @@ class GroundingGateTests(unittest.TestCase):
             exit_code=1,
             stderr="validation failed",
         )
-        report = GOOD_REPORT.replace("21 files", "1 file")
+        report = self.grounded_report().replace("The validator passed", "The validator passed")
         self.assertIn("G05_FALSE_VALIDATION_SUCCESS", investigator.validate_grounded_report(report, packet))
 
     def test_failed_packet_allows_safe_failure_report_without_evidence_claims(self) -> None:
@@ -315,8 +395,8 @@ The available evidence does not establish the root cause.
 """
         self.assertEqual(investigator.validate_grounded_report(report, packet), [])
 
-    def test_cli_blocks_invalid_report_without_retrying_or_printing_it(self) -> None:
-        invalid = GOOD_REPORT.replace("28.7 percent", "25 percent")
+    def test_cli_uses_fallback_without_retrying_or_printing_rejected_text(self) -> None:
+        invalid = "REJECTED MODEL TEXT WITH 25 PERCENT"
         result = SimpleNamespace(
             final_output=invalid,
             new_items=[SimpleNamespace(output=json.dumps(self.packet))],
@@ -328,11 +408,79 @@ The available evidence does not establish the root cause.
             with patch.object(investigator.Runner, "run_sync", runner):
                 with redirect_stderr(stderr), redirect_stdout(stdout):
                     exit_code = investigator.main(["demo_project/results"])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(runner.call_count, 1)
+        self.assertIn(investigator.REPORT_SOURCE_DISCLOSURE, stdout.getvalue())
+        self.assertIn("WARNING: model output failed grounding", stderr.getvalue())
+        self.assertNotIn(invalid, stderr.getvalue())
+        self.assertNotIn(invalid, stdout.getvalue())
+
+    def test_cli_failure_fallback_remains_nonzero(self) -> None:
+        packet = investigator._evidence_packet(
+            validation_status="failed",
+            validator_invoked=True,
+            results_directory="demo_project/results",
+            json_file_count=1,
+            exit_code=1,
+            stderr="validation failed",
+        )
+        rejected = "REJECTED FAILURE REPORT"
+        result = SimpleNamespace(
+            final_output=rejected,
+            new_items=[SimpleNamespace(output=json.dumps(packet))],
+        )
+        stderr = io.StringIO()
+        stdout = io.StringIO()
+        runner = Mock(return_value=result)
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
+            with patch.object(investigator.Runner, "run_sync", runner):
+                with redirect_stderr(stderr), redirect_stdout(stdout):
+                    exit_code = investigator.main(["demo_project/results"])
+
         self.assertEqual(exit_code, 1)
         self.assertEqual(runner.call_count, 1)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertIn("G07_UNSUPPORTED_NUMBER", stderr.getvalue())
-        self.assertNotIn(invalid, stderr.getvalue())
+        self.assertIn(investigator.REPORT_SOURCE_DISCLOSURE, stdout.getvalue())
+        self.assertNotIn(rejected, stdout.getvalue() + stderr.getvalue())
+
+    def test_cli_grounded_validation_failure_remains_nonzero(self) -> None:
+        packet = investigator._evidence_packet(
+            validation_status="failed",
+            validator_invoked=True,
+            results_directory="demo_project/results",
+            json_file_count=1,
+            exit_code=1,
+            stderr="validation failed",
+        )
+        grounded_failure = investigator.render_deterministic_fallback(packet).replace(
+            investigator.REPORT_SOURCE_DISCLOSURE + "\n", ""
+        )
+        result = SimpleNamespace(
+            final_output=grounded_failure,
+            new_items=[SimpleNamespace(output=json.dumps(packet))],
+        )
+        stdout = io.StringIO()
+        runner = Mock(return_value=result)
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
+            with patch.object(investigator.Runner, "run_sync", runner):
+                with redirect_stdout(stdout):
+                    exit_code = investigator.main(["demo_project/results"])
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(runner.call_count, 1)
+        self.assertIn("Deterministic validation failed", stdout.getvalue())
+
+    def test_cli_missing_tool_packet_still_fails_safely(self) -> None:
+        result = SimpleNamespace(final_output="untrusted", new_items=[])
+        stderr = io.StringIO()
+        runner = Mock(return_value=result)
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
+            with patch.object(investigator.Runner, "run_sync", runner):
+                with redirect_stderr(stderr):
+                    exit_code = investigator.main(["demo_project/results"])
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(runner.call_count, 1)
+        self.assertIn("G00_EVIDENCE_PACKET", stderr.getvalue())
 
 
 class InvestigatorConfigurationTests(unittest.TestCase):
@@ -364,11 +512,12 @@ class InvestigatorConfigurationTests(unittest.TestCase):
         ):
             self.assertIn(heading, default_agent.instructions)
         for requirement in (
-            "[E1]",
-            "healthy, node_leak,\nand cpu_spike",
+            "opaque evidence ID",
+            "healthy, node_leak, and cpu_spike",
             investigator.REQUIRED_UNCERTAINTY,
             "thermal throttling",
             "read-only, testable",
+            "Use this content skeleton",
         ):
             self.assertIn(requirement, default_agent.instructions)
 

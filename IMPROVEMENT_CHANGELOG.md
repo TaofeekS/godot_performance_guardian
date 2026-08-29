@@ -158,6 +158,57 @@ Retain the deterministic packet and local grounding gate. They make unsupported 
 
 The next experiment should run exactly one post-change live evaluation with a newly issued environment-only key and a fixed, uniform benchmark result set. Score it against the original 4/4 report-quality rubric, verify all three scenarios are included, and require zero unsupported causal claims.
 
+## 2026-08-29 — Experiment 4: Schema-driven deterministic fallback
+
+**Status:** Retained; fallback verified locally, live fallback unverified
+
+### Hypothesis and reason
+
+Before Experiment 4, rejected model output produced no usable investigation. After Experiment 4, the same failure produces a deterministic, fully cited report without another API request.
+
+The user observed a live report rejected with `G03_REQUIRED_EVIDENCE_MISSING`, `G04_SCENARIO_COVERAGE`, `G07_UNSUPPORTED_NUMBER`, `G08_REQUIRED_UNCERTAINTY`, `G11_UNCITED_RECOMMENDATION`, and `G13_UNTESTABLE_RECOMMENDATION`. The gate protected the evidence boundary, but returning only rule IDs made a completed validation and API request operationally unhelpful.
+
+### Change
+
+Added a deterministic five-section fallback that uses only the validator packet and is checked by the same grounding gate before it is printed. Rejected model text is neither printed nor stored, the SDK runner is not retried, and successful deterministic validation produces a successful CLI result. Validator failure still returns nonzero.
+
+Evidence selection no longer depends on the current `E1` through `E22` numbering. Required facts are resolved uniquely by metric, scenario, source type, unit, and value shape; packet IDs are treated as opaque labels and carried into citations only. Renumbered evidence and unrelated additions are supported, while missing, duplicate, or malformed required semantic evidence fails safely.
+
+Every fallback begins with:
+
+```text
+Report source: Deterministic fallback generated after model output failed grounding.
+```
+
+### Evaluation method
+
+No Godot or OpenAI API request was made. Standard-library tests used the real stored-result validator, mocked SDK results, renumbered packets, unrelated evidence, missing and duplicate semantic items, grounded and rejected report fixtures, and validation-failure packets. Canonical structured validator output was generated twice and compared.
+
+The current directory had expanded to 31 validated files: 13 healthy, nine node-leak, and nine CPU-spike. Its CPU results contain three `160 x 160` and six `240 x 240` workloads, so the aggregate is regression-safety evidence rather than a controlled comparison with Baseline 0.
+
+### Observed result
+
+```text
+Ran 39 tests in 1.319s
+OK
+```
+
+```text
+INFO: median p95 workload: healthy=163.000 usec, cpu_spike=11510.000 usec, ratio=70.61x
+INFO: supporting evidence: process p95 healthy=0.605000 ms, cpu_spike=12.537000 ms; duration healthy=4976.010 ms, cpu_spike=7285.752 ms
+Validated 31 result files successfully.
+```
+
+The fallback passed the same grounding gate after every ID was renumbered, used the new IDs automatically, and remained unchanged when unrelated evidence was added. Missing and duplicate semantic matches failed safely. The observed rejection path returned a fully cited report, did not emit the rejected sentinel text, invoked the SDK runner once, and returned success because validation had passed. Both generated structured packets were identical.
+
+The first implementation test run exposed five failures: historical assertions still assumed the earlier 21-file result set and the pre-fallback exit behavior. Replacing those fixed counts with calculations from the current packet removed another form of accidental coupling.
+
+### Decision and next step
+
+Retain the schema-driven matcher and fallback. Strict grounding remains the first choice, while deterministic evidence rendering makes rejection useful without weakening validation or spending another API request.
+
+The next experiment should repeat one live investigator request against a fixed result directory and confirm that either the model report passes directly or the exact fallback disclosure and fully cited report are returned. Live fallback behavior remains unverified.
+
 
 
 ## Removed-experiment status

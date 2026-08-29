@@ -830,3 +830,75 @@ The documentation skill's official `quick_validate.py` printed `Skill is valid!`
 The documentation audit resolved all 15 README links, found every required source and skill file, confirmed final newlines and no trailing whitespace, and reconfirmed that the documented clone URL matches the configured `origin` fetch URL. Filename-only scans found no API-key-pattern match in the working tree, tracked files, staged content, or reachable history. `git diff --check` reported no whitespace error, only Git's existing Windows line-ending notices.
 
 No Godot run, post-change live API request, commit, or push occurred. The implementation and deterministic local controls are verified; the quality and 4/4 rubric result of a future grounded live report remain unverified.
+
+## 2026-08-29 — Experiment 4: Schema-driven deterministic fallback
+
+### Reported live failure and planning
+
+The user reported this exact grounding result from a live investigator run:
+
+```text
+ERROR: investigator grounding failed (G03_REQUIRED_EVIDENCE_MISSING,G04_SCENARIO_COVERAGE,G07_UNSUPPORTED_NUMBER,G08_REQUIRED_UNCERTAINTY,G11_UNCITED_RECOMMENDATION,G13_UNTESTABLE_RECOMMENDATION).
+```
+
+Inspection confirmed that the API and deterministic validator had completed, but the model report failed six literal post-generation checks. The rejected report itself was unavailable by design, so no claim was made about its exact wording. The agent identified a prompt–gate mismatch: the gate required a fixed set of citations, literal scenario tokens, evidence-compatible numeric presentation, an exact uncertainty sentence, cited recommendations, and a narrow action-verb allowlist.
+
+The user selected a safe deterministic fallback rather than relaxing the evidence boundary. The first plan was then corrected with this requirement:
+
+> avoid permanent dependecies on the exact e1 to e22
+>
+> Report source: Deterministic fallback generated after model output failed grounding.
+>
+> Before Experiment 4, rejected model output produced no usable investigation. After Experiment 4, the same failure produces a deterministic, fully cited report without another API request.
+
+The revised schema-driven plan was approved in full. It treats IDs as opaque citation labels and makes metric, scenario, source type, unit, and value shape the stable interface.
+
+### Implementation
+
+`agent/investigator.py` gained a semantic evidence resolver with sixteen required categories covering validation count; workload, process, and duration comparisons; retained-node evidence for all scenarios; CPU configuration; and allowlisted behavior for healthy, node-leak, and CPU-spike. It rejects missing, ambiguous, duplicate-ID, wrong-unit, or wrong-value-shape evidence without exposing packet contents in CLI errors.
+
+The grounding gate now derives required citations and causal-source citations from those semantic matches rather than hard-coded `E` numbers. Citation parsing accepts safe opaque labels. Renumbering items or adding unrelated evidence does not alter report meaning.
+
+A deterministic fallback renderer uses only resolved packet values and their actual IDs. It includes the exact report-source disclosure, all five sections, all scenarios, evidence-linked explanations and read-only investigations, the validator limitation, and the exact root-cause uncertainty statement. The same gate validates it before output.
+
+When model output is rejected, stderr contains only a warning and rule identifiers; the rejected text is not emitted. The fallback is printed without a second SDK call. Passed deterministic validation returns zero, while failed validation produces an evidence-empty report and remains nonzero. Missing packets and invalid semantic schemas continue to fail safely.
+
+### Test failures and response
+
+The first implementation run executed 32 tests and failed five. Current repository evidence had expanded from the 21-file Experiment 3 set to 31 files, including 13 healthy, nine node-leak, and nine CPU-spike results. Historical tests still expected 21 files, six leak runs, and the earlier aggregate numbers. Another test still expected rejected reports to exit nonzero with empty stdout, and the instruction test still expected literal `[E1]` wording.
+
+The failures were not benchmark-validator failures. The direct validator passed all 31 files. Tests were changed to recompute expected aggregates and run counts from the current JSON set, resolve evidence semantically, and assert the new fallback contract. This removed fixed result-count and evidence-number coupling.
+
+The next run executed 38 tests and had one remaining instruction-string mismatch caused by a changed line wrap. That assertion was updated to check the semantic wording rather than formatting. Review then found that an already grounded validation-failure report still returned zero on the normal output path. The CLI exit logic was corrected and a regression test was added.
+
+### Verified local result
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m py_compile .\agent\investigator.py .\tools\validate_results.py .\tests\test_investigator.py
+.\.venv\Scripts\python.exe .\tools\validate_results.py .\demo_project\results
+```
+
+```text
+Ran 39 tests in 1.319s
+
+OK
+```
+
+```text
+INFO: median p95 workload: healthy=163.000 usec, cpu_spike=11510.000 usec, ratio=70.61x
+INFO: supporting evidence: process p95 healthy=0.605000 ms, cpu_spike=12.537000 ms; duration healthy=4976.010 ms, cpu_spike=7285.752 ms
+Validated 31 result files successfully.
+```
+
+Two structured validator invocations produced identical canonical JSON. Python byte-compilation succeeded. The fallback itself passed the same grounding gate, used renumbered IDs automatically, ignored unrelated evidence, failed safely on missing or duplicate semantic matches, emitted no rejected sentinel text, and invoked the mocked SDK runner exactly once.
+
+The repository documentation skill and agent trajectory skill were used for the synchronized README, Experiment 4 changelog, and this chronological record. `OPENAI_API_KEY` was absent from the implementation process, so no live request occurred. Final skill, link, secret-pattern, whitespace, and Git-state checks followed this entry.
+
+### Final verification result
+
+The documentation skill's official validator printed `Skill is valid!`. PyYAML 6.0.3 was supplied only through a uniquely named system-temporary directory, which was removed after validation. No temporary validation directory remained.
+
+The final README audit found all 17 numbered sections, resolved all 15 Markdown links, confirmed the clone URL still matches the configured `origin` fetch URL, and found no trailing whitespace or missing final newline. Filename-only secret-pattern scans found no match in the working tree, tracked files, staged content, or reachable history. `git diff --check` reported no whitespace error; Git emitted only its existing Windows line-ending notices.
+
+Five repository files were modified for Experiment 4: the investigator, its tests, README, improvement changelog, and trajectory. The benchmark controller and validator were unchanged. No Godot run, live API request, commit, or push occurred.
