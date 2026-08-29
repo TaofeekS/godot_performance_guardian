@@ -260,13 +260,13 @@ class GenericValidationTests(unittest.TestCase):
         with self.assertRaises(check_budgets.BudgetConfigurationError):
             check_budgets.parse_budget_configuration(synthetic)
 
-    def test_canonical_live_fixture_validates_and_passes_its_budget(self) -> None:
-        fixture_path = ROOT / "examples/fixtures/main_scene-godot-4.5.1.json"
+    def test_tracked_generic_fixture_validates_and_passes_its_budget(self) -> None:
+        fixture_path = ROOT / "tests/fixtures/generic_results/main_scene.json"
         capture = json.loads(fixture_path.read_text(encoding="utf-8"))
         validation = self.validate(capture)
         self.assertEqual(validation.errors, [])
         packet = validate_results.generic_evidence_packet(
-            ["examples/fixtures/main_scene-godot-4.5.1.json"],
+            ["tests/fixtures/generic_results/main_scene.json"],
             [fixture_path],
             [(fixture_path, capture)],
             validation,

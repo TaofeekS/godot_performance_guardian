@@ -1151,3 +1151,53 @@ Python byte-compilation succeeded. All 49 historical synthetic results validated
 No original synthetic Godot benchmark, API request, credential access, permanent dependency, commit, or push occurred. Final skill, link, secret-pattern, whitespace, and Git-state checks follow this entry.
 
 The documentation skill printed `Skill is valid!` using PyYAML 6.0.3 from a uniquely named temporary directory; cleanup left zero matching temporary directories. The final audit resolved all 26 relative README links, confirmed all 17 numbered sections, verified final newlines and no trailing whitespace, and matched the documented repository remote to both configured `origin` URLs. Filename-only API-key scans found no candidate in the working tree, tracked files, staged content, or reachable Git history. `git diff --check` returned `0` with only existing Windows line-ending notices. Git status contained only the intended validator test, documentation, and ongoing addon work; both ignored result files remained present and the ignored addon copy remained absent.
+
+## 2026-08-29 — Clean-clone test-fixture correction
+
+### Request and verified dependency cause
+
+The user asked why `httpx2` appeared in `test_investigator`, requested that all 68 tests work in a clean environment, requested a fresh evaluation of the canonical fixture and its budgets, and authorized a small corrective commit. The user then made the reproducibility requirement explicit:
+
+> Verify whether any automated test depends on ignored demo_project/results files. Tests intended to pass from a fresh Git clone must use tracked, fixed fixtures under tests/fixtures/. Keep the 49 historical local results only for a separate integration check.
+
+Inspection found that `openai==3.6.0`, selected by `openai-agents==0.22.0`, installs `httpx2` as a transitive transport dependency. The tests had imported `httpx2.Request` and `httpx2.Response` only to construct mocked rate-limit errors; application code did not directly depend on it. The audit also found real references to the ignored `demo_project/results/` directory in investigator path, validator-subprocess, evidence-packet, grounding, CLI-preflight, and portable-addon tests. Those tests could therefore pass locally while failing from a fresh clone.
+
+### Fixture and dependency changes
+
+Two small tracked fixtures were added. `tests/fixtures/generic_results/main_scene.json` is a schema-valid generic capture used for containment, real validator subprocess, generic-schema, and fixed-budget coverage. `tests/fixtures/investigator/evidence_packet.json` contains deterministic opaque evidence IDs, every semantic category required by the grounding gate, all three scenarios, limitations, and allowlisted controller behavior.
+
+All default tests now use those fixtures or temporary directories. The rate-limit tests use `SimpleNamespace` request/response doubles and no longer import the indirect transport package. `requirements-agent.txt` pins both `openai-agents==0.22.0` and the verified compatible `openai==3.6.0`; `httpx2` remains dependency-managed by OpenAI rather than a repository test API. A source scan found no remaining `demo_project/results` or `httpx2` reference under `tests/`.
+
+### Encountered failures and response
+
+The first fixture-backed test run failed two tests because the new generic fixture used a semantically equivalent but schema-inexact percentile-description string. The validator intentionally requires the contract's exact nearest-rank definition. The fixture was corrected to that exact definition; no validator rule was weakened. The next complete local run passed all 68 tests.
+
+The first attempt to stage the clean-snapshot inputs failed because the sandbox could not create `.git/index.lock`. The same narrowly scoped `git add` operation was rerun with repository Git-write approval and succeeded. No unrelated file was staged.
+
+### Clean exported-snapshot proof
+
+The staged index was exported with `git checkout-index` into a uniquely named system-temporary directory. The export contained zero ignored result files and no repository virtual environment. A fresh Python 3.14 virtual environment was created inside the export, and only `requirements-agent.txt` was installed. `pip check` reported no broken requirements, byte compilation succeeded, and the complete suite reported:
+
+```text
+Ran 68 tests in 0.500s
+
+OK
+```
+
+The tracked canonical portable fixture was then validated independently. Its process p95 was `0.529 ms <= 1.1 ms`, and its peak node count was `3 <= 3`; the validator and both schema-v2 budget rules returned `0`. The temporary export and virtual environment were removed after verification and confirmed absent.
+
+### Separate local integration evidence
+
+The ignored historical directory was evaluated only after the clean-clone proof. All 49 synthetic results validated with exit `0`. Their current aggregate reported healthy/CPU-spike median p95 workload of `163 usec`/`11,585 usec`, a `71.07x` ratio. The unchanged Experiment 5 policy returned its expected exit `1`, and only `cpu-spike-workload-p95` and `node-leak-retained-nodes` failed. Repeated canonical evidence and budget JSON output for the tracked fixture was byte-identical.
+
+README now distinguishes tracked unit fixtures, the tracked canonical portable integration fixture, and optional ignored historical evidence. `IMPROVEMENT_CHANGELOG.md` was deliberately left unchanged because this task corrects test infrastructure rather than introducing a product experiment. No Godot process, API request, credential access, historical-result mutation, or push occurred. Final documentation-skill, link, secret, whitespace, staged-diff, and commit verification follow this entry.
+
+### Final verification and focused commit
+
+The repository suite was rerun after the final fixture changes and passed all 68 tests in 0.395 seconds; byte compilation also passed. The official documentation-skill validator printed `Skill is valid!` with PyYAML 6.0.3 supplied only through a unique system-temporary directory, and cleanup confirmed that directory no longer existed.
+
+The canonical integration recheck initially used a stale guessed budget filename and correctly returned configuration exit `2`; listing the tracked example files identified `examples/minimal_project/budgets/performance_budgets.json`. The corrected command validated the canonical capture with exit `0` and passed both budgets with exit `0`: process p95 `0.529 ms <= 1.1 ms` and peak nodes `3 <= 3`.
+
+The final audit found both new fixtures tracked, no ignored-results path or direct `httpx2` import under `tests/`, all 28 README links present, all 17 required README headings in order, final newlines, and no trailing whitespace. `git diff --check` and its staged equivalent passed. A first changelog-unchanged harness used PowerShell command output as a Boolean even though `git diff --quiet` communicates through its exit code; the corrected check inspected `$LASTEXITCODE` and confirmed both staged and unstaged changelog content was unchanged. A strict filename-only API-key scan found no candidate in the working tree, tracked files, staged content, or reachable history. Both configured `origin` URLs still matched the documented repository URL, and no clean-test or skill-validation temporary directory remained.
+
+The staged set contains only this trajectory, README, the dependency pin, two tracked fixtures, and the two fixture-refactored test modules. The requested single commit uses subject `Make investigator tests reproducible from clean environment`; its identifier is reported in the task handoff. No push is performed.

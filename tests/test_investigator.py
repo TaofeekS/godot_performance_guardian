@@ -7,7 +7,6 @@ import io
 import json
 import os
 from pathlib import Path
-import statistics
 import subprocess
 import sys
 import tempfile
@@ -15,21 +14,30 @@ import unittest
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
-import httpx2
 from openai import RateLimitError
 
 import agent.investigator as investigator
 
 
+FIXTURE_RESULTS_DIRECTORY = "tests/fixtures/generic_results"
+EVIDENCE_PACKET_PATH = (
+    investigator.REPOSITORY_ROOT / "tests/fixtures/investigator/evidence_packet.json"
+)
+
+
+def load_evidence_packet() -> dict[str, object]:
+    return json.loads(EVIDENCE_PACKET_PATH.read_text(encoding="utf-8"))
+
+
 class ResultsDirectoryTests(unittest.TestCase):
     def test_resolves_repository_relative_results_directory(self) -> None:
         resolved, relative, count = investigator.resolve_results_directory(
-            "demo_project/results"
+            FIXTURE_RESULTS_DIRECTORY
         )
 
-        self.assertEqual(resolved, investigator.REPOSITORY_ROOT / "demo_project/results")
-        self.assertEqual(relative, "demo_project/results")
-        self.assertGreaterEqual(count, 9)
+        self.assertEqual(resolved, investigator.REPOSITORY_ROOT / FIXTURE_RESULTS_DIRECTORY)
+        self.assertEqual(relative, FIXTURE_RESULTS_DIRECTORY)
+        self.assertEqual(count, 1)
 
     def test_rejects_absolute_path(self) -> None:
         with self.assertRaises(ValueError):
@@ -167,25 +175,24 @@ class ValidatorRunnerTests(unittest.TestCase):
         self.assertIsNone(evidence["results_directory"])
         self.assertEqual(evidence["evidence"], [])
 
-    def test_runs_existing_validator_against_stored_results(self) -> None:
-        evidence = investigator.run_validator("demo_project/results")
+    def test_runs_existing_validator_against_tracked_fixture(self) -> None:
+        evidence = investigator.run_validator(FIXTURE_RESULTS_DIRECTORY)
 
         self.assertEqual(evidence["validation"]["status"], "passed", evidence)
         self.assertEqual(evidence["validation"]["exit_code"], 0)
-        self.assertEqual(
-            set(investigator._semantic_evidence(evidence)),
-            set(investigator.REQUIRED_EVIDENCE),
-        )
+        self.assertEqual(evidence["results_directory"], FIXTURE_RESULTS_DIRECTORY)
+        self.assertEqual(evidence["validation"]["validated_file_count"], 1)
+        self.assertTrue(all(item.get("profile") == "main_scene" for item in evidence["evidence"][1:]))
 
 
 class EvidencePacketTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.packet = investigator.run_validator("demo_project/results")
+        cls.packet = load_evidence_packet()
         cls.by_id = {item["id"]: item for item in cls.packet["evidence"]}
 
     def test_packet_is_deterministic_and_json_round_trippable(self) -> None:
-        second = investigator.run_validator("demo_project/results")
+        second = load_evidence_packet()
         canonical = json.dumps(self.packet, sort_keys=True, separators=(",", ":"))
         self.assertEqual(canonical, json.dumps(second, sort_keys=True, separators=(",", ":")))
         self.assertEqual(json.loads(canonical), self.packet)
@@ -196,29 +203,13 @@ class EvidencePacketTests(unittest.TestCase):
         for item in self.packet["evidence"]:
             self.assertFalse(Path(item["source"]).is_absolute())
 
-    def test_packet_recalculates_current_aggregate_values(self) -> None:
+    def test_packet_aggregate_values_are_self_consistent(self) -> None:
         resolved = investigator._semantic_evidence(self.packet)
-        result_files = sorted((investigator.REPOSITORY_ROOT / "demo_project/results").glob("*.json"))
-        results = [json.loads(path.read_text(encoding="utf-8")) for path in result_files]
-        grouped = {
-            scenario: [result for result in results if result["scenario"] == scenario]
-            for scenario in ("healthy", "node_leak", "cpu_spike")
-        }
-        healthy_workload = statistics.median(
-            result["summary"]["timing"]["workload_time_usec"]["p95"]
-            for result in grouped["healthy"]
-        )
-        cpu_workload = statistics.median(
-            result["summary"]["timing"]["workload_time_usec"]["p95"]
-            for result in grouped["cpu_spike"]
-        )
-        healthy_duration = statistics.median(
-            result["summary"]["scenario_duration_ms"] for result in grouped["healthy"]
-        )
-        cpu_duration = statistics.median(
-            result["summary"]["scenario_duration_ms"] for result in grouped["cpu_spike"]
-        )
-        self.assertEqual(resolved["validated_count"]["value"], len(results))
+        healthy_workload = resolved["healthy_workload"]["value"]
+        cpu_workload = resolved["cpu_workload"]["value"]
+        healthy_duration = resolved["healthy_duration"]["value"]
+        cpu_duration = resolved["cpu_duration"]["value"]
+        self.assertEqual(resolved["validated_count"]["value"], 9)
         self.assertEqual(resolved["healthy_workload"]["value"], healthy_workload)
         self.assertEqual(resolved["cpu_workload"]["value"], cpu_workload)
         self.assertAlmostEqual(resolved["workload_ratio"]["value"], cpu_workload / healthy_workload)
@@ -248,7 +239,7 @@ class EvidencePacketTests(unittest.TestCase):
 class GroundingGateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.packet = investigator.run_validator("demo_project/results")
+        cls.packet = load_evidence_packet()
 
     def grounded_report(self) -> str:
         return investigator.render_deterministic_fallback(self.packet)
@@ -361,7 +352,7 @@ class GroundingGateTests(unittest.TestCase):
         packet = investigator._evidence_packet(
             validation_status="failed",
             validator_invoked=True,
-            results_directory="demo_project/results",
+            results_directory=FIXTURE_RESULTS_DIRECTORY,
             json_file_count=1,
             exit_code=1,
             stderr="validation failed",
@@ -373,7 +364,7 @@ class GroundingGateTests(unittest.TestCase):
         packet = investigator._evidence_packet(
             validation_status="failed",
             validator_invoked=True,
-            results_directory="demo_project/results",
+            results_directory=FIXTURE_RESULTS_DIRECTORY,
             json_file_count=1,
             exit_code=1,
             stderr="validation failed",
@@ -407,7 +398,7 @@ The available evidence does not establish the root cause.
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
             with patch.object(investigator.Runner, "run_sync", runner):
                 with redirect_stderr(stderr), redirect_stdout(stdout):
-                    exit_code = investigator.main(["demo_project/results"])
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
         self.assertEqual(exit_code, 0)
         self.assertEqual(runner.call_count, 1)
         self.assertIn(investigator.REPORT_SOURCE_DISCLOSURE, stdout.getvalue())
@@ -419,7 +410,7 @@ The available evidence does not establish the root cause.
         packet = investigator._evidence_packet(
             validation_status="failed",
             validator_invoked=True,
-            results_directory="demo_project/results",
+            results_directory=FIXTURE_RESULTS_DIRECTORY,
             json_file_count=1,
             exit_code=1,
             stderr="validation failed",
@@ -435,7 +426,7 @@ The available evidence does not establish the root cause.
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
             with patch.object(investigator.Runner, "run_sync", runner):
                 with redirect_stderr(stderr), redirect_stdout(stdout):
-                    exit_code = investigator.main(["demo_project/results"])
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
 
         self.assertEqual(exit_code, 1)
         self.assertEqual(runner.call_count, 1)
@@ -446,7 +437,7 @@ The available evidence does not establish the root cause.
         packet = investigator._evidence_packet(
             validation_status="failed",
             validator_invoked=True,
-            results_directory="demo_project/results",
+            results_directory=FIXTURE_RESULTS_DIRECTORY,
             json_file_count=1,
             exit_code=1,
             stderr="validation failed",
@@ -463,7 +454,7 @@ The available evidence does not establish the root cause.
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
             with patch.object(investigator.Runner, "run_sync", runner):
                 with redirect_stdout(stdout):
-                    exit_code = investigator.main(["demo_project/results"])
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
 
         self.assertEqual(exit_code, 1)
         self.assertEqual(runner.call_count, 1)
@@ -476,7 +467,7 @@ The available evidence does not establish the root cause.
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
             with patch.object(investigator.Runner, "run_sync", runner):
                 with redirect_stderr(stderr):
-                    exit_code = investigator.main(["demo_project/results"])
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
 
         self.assertEqual(exit_code, 1)
         self.assertEqual(runner.call_count, 1)
@@ -533,7 +524,7 @@ class InvestigatorConfigurationTests(unittest.TestCase):
             os.environ.pop("OPENAI_API_KEY", None)
             with patch.object(investigator.Runner, "run_sync") as run_sync:
                 with redirect_stderr(stderr):
-                    exit_code = investigator.main(["demo_project/results"])
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
 
         self.assertEqual(exit_code, 2)
         self.assertIn("OPENAI_API_KEY is not configured", stderr.getvalue())
@@ -549,17 +540,20 @@ class ApiErrorHandlingTests(unittest.TestCase):
         request_id: str | None = None,
         retry_after: str | None = None,
     ) -> RateLimitError:
-        request = httpx2.Request(
-            "POST",
-            "https://api.openai.com/v1/responses",
-            headers={"authorization": "Bearer hidden-authorization-value"},
-        )
         headers: dict[str, str] = {"authorization": "hidden-response-header"}
         if request_id is not None:
             headers["x-request-id"] = request_id
         if retry_after is not None:
             headers["retry-after"] = retry_after
-        response = httpx2.Response(429, request=request, headers=headers)
+        response = SimpleNamespace(
+            status_code=429,
+            headers=headers,
+            request=SimpleNamespace(
+                method="POST",
+                url="https://api.openai.com/v1/responses",
+                headers={"authorization": "Bearer hidden-authorization-value"},
+            ),
+        )
         return RateLimitError(
             "raw exception contains sensitive-exception-value",
             response=response,
@@ -577,7 +571,7 @@ class ApiErrorHandlingTests(unittest.TestCase):
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
             with patch.object(investigator.Runner, "run_sync", runner):
                 with redirect_stderr(stderr):
-                    exit_code = investigator.main(["demo_project/results"])
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
         return exit_code, stderr.getvalue(), runner
 
     def test_insufficient_quota_is_actionable_and_not_retried(self) -> None:

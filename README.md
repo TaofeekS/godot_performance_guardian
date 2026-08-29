@@ -54,6 +54,9 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   |-- __init__.py
 |   `-- investigator.py
 |-- tests/
+|   |-- fixtures/
+|   |   |-- generic_results/main_scene.json
+|   |   `-- investigator/evidence_packet.json
 |   |-- test_check_budgets.py
 |   |-- test_investigator.py
 |   `-- test_portable_addon.py
@@ -97,8 +100,9 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`agent/investigator.py`](agent/investigator.py) defines the read-only OpenAI Agents SDK investigator and its sole restricted validator tool.
 - [`tests/test_investigator.py`](tests/test_investigator.py) verifies the tool boundary, path containment, subprocess failures, configuration, and no-key behavior without an API request.
 - [`tests/test_check_budgets.py`](tests/test_check_budgets.py) uses fixed evidence fixtures to verify configuration, semantic matching, deterministic output, and exit behavior.
-- [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, v2 budgets, and canonical fixture.
-- [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator dependency to the installed SDK version.
+- [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, and v2 budgets against tracked test fixtures.
+- [`tests/fixtures/generic_results/main_scene.json`](tests/fixtures/generic_results/main_scene.json) and [`tests/fixtures/investigator/evidence_packet.json`](tests/fixtures/investigator/evidence_packet.json) are small deterministic fixtures used by the default test suite.
+- [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator and OpenAI SDK versions used by the clean test environment.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record, beginning with the accepted current-state baseline.
 - [`.agents/skills/godot-performance-guardian-docs/SKILL.md`](.agents/skills/godot-performance-guardian-docs/SKILL.md) defines the repository-local documentation workflow.
@@ -114,7 +118,7 @@ Godot-generated `.uid` files are present beside the GDScript sources. The `.godo
 | PowerShell | PowerShell 7.6.4 was used successfully for the batch harness. |
 | Operating system | Windows 10.0.26200 is the only verified platform. Linux and macOS are unverified, and the supplied batch harness is PowerShell-specific. |
 | Debug build | Not required for scenario execution. `Performance.MEMORY_STATIC` is accepted only when a debug build reports a positive value; otherwise memory samples are `null` and explicitly marked unavailable. |
-| External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation and budget policy. The optional investigator pins `openai-agents==0.22.0`. |
+| External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation and budget policy. The optional investigator pins `openai-agents==0.22.0` and `openai==3.6.0`; OpenAI installs `httpx2` transitively, but repository tests do not import that transport package directly. |
 | Network or API key | Benchmarking, addon capture, deterministic validation, and budget checking need neither. A live investigator run requires network access and `OPENAI_API_KEY`; local investigator tests do not. |
 
 ## 7. Quick start
@@ -234,7 +238,25 @@ Remove-Item -Recurse `
   .\examples\minimal_project\addons\performance_budget_guardian
 ```
 
-To install and run the optional read-only investigator in the repository virtual environment:
+Create a clean environment and run the complete default suite without generated benchmark results:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r .\requirements-agent.txt
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+All default tests use tracked fixtures under `tests/fixtures/` or temporary directories. They do not read the ignored `demo_project/results/` directory. The 49 locally retained historical results are optional integration evidence and can be checked separately when present:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\validate_results.py .\demo_project\results
+.\.venv\Scripts\python.exe .\tools\check_budgets.py `
+  .\demo_project\results `
+  .\budgets\example_budgets.json
+```
+
+The second command intentionally returns `1` for the two demonstration regressions. To install and run the optional read-only investigator in that environment:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r .\requirements-agent.txt
@@ -480,6 +502,8 @@ Experiment 5 added configurable policy without changing those stored results or 
 Experiment 6 verification finished with 66 passing tests and exercised Godot `4.5.1.stable.official.f62fdbde1`. The addon copy parsed and its helper tests returned `0`; one live `main_scene` capture produced 600 samples and validated with exit `0`. Its two calibrated v2 budgets passed with exit `0`. An explicit collision returned `3` and left the capture byte-identical. All 49 historical synthetic results still validated with exit `0`, while the unchanged Experiment 5 policy returned its expected `1`. Generic evidence and budget JSON were byte-identical across repeated invocations.
 
 After addon `1.0.1` made the raw-sample memory limitation mandatory, the earlier ignored `1.0.0` runtime file correctly failed with an actionable recapture diagnostic. A new uniquely identified `1.0.1` capture produced 600 samples, process p95 `0.951 ms`, and three peak nodes; it validated and passed both existing v2 budgets. The complete suite then passed 68 tests. The earlier file remained byte-identical, demonstrating that upgrades preserve historical evidence rather than rewriting it.
+
+The clean-environment audit exported only the staged Git index into a temporary directory, created a fresh Python 3.14 virtual environment, installed only `requirements-agent.txt`, and confirmed `pip check` plus all 68 tests passed. The export contained neither the repository `.venv` nor ignored `demo_project/results/` files. The tracked canonical portable fixture was reevaluated separately: process p95 `0.529 ms <= 1.1 ms` and peak nodes `3 <= 3`, so validation and both v2 budgets returned `0`. As an optional local integration check, all 49 ignored historical results validated, while the Experiment 5 demonstration policy returned its expected `1` with only the CPU-spike workload and node-leak retention rules failing.
 
 ## 13. Reproducibility notes
 

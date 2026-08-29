@@ -1,0 +1,45 @@
+{
+  "evidence": [
+    {"claim": "Nine fixed test runs passed validation.", "id": "FX1", "metric": "validated_file_count", "scenario": "all", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "files", "value": 9},
+    {"claim": "Healthy fixture workload p95 median.", "id": "FX2", "metric": "median_p95_workload_time", "scenario": "healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "usec", "value": 100.0},
+    {"claim": "CPU-spike fixture workload p95 median.", "id": "FX3", "metric": "median_p95_workload_time", "scenario": "cpu_spike", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "usec", "value": 1000.0},
+    {"claim": "Fixture workload ratio.", "id": "FX4", "metric": "workload_time_ratio", "scenario": "cpu_spike_vs_healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "x", "value": 10.0},
+    {"claim": "Fixture workload increase.", "id": "FX5", "metric": "workload_time_increase", "scenario": "cpu_spike_vs_healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "percent", "value": 900.0},
+    {"claim": "Healthy fixture process p95 median.", "id": "FX6", "metric": "median_p95_process_time", "scenario": "healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 0.5},
+    {"claim": "CPU-spike fixture process p95 median.", "id": "FX7", "metric": "median_p95_process_time", "scenario": "cpu_spike", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 5.0},
+    {"claim": "Fixture process ratio.", "id": "FX8", "metric": "process_time_ratio", "scenario": "cpu_spike_vs_healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "x", "value": 10.0},
+    {"claim": "Fixture process increase.", "id": "FX9", "metric": "process_time_increase", "scenario": "cpu_spike_vs_healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "percent", "value": 900.0},
+    {"claim": "Healthy fixture duration median.", "id": "FX10", "metric": "median_scenario_duration", "scenario": "healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 1000.0},
+    {"claim": "CPU-spike fixture duration median.", "id": "FX11", "metric": "median_scenario_duration", "scenario": "cpu_spike", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 1500.0},
+    {"claim": "Fixture duration ratio.", "id": "FX12", "metric": "scenario_duration_ratio", "scenario": "cpu_spike_vs_healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "x", "value": 1.5},
+    {"claim": "Fixture duration increase.", "id": "FX13", "metric": "scenario_duration_increase", "scenario": "cpu_spike_vs_healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "percent", "value": 50.0},
+    {"claim": "Every node-leak fixture retained 120 nodes.", "id": "FX14", "metric": "post_cleanup_retained_nodes", "run_count": 3, "scenario": "node_leak", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "nodes", "value": 120},
+    {"claim": "Every healthy fixture retained zero nodes.", "id": "FX15", "metric": "post_cleanup_retained_nodes", "run_count": 3, "scenario": "healthy", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "nodes", "value": 0},
+    {"claim": "Every CPU-spike fixture retained zero nodes.", "id": "FX16", "metric": "post_cleanup_retained_nodes", "run_count": 3, "scenario": "cpu_spike", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "nodes", "value": 0},
+    {"claim": "Every fixed fixture used 64 actors.", "id": "FX17", "metric": "actor_count", "scenario": "all", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "actors", "value": 64},
+    {"claim": "Every fixed fixture used a five-frame leak interval.", "id": "FX18", "metric": "leak_interval_frames", "scenario": "all", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "frames", "value": 5},
+    {"claim": "Fixed CPU workload configurations.", "id": "FX19", "metric": "cpu_workload_configurations", "scenario": "cpu_spike", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": null, "value": {"160x160": 1, "240x240": 2}},
+    {"claim": "The controller routes CPU-spike frames through nested numerical work.", "id": "FX20", "metric": "scenario_behavior", "scenario": "cpu_spike", "source": "demo_project/scripts/benchmark_controller.gd::_run_workload/_run_cpu_spike", "source_type": "allowlisted_source", "unit": null, "value": "nested_numerical_workload_each_frame"},
+    {"claim": "The controller periodically retains node-leak temporary nodes.", "id": "FX21", "metric": "scenario_behavior", "scenario": "node_leak", "source": "demo_project/scripts/benchmark_controller.gd::_run_workload", "source_type": "allowlisted_source", "unit": null, "value": "temporary_node_with_periodic_retention"},
+    {"claim": "Healthy performs only the fixed actor simulation.", "id": "FX22", "metric": "scenario_behavior", "scenario": "healthy", "source": "demo_project/scripts/benchmark_controller.gd::_run_workload", "source_type": "allowlisted_source", "unit": null, "value": "actor_simulation_only"}
+  ],
+  "limitations": [
+    {"id": "L1", "statement": "Validator success proves only that the configured checks passed; it does not prove that no other performance problem exists."},
+    {"id": "L2", "statement": "The fixed fixture contains two CPU-workload configurations to exercise mixed-configuration disclosure."},
+    {"id": "L3", "statement": "The fixture has no source revision and cannot establish which revision produced external results."},
+    {"id": "L4", "statement": "The benchmark is synthetic and headless; it does not establish rendering or GPU performance."},
+    {"id": "L5", "statement": "The available evidence does not establish the root cause."}
+  ],
+  "packet_type": "godot_performance_evidence",
+  "results_directory": "tests/fixtures/investigator",
+  "schema_version": 1,
+  "validation": {
+    "candidate_file_count": 9,
+    "error_type": null,
+    "errors": [],
+    "exit_code": 0,
+    "status": "passed",
+    "timed_out": false,
+    "validated_file_count": 9
+  }
+}
