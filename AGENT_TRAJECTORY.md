@@ -1312,3 +1312,73 @@ No Godot process, benchmark, fixture/result/budget change, dependency change, co
 The official skill validator printed `Skill is valid!`. Its PyYAML dependency was installed only into a uniquely named system-temporary directory; path validation preceded recursive cleanup, and the directory was confirmed absent afterward. README retained 17 numbered headings, all 29 links resolved, and all three evidence documents ended with newlines.
 
 An initial combined audit harness exited without output, so the read-only checks were split into smaller commands. A later combined final check also had a Python quoting error; its repository checks still ran, and the link/headings/newline portion was rerun separately. The corrected checks found 29 resolvable README links, 17 numbered headings, final newlines, and no key-shaped value in working-tree, tracked, staged, or reachable-history content. `git diff --check` passed with only informational LF-to-CRLF warnings. The final status still contains the pre-existing uncommitted Experiment 7 implementation plus the three Experiment 8 documentation updates; no code default or test expectation changed for Experiment 8. The public `origin` fetch and push URL remained unchanged. No commit or push was performed.
+
+## 2026-08-29 — Experiment 9 typed model contribution
+
+### Request and approved corrections
+
+The user approved:
+
+> PLEASE IMPLEMENT THIS PLAN: # Experiment 9: Typed Model Contribution with Deterministic Rendering
+
+The user also required the evaluation and contribution boundary to be tightened:
+
+> test gpt-4-1-mini before other agents
+>
+> use an enum not an action text prefix
+>
+> The model supplies only the limited explanation text and evidence IDs. Local validation should still reject causal terms such as “proves,” “caused by,” “memory leak,” or unsupported bottleneck claims.
+>
+> Require: At least one accepted recommendation. Zero or more hypotheses. At least one evidence ID per item. Unique IDs per item. Bounded item counts and text lengths. No Markdown, newlines, measurements, paths or embedded citations in model text.
+>
+> Adoption should require at least one model-authored item to survive local validation.
+>
+> If the SDK cannot produce a valid typed final output, recover without another model request, retain the already-produced validator packet when safely available, and render the deterministic fallback. If the tool packet cannot be safely recovered, return a hard nonzero failure.
+
+The task invoked the repository-local `godot-performance-guardian-docs` skill. Its README requirements reference was read completely before documentation edits. Official OpenAI model guidance was consulted for Structured Outputs and prompt-contract design. The public `origin` fetch and push URLs remained `https://github.com/TaofeekS/godot_performance_guardian.git`.
+
+### Inspection and implementation
+
+Inspection confirmed the pinned Agents SDK exposes strict `output_type` schemas and a run hook that receives a function-tool result before final-output parsing. The existing investigator used one required tool, free-form Markdown output, semantic packet matching, a deterministic fallback, and a post-generation grounding gate.
+
+`agent/investigator.py` now defines a strict typed contribution with zero to three bounded hypotheses and one to three recommendations. Recommendation action is an enum containing `compare`, `inspect`, `measure`, `profile`, `validate`, `capture`, and `repeat_capture`; only hypotheses contain limited model-authored prose. Every item requires one to four evidence IDs.
+
+Local filtering rejects unknown or duplicate references, Markdown, newlines, measurements, paths, embedded citations, credential-shaped text, and causal language including proof, confirmation, causation, leaks, and bottlenecks. Invalid hypotheses can be discarded. At least one valid recommendation must remain, which also guarantees a real model-authored contribution.
+
+The model no longer writes report Markdown. Local rendering reuses semantic packet matches for all verified facts, measurements, availability states, limitations, headings, and citations, then converts accepted enum choices into canonical read-only recommendations. The unchanged schema-specific grounding gate validates the result. A distinct disclosure identifies locally rendered model contributions.
+
+An SDK run hook records exactly one safely validated `validate_benchmark_results` packet. A typed-final-output `ModelBehaviorError` uses that packet for deterministic fallback without another request. A missing, malformed, ambiguous, or unsafe packet produces the existing hard `G00_EVIDENCE_PACKET` failure. Other API and operational errors retain their prior safe handling.
+
+### Test failures and corrections
+
+The first focused run after implementation executed 56 existing investigator tests and found two expected assertion mismatches: one test still expected the old grounding-warning wording, and another expected the removed Markdown-heading prompt. Those assertions were updated to the typed contract.
+
+After adding the new typed-contribution tests, the next 64-test run found two test-only issues. One instruction phrase crossed a source newline, and the empty evidence-ID case was rejected by the strict schema before local item filtering. The assertions were corrected to match the actual enforcement layer; no production rule was weakened.
+
+The subsequent focused suite passed all 64 investigator tests. The generated strict JSON schema contained the seven enum values, one-to-four ID bounds, zero-to-three hypothesis bounds, one-to-three recommendation bounds, required fields, and `additionalProperties: false`.
+
+### Local and live verification
+
+`pip check` reported no broken requirements. The complete repository suite passed:
+
+```text
+Ran 94 tests in 0.538s
+
+OK
+```
+
+Byte compilation succeeded. The tracked generic result and canonical portable fixture both validated with exit `0`. The canonical v2 policy again passed process p95 `0.529 ms <= 1.1 ms` and peak nodes `3 <= 3`. All 49 ignored historical synthetic results validated; their current healthy/CPU-spike median p95 workload comparison remained `163 usec` versus `11,585 usec`, or `71.07x`. The Experiment 5 demonstration policy returned its expected `1` with only CPU-spike workload and node-leak retention failing.
+
+The environment check reported only `OPENAI_API_KEY_PRESENT=True`; the value was never read, printed, or stored. Exactly one process-scoped `gpt-4.1-mini` request ran against `tests/fixtures/generic_results`. It returned exit `0`, used no deterministic fallback, and produced two accepted recommendations: `profile` linked to process, physics, and memory evidence, and `compare` linked to object, node, and orphan evidence. One optional hypothesis was discarded under `C03_HYPOTHESIS_TEXT`. The locally rendered report passed the unchanged grounding gate and included every required generic limitation.
+
+Mini therefore qualified as the first candidate and remains `DEFAULT_MODEL`. Per the conditional evaluation rule, Terra and Sol were not called. This is one nondeterministic live observation and does not establish general reliability or a model-quality ranking.
+
+No Godot process ran. Benchmark data, fixtures, budgets, validator calculations, dependencies, and evidence schema were not changed. No commit or push occurred. Final documentation-skill, link, Markdown, secret, whitespace, and Git-state checks follow this entry.
+
+### Final documentation and repository audit
+
+The first official skill-validator attempt failed because the project environment did not include PyYAML. PyYAML `6.0.3` was installed only into `.skill-validation-temp`. The first sandboxed invocation then imported that directory as an inaccessible namespace and could not remove it because the escalated installer and sandbox had different access. The path was resolved and checked to be exactly the named child of the repository before an escalated validation/removal operation. That operation printed `Skill is valid!` and confirmed `TEMP_REMOVED=True`; no dependency manifest or persistent environment was changed.
+
+README retained all 17 numbered sections, all 29 relative links resolved, and README plus both evidence documents ended with final newlines. Tests still contain zero references to ignored `demo_project/results` data. Filename-only scans found zero key-shaped matches in working-tree, tracked, staged, or reachable-history content. `git diff --check` returned `0` with only informational LF-to-CRLF warnings.
+
+The final working tree contains five focused Experiment 9 files: the investigator, its tests, README, improvement changelog, and this trajectory. The branch remains `main` with the documented public `origin`; no commit or push was performed.

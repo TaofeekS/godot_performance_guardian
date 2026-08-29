@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from enum import Enum
 import json
 import math
 import os
@@ -12,8 +13,10 @@ import subprocess
 import sys
 from typing import Any, Callable
 
-from agents import Agent, ModelSettings, Runner, function_tool
+from agents import Agent, ModelBehaviorError, ModelSettings, Runner, function_tool
+from agents.lifecycle import RunHooksBase
 from openai import RateLimitError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -29,60 +32,21 @@ validate_benchmark_results before forming any verdict, using the exact
 repository-relative results directory supplied by the user.
 
 Treat the tool result as the only verified benchmark evidence available to you.
-A successful validator exit means only that the supplied result set passed the
-validator's configured assertions. It does not prove that the project has no
-performance problems. Dispatch only from the packet's evidence_kind metadata:
-synthetic evidence uses scenario, while generic portable evidence uses profile.
-Never infer the evidence kind from filenames or the user's wording. Cite every
-numerical claim and every verified factual claim with the opaque evidence ID
-supplied by the matching evidence or limitation item, using square brackets.
+A successful validator exit means only that its configured checks passed. The
+application, not you, renders verified facts, measurements, citations,
+limitations, headings, and uncertainty from the packet.
 
-For synthetic evidence, cover healthy, node_leak, and cpu_spike. You may connect
-scenario behavior to an observed result only when citing both validated-result
-evidence and allowlisted-source evidence.
+Return only the typed contribution requested by the response schema. Supply one
+to three recommendations and zero to three hypotheses. Each item must cite one
+to four unique opaque evidence IDs from the tool packet. Select recommendation
+actions only from the schema enum. Hypothesis explanations are plain text of at
+most 240 characters and must remain non-causal.
 
-For generic evidence, cover every profile represented by profile-scoped metric
-or availability evidence. The reserved profile all is validation-count metadata,
-not a reportable profile. Cover process p95, physics-process p95, measurement
-duration, peak object/node/orphan counts, and peak static memory when available.
-State unavailable or mixed memory without inventing a value. State only whether
-source-revision availability is present, unknown, or mixed; never reveal a
-revision value or claim revisions are equal. Preserve every packet limitation.
-Generic global monitors are not profile-owned, process timing includes engine
-scheduling and probe overhead, stored samples contribute to static-memory
-growth, and headless evidence does not establish rendering or GPU performance.
-Do not introduce synthetic scenarios or synthetic-only workload, actor,
-cleanup, or retained-node claims into a generic report.
-
-Do not introduce thermal throttling, scheduling delays, locking, contention,
-resource contention, system load, or another cause absent from the evidence.
-Other ideas must be explicitly labeled as hypotheses, not findings. Include
-this exact sentence: The available evidence does not establish the root cause.
-Recommendations must be read-only, testable, and linked to evidence IDs.
-Do not invent measurements or claim to have inspected files that the tool did
-not expose.
-
-Return a concise Markdown report using exactly these section headings:
-
-## Validation status
-## Verified facts
-## Possible explanations
-## Recommended next investigation
-## Remaining uncertainty
-
-Use this content skeleton. Validation status cites the validated-file-count
-item. For synthetic evidence, Verified facts cite workload, process, duration,
-retained-node, configuration, and scenario-behavior items for all three
-scenarios. For generic evidence, Verified facts uses one cited block per sorted
-profile, exact availability wording, and every available generic metric.
-Possible explanations never promote generic measurements into causes. Every
-recommendation begins with a read-only test action and cites the evidence that
-motivated it. Remaining uncertainty includes every packet limitation and the
-exact required sentence.
-
-If validation fails or the tool returns an error, explain that limitation and
-recommend resolving it before interpreting performance. Never propose edits as
-though they were already made. You cannot modify, delete, or overwrite files.
+Do not put Markdown, newlines, measurements, paths, credentials, or bracketed
+citations in explanation text. Do not use causal or conclusive terms such as
+proves, confirmed, caused by, causes, memory leak, leak, or bottleneck. Do not
+invent evidence or revision values. Recommendations are read-only controlled
+investigations; you cannot modify, delete, overwrite, repair, or write files.
 """
 
 REPORT_HEADINGS = (
@@ -104,6 +68,10 @@ BANNED_SPECULATION = (
 REPORT_SOURCE_DISCLOSURE = (
     "Report source: Deterministic fallback generated after model output failed "
     "grounding."
+)
+MODEL_REPORT_SOURCE_DISCLOSURE = (
+    "Report source: Locally rendered from validated evidence and accepted "
+    "model-authored investigation items."
 )
 EVIDENCE_CITATION = re.compile(r"\[([A-Za-z][A-Za-z0-9_.:-]{0,63})\]")
 SYNTHETIC_REQUIRED_EVIDENCE = {
@@ -143,6 +111,42 @@ GENERIC_MEMORY_STATUSES = {"available", "unavailable", "mixed"}
 GENERIC_REVISION_STATUSES = {"present", "unknown", "mixed"}
 SAFE_EVIDENCE_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,63}$")
 SAFE_PROFILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+
+class RecommendationAction(str, Enum):
+    """Read-only recommendation actions exposed to the model."""
+
+    COMPARE = "compare"
+    INSPECT = "inspect"
+    MEASURE = "measure"
+    PROFILE = "profile"
+    VALIDATE = "validate"
+    CAPTURE = "capture"
+    REPEAT_CAPTURE = "repeat_capture"
+
+
+class HypothesisContribution(BaseModel):
+    """A bounded, non-causal model-authored hypothesis."""
+
+    model_config = ConfigDict(extra="forbid")
+    explanation: str = Field(min_length=1, max_length=240)
+    evidence_ids: list[str] = Field(min_length=1, max_length=4)
+
+
+class RecommendationContribution(BaseModel):
+    """An enum-selected investigation action linked to packet evidence."""
+
+    model_config = ConfigDict(extra="forbid")
+    action: RecommendationAction
+    evidence_ids: list[str] = Field(min_length=1, max_length=4)
+
+
+class InvestigatorContribution(BaseModel):
+    """Strict typed output produced after the validator tool call."""
+
+    model_config = ConfigDict(extra="forbid")
+    hypotheses: list[HypothesisContribution] = Field(min_length=0, max_length=3)
+    recommendations: list[RecommendationContribution] = Field(min_length=1, max_length=3)
 
 
 class EvidenceSchemaError(ValueError):
@@ -410,6 +414,7 @@ def build_investigator(model: str | None = None) -> Agent[None]:
         instructions=INVESTIGATOR_INSTRUCTIONS,
         model=selected_model,
         tools=[validate_benchmark_results],
+        output_type=InvestigatorContribution,
         model_settings=ModelSettings(
             tool_choice="required",
             parallel_tool_calls=False,
@@ -419,19 +424,62 @@ def build_investigator(model: str | None = None) -> Agent[None]:
     )
 
 
+def _coerce_evidence_packet(output: object) -> dict[str, Any] | None:
+    """Parse one tool output without accepting arbitrary response content."""
+
+    if isinstance(output, str):
+        try:
+            output = json.loads(output)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(output, dict) or output.get("packet_type") != "godot_performance_evidence":
+        return None
+    try:
+        kind = _packet_evidence_kind(output)
+        if kind == "synthetic":
+            _semantic_evidence(output)
+        elif kind == "generic":
+            _generic_semantic_evidence(output)
+    except EvidenceSchemaError:
+        return None
+    return output
+
+
+class EvidenceCaptureHooks(RunHooksBase):
+    """Retain one safely validated tool packet if final-output parsing fails."""
+
+    def __init__(self) -> None:
+        self.packet: dict[str, Any] | None = None
+        self.packet_count = 0
+
+    async def on_tool_end(
+        self,
+        context: Any,
+        agent: Any,
+        tool: Any,
+        result: object,
+    ) -> None:
+        if getattr(tool, "name", None) != "validate_benchmark_results":
+            return
+        packet = _coerce_evidence_packet(result)
+        if packet is None:
+            return
+        self.packet_count += 1
+        self.packet = packet if self.packet_count == 1 else None
+
+    def recovered_packet(self) -> dict[str, Any] | None:
+        return self.packet if self.packet_count == 1 else None
+
+
 def extract_evidence_packet(run_result: Any) -> dict[str, Any] | None:
     """Extract the packet actually returned by the sole tool call."""
 
     packets: list[dict[str, Any]] = []
     for item in getattr(run_result, "new_items", []):
         output = getattr(item, "output", None)
-        if isinstance(output, str):
-            try:
-                output = json.loads(output)
-            except json.JSONDecodeError:
-                continue
-        if isinstance(output, dict) and output.get("packet_type") == "godot_performance_evidence":
-            packets.append(output)
+        packet = _coerce_evidence_packet(output)
+        if packet is not None:
+            packets.append(packet)
     return packets[0] if len(packets) == 1 else None
 
 
@@ -891,6 +939,144 @@ Validator success proves only that the configured checks passed; it does not pro
 """
 
 
+MODEL_TEXT_FORBIDDEN = re.compile(
+    r"[\r\n#*_`\[\]<>!|/\\%]|\d|"
+    r"(?i:\b(?:ms|usec|bytes?|nodes?|objects?|files?|percent)\b)"
+)
+MODEL_CAUSAL_TERMS = re.compile(
+    r"(?i:\b(?:proves?|confirm(?:s|ed)?|caused\s+by|causes?|memory\s+leaks?|leaks?|bottlenecks?)\b)"
+)
+MODEL_SENSITIVE_TEXT = re.compile(
+    r"(?i:sk-(?:proj-)?[A-Za-z0-9_-]{20,}|bearer\s+[A-Za-z0-9._-]+|"
+    r"OPENAI_API_KEY|[A-Z]:|\\\\|https?://)"
+)
+
+
+def _model_item_ids_are_valid(evidence_ids: list[str], known_ids: set[str]) -> bool:
+    return (
+        1 <= len(evidence_ids) <= 4
+        and len(evidence_ids) == len(set(evidence_ids))
+        and all(identifier in known_ids for identifier in evidence_ids)
+    )
+
+
+def _model_text_is_valid(value: str) -> bool:
+    return (
+        value == value.strip()
+        and 1 <= len(value) <= 240
+        and MODEL_TEXT_FORBIDDEN.search(value) is None
+        and MODEL_CAUSAL_TERMS.search(value) is None
+        and MODEL_SENSITIVE_TEXT.search(value) is None
+    )
+
+
+def accepted_model_contribution(
+    output: object,
+    packet: dict[str, Any],
+) -> tuple[InvestigatorContribution | None, list[str]]:
+    """Filter typed model items and require a real accepted recommendation."""
+
+    try:
+        contribution = (
+            output
+            if isinstance(output, InvestigatorContribution)
+            else InvestigatorContribution.model_validate(output)
+        )
+        _packet_evidence_kind(packet)
+    except (ValidationError, EvidenceSchemaError):
+        return None, ["C01_TYPED_CONTRIBUTION"]
+
+    known_ids = {
+        item["id"]
+        for item in [*packet["evidence"], *packet["limitations"]]
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    errors: set[str] = set()
+    hypotheses: list[HypothesisContribution] = []
+    for hypothesis in contribution.hypotheses:
+        if not _model_item_ids_are_valid(hypothesis.evidence_ids, known_ids):
+            errors.add("C02_HYPOTHESIS_EVIDENCE")
+            continue
+        if not _model_text_is_valid(hypothesis.explanation):
+            errors.add("C03_HYPOTHESIS_TEXT")
+            continue
+        hypotheses.append(hypothesis)
+
+    recommendations: list[RecommendationContribution] = []
+    for recommendation in contribution.recommendations:
+        if not _model_item_ids_are_valid(recommendation.evidence_ids, known_ids):
+            errors.add("C04_RECOMMENDATION_EVIDENCE")
+            continue
+        recommendations.append(recommendation)
+
+    if not recommendations:
+        errors.add("C05_RECOMMENDATION_REQUIRED")
+        return None, sorted(errors)
+    return InvestigatorContribution(
+        hypotheses=hypotheses,
+        recommendations=recommendations,
+    ), sorted(errors)
+
+
+RECOMMENDATION_TEMPLATES = {
+    RecommendationAction.COMPARE: "Compare a controlled repeat against the cited evidence",
+    RecommendationAction.INSPECT: "Inspect the collection conditions represented by the cited evidence",
+    RecommendationAction.MEASURE: "Measure the cited metrics again under controlled conditions",
+    RecommendationAction.PROFILE: "Profile the execution interval represented by the cited evidence",
+    RecommendationAction.VALIDATE: "Validate a comparable result set against the same configured checks",
+    RecommendationAction.CAPTURE: "Capture another comparable run for the cited evidence",
+    RecommendationAction.REPEAT_CAPTURE: "Re-run a comparable capture with identical settings",
+}
+
+
+def _item_citations(evidence_ids: list[str]) -> str:
+    return " ".join(f"[{identifier}]" for identifier in evidence_ids)
+
+
+def render_model_contribution(
+    packet: dict[str, Any],
+    contribution: InvestigatorContribution,
+) -> str:
+    """Render accepted model choices inside deterministic report sections."""
+
+    base = render_deterministic_fallback(packet)
+    sections = _report_sections(base)
+    if sections is None:
+        raise EvidenceSchemaError("deterministic report sections are invalid")
+
+    validation_status = sections["## Validation status"].replace(
+        REPORT_SOURCE_DISCLOSURE,
+        MODEL_REPORT_SOURCE_DISCLOSURE,
+        1,
+    )
+    if contribution.hypotheses:
+        explanations = "\n".join(
+            f"Hypothesis: {item.explanation} {_item_citations(item.evidence_ids)}."
+            for item in contribution.hypotheses
+        )
+    else:
+        explanations = "No model-authored hypothesis was accepted."
+    recommendations = "\n".join(
+        f"- {RECOMMENDATION_TEMPLATES[item.action]} {_item_citations(item.evidence_ids)}."
+        for item in contribution.recommendations
+    )
+    return f"""## Validation status
+{validation_status}
+
+## Verified facts
+{sections['## Verified facts']}
+
+## Possible explanations
+{explanations}
+
+## Recommended next investigation
+{recommendations}
+
+## Remaining uncertainty
+{sections['## Remaining uncertainty']}
+"""
+
+
 def _supported_number(token: str, cited_items: list[dict[str, Any]]) -> bool:
     normalized = token.replace(",", "")
     try:
@@ -977,7 +1163,7 @@ def _validate_synthetic_grounded_report(report: str, packet: dict[str, Any]) -> 
                 content = line.strip().lstrip("-* ")
                 if (
                     content
-                    and content != REPORT_SOURCE_DISCLOSURE
+                    and content not in {REPORT_SOURCE_DISCLOSURE, MODEL_REPORT_SOURCE_DISCLOSURE}
                     and not EVIDENCE_CITATION.search(content)
                 ):
                     errors.add("G14_UNCITED_VERIFIED_FACT")
@@ -1090,7 +1276,11 @@ def _validate_generic_grounded_report(report: str, packet: dict[str, Any]) -> li
     for heading in ("## Validation status", "## Verified facts"):
         for line in sections[heading].splitlines():
             content = line.strip().lstrip("-* ")
-            if content and content != REPORT_SOURCE_DISCLOSURE and not EVIDENCE_CITATION.search(content):
+            if (
+                content
+                and content not in {REPORT_SOURCE_DISCLOSURE, MODEL_REPORT_SOURCE_DISCLOSURE}
+                and not EVIDENCE_CITATION.search(content)
+            ):
                 errors.add("G14_UNCITED_VERIFIED_FACT")
 
     for synthetic_term in (
@@ -1183,6 +1373,31 @@ def _argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _emit_deterministic_fallback(packet: dict[str, Any], rule_ids: list[str]) -> int:
+    """Render and verify fallback without exposing rejected model content."""
+
+    print(
+        f"WARNING: model contribution failed ({','.join(rule_ids)}); "
+        "using deterministic fallback.",
+        file=sys.stderr,
+    )
+    try:
+        report = render_deterministic_fallback(packet)
+    except EvidenceSchemaError:
+        print("ERROR: investigator grounding failed (G15_EVIDENCE_SCHEMA).", file=sys.stderr)
+        return 1
+    fallback_errors = validate_grounded_report(report, packet)
+    if fallback_errors:
+        print(
+            f"ERROR: deterministic fallback failed grounding "
+            f"({','.join(fallback_errors)}).",
+            file=sys.stderr,
+        )
+        return 1
+    print(report)
+    return 0 if packet["validation"].get("status") == "passed" else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
 
@@ -1202,11 +1417,18 @@ def main(argv: list[str] | None = None) -> int:
         "Investigate the stored Godot benchmark results in the repository-relative "
         f"directory {relative_directory!r}. Validate them before forming any verdict."
     )
+    hooks = EvidenceCaptureHooks()
     try:
-        result = Runner.run_sync(build_investigator(), prompt)
+        result = Runner.run_sync(build_investigator(), prompt, hooks=hooks)
     except RateLimitError as error:
         print(format_rate_limit_error(error), file=sys.stderr)
         return 1
+    except ModelBehaviorError:
+        packet = hooks.recovered_packet()
+        if packet is None:
+            print("ERROR: investigator grounding failed (G00_EVIDENCE_PACKET).", file=sys.stderr)
+            return 1
+        return _emit_deterministic_fallback(packet, ["C01_TYPED_CONTRIBUTION"])
     except Exception as error:  # The CLI must fail safely without exposing request details.
         print(f"ERROR: investigator run failed ({type(error).__name__}).", file=sys.stderr)
         return 1
@@ -1215,30 +1437,28 @@ def main(argv: list[str] | None = None) -> int:
     if packet is None:
         print("ERROR: investigator grounding failed (G00_EVIDENCE_PACKET).", file=sys.stderr)
         return 1
-    report = str(result.final_output)
-    grounding_errors = validate_grounded_report(report, packet)
-    if grounding_errors:
+    if packet["validation"].get("status") != "passed":
+        return _emit_deterministic_fallback(packet, ["C06_VALIDATION_FAILED"])
+
+    contribution, contribution_errors = accepted_model_contribution(
+        result.final_output,
+        packet,
+    )
+    if contribution is None:
+        return _emit_deterministic_fallback(packet, contribution_errors)
+    if contribution_errors:
         print(
-            f"WARNING: model output failed grounding ({','.join(grounding_errors)}); "
-            "using deterministic fallback.",
+            f"WARNING: discarded model items ({','.join(contribution_errors)}).",
             file=sys.stderr,
         )
-        try:
-            report = render_deterministic_fallback(packet)
-        except EvidenceSchemaError:
-            print("ERROR: investigator grounding failed (G15_EVIDENCE_SCHEMA).", file=sys.stderr)
-            return 1
-        fallback_errors = validate_grounded_report(report, packet)
-        if fallback_errors:
-            print(
-                f"ERROR: deterministic fallback failed grounding "
-                f"({','.join(fallback_errors)}).",
-                file=sys.stderr,
-            )
-            return 1
-        validation = packet.get("validation", {})
-        print(report)
-        return 0 if validation.get("status") == "passed" else 1
+
+    try:
+        report = render_model_contribution(packet, contribution)
+    except EvidenceSchemaError:
+        return _emit_deterministic_fallback(packet, ["C07_MODEL_RENDER"])
+    grounding_errors = validate_grounded_report(report, packet)
+    if grounding_errors:
+        return _emit_deterministic_fallback(packet, grounding_errors)
 
     validation = packet.get("validation", {})
     print(report)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import redirect_stderr, redirect_stdout
 import copy
 import importlib
@@ -414,7 +415,7 @@ The available evidence does not establish the root cause.
         self.assertEqual(exit_code, 0)
         self.assertEqual(runner.call_count, 1)
         self.assertIn(investigator.REPORT_SOURCE_DISCLOSURE, stdout.getvalue())
-        self.assertIn("WARNING: model output failed grounding", stderr.getvalue())
+        self.assertIn("WARNING: model contribution failed", stderr.getvalue())
         self.assertNotIn(invalid, stderr.getvalue())
         self.assertNotIn(invalid, stdout.getvalue())
 
@@ -700,6 +701,183 @@ class GenericGroundingTests(unittest.TestCase):
         self.assertNotIn(rejected, stdout.getvalue() + stderr.getvalue())
 
 
+class TypedContributionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.packet = load_generic_evidence_packet()
+
+    def contribution(
+        self,
+        *,
+        hypotheses: list[dict[str, object]] | None = None,
+        recommendations: list[dict[str, object]] | None = None,
+    ) -> dict[str, object]:
+        return {
+            "hypotheses": [] if hypotheses is None else hypotheses,
+            "recommendations": (
+                [{"action": "compare", "evidence_ids": ["PX_BP", "PX_BPH"]}]
+                if recommendations is None
+                else recommendations
+            ),
+        }
+
+    def test_accepts_enum_recommendation_and_optional_hypotheses(self) -> None:
+        accepted, errors = investigator.accepted_model_contribution(
+            self.contribution(), self.packet
+        )
+
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(accepted)
+        assert accepted is not None
+        self.assertEqual(accepted.hypotheses, [])
+        self.assertEqual(accepted.recommendations[0].action.value, "compare")
+        report = investigator.render_model_contribution(self.packet, accepted)
+        self.assertIn(investigator.MODEL_REPORT_SOURCE_DISCLOSURE, report)
+        self.assertNotIn(investigator.REPORT_SOURCE_DISCLOSURE, report)
+        self.assertEqual(investigator.validate_grounded_report(report, self.packet), [])
+
+    def test_filters_invalid_hypothesis_but_keeps_real_recommendation(self) -> None:
+        accepted, errors = investigator.accepted_model_contribution(
+            self.contribution(
+                hypotheses=[
+                    {
+                        "explanation": "This proves a memory leak",
+                        "evidence_ids": ["PX_MM"],
+                    }
+                ]
+            ),
+            self.packet,
+        )
+
+        self.assertIn("C03_HYPOTHESIS_TEXT", errors)
+        self.assertIsNotNone(accepted)
+        assert accepted is not None
+        self.assertEqual(accepted.hypotheses, [])
+        self.assertEqual(len(accepted.recommendations), 1)
+
+    def test_rejects_duplicate_unknown_and_missing_recommendation_evidence(self) -> None:
+        for evidence_ids in ([], ["PX_BP", "PX_BP"], ["UNKNOWN"]):
+            accepted, errors = investigator.accepted_model_contribution(
+                self.contribution(
+                    recommendations=[
+                        {"action": "inspect", "evidence_ids": evidence_ids}
+                    ]
+                ),
+                self.packet,
+            )
+            self.assertIsNone(accepted)
+            self.assertIn(
+                "C01_TYPED_CONTRIBUTION"
+                if not evidence_ids
+                else "C05_RECOMMENDATION_REQUIRED",
+                errors,
+            )
+
+    def test_rejects_markdown_newlines_measurements_paths_and_citations(self) -> None:
+        invalid_texts = (
+            "Use **careful** comparison",
+            "Compare one line\nwith another",
+            "Timing was 5 ms",
+            "Inspect C:\\private\\capture",
+            "Compare the result [PX_BP]",
+            "This is a bottleneck",
+        )
+        for explanation in invalid_texts:
+            accepted, errors = investigator.accepted_model_contribution(
+                self.contribution(
+                    hypotheses=[
+                        {"explanation": explanation, "evidence_ids": ["PX_BP"]}
+                    ]
+                ),
+                self.packet,
+            )
+            self.assertIsNotNone(accepted)
+            self.assertIn("C03_HYPOTHESIS_TEXT", errors)
+
+    def test_typed_schema_bounds_items_and_text(self) -> None:
+        with self.assertRaises(Exception):
+            investigator.InvestigatorContribution.model_validate(
+                {"hypotheses": [], "recommendations": []}
+            )
+        with self.assertRaises(Exception):
+            investigator.InvestigatorContribution.model_validate(
+                self.contribution(
+                    hypotheses=[
+                        {"explanation": "x" * 241, "evidence_ids": ["PX_BP"]}
+                    ]
+                )
+            )
+        with self.assertRaises(Exception):
+            investigator.InvestigatorContribution.model_validate(
+                self.contribution(
+                    recommendations=[
+                        {"action": "compare", "evidence_ids": ["PX_BP"]}
+                        for _ in range(4)
+                    ]
+                )
+            )
+
+    def test_cli_prints_locally_rendered_model_contribution(self) -> None:
+        contribution = investigator.InvestigatorContribution.model_validate(
+            self.contribution()
+        )
+        result = SimpleNamespace(
+            final_output=contribution,
+            new_items=[SimpleNamespace(output=json.dumps(self.packet))],
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        runner = Mock(return_value=result)
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
+            with patch.object(investigator.Runner, "run_sync", runner):
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(runner.call_count, 1)
+        self.assertIn(investigator.MODEL_REPORT_SOURCE_DISCLOSURE, stdout.getvalue())
+        self.assertNotIn("fallback", stderr.getvalue().lower())
+
+    def test_typed_output_failure_recovers_hook_packet_without_retry(self) -> None:
+        async def record_packet(hooks: investigator.EvidenceCaptureHooks) -> None:
+            await hooks.on_tool_end(
+                None,
+                None,
+                SimpleNamespace(name="validate_benchmark_results"),
+                json.dumps(self.packet),
+            )
+
+        def fail_after_tool(*args: object, **kwargs: object) -> object:
+            asyncio.run(record_packet(kwargs["hooks"]))
+            raise investigator.ModelBehaviorError("untrusted typed output")
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        runner = Mock(side_effect=fail_after_tool)
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
+            with patch.object(investigator.Runner, "run_sync", runner):
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(runner.call_count, 1)
+        self.assertIn(investigator.REPORT_SOURCE_DISCLOSURE, stdout.getvalue())
+        self.assertNotIn("untrusted typed output", stdout.getvalue() + stderr.getvalue())
+
+    def test_typed_output_failure_without_packet_is_hard_failure(self) -> None:
+        stderr = io.StringIO()
+        runner = Mock(side_effect=investigator.ModelBehaviorError("hidden"))
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
+            with patch.object(investigator.Runner, "run_sync", runner):
+                with redirect_stderr(stderr):
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(runner.call_count, 1)
+        self.assertIn("G00_EVIDENCE_PACKET", stderr.getvalue())
+        self.assertNotIn("hidden", stderr.getvalue())
+
+
 class InvestigatorConfigurationTests(unittest.TestCase):
     def test_agent_has_exact_name_and_single_required_tool(self) -> None:
         built = investigator.build_investigator()
@@ -710,6 +888,7 @@ class InvestigatorConfigurationTests(unittest.TestCase):
         self.assertFalse(built.model_settings.parallel_tool_calls)
         self.assertEqual(built.tool_use_behavior, "run_llm_again")
         self.assertTrue(built.reset_tool_choice)
+        self.assertIs(built.output_type, investigator.InvestigatorContribution)
 
     def test_model_default_override_and_required_report_sections(self) -> None:
         with patch.dict(os.environ, {}, clear=False):
@@ -720,21 +899,14 @@ class InvestigatorConfigurationTests(unittest.TestCase):
 
         self.assertEqual(default_agent.model, "gpt-4.1-mini")
         self.assertEqual(configured_agent.model, "test-model")
-        for heading in (
-            "## Validation status",
-            "## Verified facts",
-            "## Possible explanations",
-            "## Recommended next investigation",
-            "## Remaining uncertainty",
-        ):
-            self.assertIn(heading, default_agent.instructions)
         for requirement in (
             "opaque evidence ID",
-            "healthy, node_leak, and cpu_spike",
-            investigator.REQUIRED_UNCERTAINTY,
-            "thermal throttling",
-            "read-only, testable",
-            "Use this content skeleton",
+            "typed contribution",
+            "three recommendations",
+            "three hypotheses",
+            "schema enum",
+            "memory leak",
+            "read-only controlled",
         ):
             self.assertIn(requirement, default_agent.instructions)
 

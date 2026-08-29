@@ -387,6 +387,36 @@ After the comparison, `pip check` reported no broken requirements, all 86 tests 
 
 Keep `gpt-4.1-mini` as the default and retain `OPENAI_MODEL` for explicit experiments. The stronger model alone did not resolve the format mismatch, so the next experiment should improve the model-facing report contract or generate a structured intermediate response while keeping the existing deterministic gate unchanged.
 
+## 2026-08-29 — Experiment 9: Typed model contribution with deterministic rendering
+
+**Status:** Retained; `gpt-4.1-mini` qualified first and remains the default
+
+### Hypothesis and reason
+
+The model can contribute useful investigation choices more reliably if it selects bounded enum actions and evidence IDs instead of reproducing the complete Markdown evidence contract. This was tried because Experiment 8 showed that both Terra and Sol omitted or altered deterministic report requirements when asked to author the full report directly.
+
+### Change
+
+The investigator now requests a strict typed contribution after the required validator call. It permits zero to three short hypotheses and requires one to three recommendations selected from a seven-value read-only action enum. Every item carries one to four unique opaque evidence IDs. Local validation rejects unsupported IDs, causal claims, measurements, Markdown, paths, citations, and sensitive text; invalid hypotheses may be discarded, but at least one recommendation must survive.
+
+Local code renders all headings, verified facts, measurements, availability statements, limitations, citations, and canonical recommendation wording. The unchanged grounding gate checks the completed report. A run hook retains one safely validated tool packet so typed-output failure can use deterministic fallback without another request; absence of a recoverable packet remains a hard failure.
+
+### Evaluation method
+
+Fixed synthetic and generic fixtures plus SDK mocks exercised schema bounds, enum actions, optional hypotheses, mandatory recommendations, unique IDs, item filtering, deterministic rendering, packet recovery, hard failure, fallback, and one-runner-call behavior. The complete local suite, byte compilation, both tracked generic validations, canonical v2 policy, 49-file optional historical validation, and Experiment 5 demonstration policy were rerun before live evaluation.
+
+The live order was `gpt-4.1-mini`, then Terra only if Mini failed, then Sol only if both earlier candidates failed. Qualification required exit `0`, no fallback, at least one accepted recommendation, a surviving model-authored item, and a report accepted by the unchanged grounding gate.
+
+### Observed result
+
+All 94 tests passed in 0.538 seconds. Both tracked generic validations returned `0`; the canonical portable policy again passed `0.529 ms <= 1.1 ms` and `3 <= 3`. All 49 historical results validated, and the Experiment 5 policy retained exactly its two intentional failures.
+
+The single live `gpt-4.1-mini` invocation returned `0` without fallback. Local validation discarded one optional hypothesis under `C03_HYPOTHESIS_TEXT` and accepted two recommendations: one `profile` selection and one `compare` selection. The locally rendered report passed the existing grounding gate and preserved all generic facts and limitations. Because Mini qualified first, Terra and Sol were not called.
+
+### Decision and next step
+
+Keep `gpt-4.1-mini` as the default and retain the typed contribution plus deterministic rendering boundary. The result shows that one Mini response satisfied the new contract; it does not establish a general model-quality ranking or long-run reliability. A future evaluation should repeat the same acceptance test across several tracked profiles and multiple calls before considering a default change.
+
 ## Removed-experiment status
 
 No experiment has been removed or reverted. Documentation-only changes remain in `AGENT_TRAJECTORY.md` rather than being presented as product experiments.
