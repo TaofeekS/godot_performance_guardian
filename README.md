@@ -10,7 +10,7 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 | --- | --- |
 | Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in an independent Godot 4.5.1 consumer workspace; schema-specific deterministic validation; v1 scenario and v2 profile budgets; a unified standard-library gate; a reusable consumer workflow contract; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | GitHub accepts both workflow definitions as active, but neither hosted job has run yet, including the reusable workflow from a separate consumer repository. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | A separate consumer repository invoked the hosted reusable workflow, but capture stopped before measurement because the workflow passed an unresolved literal Godot command. The workflow now uses the executable path supplied by `setup-godot`; a successful hosted consumer rerun remains unverified. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -356,7 +356,7 @@ Mode `never` does not install the Agents SDK, inspect the key, or launch the inv
 
 The capture helper creates collision-safe run IDs, uses the caller SHA as opaque revision metadata, applies a 300-second timeout per process, and stores only workspace-relative paths. The validator, checker, unified runner, and investigator accept `--workspace-root <consumer-root>`; every results, scene, project, and budget input remains relative to that resolved root. Symlink escapes are rejected, and external workspaces may contain generic captures only—not Guardian's synthetic controller evidence.
 
-The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit. GitHub recognizes the reusable definition as active, and the contract plus independent local three-run consumer proof are verified; an actual hosted caller remains unverified until invoked from another repository.
+The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit. GitHub recognizes the reusable definition as active, and the contract plus independent local three-run consumer proof are verified. A separate hosted consumer invocation reached the capture step but exposed an unresolved literal Godot command; the workflow now passes the `GODOT` path supplied by `setup-godot`, and successful hosted capture remains pending a consumer rerun.
 
 ### Investigator troubleshooting
 
@@ -667,7 +667,7 @@ Experiment 10 added the unified deterministic gate and Windows workflow without 
 - There is no committed golden baseline or baseline/iteration/final result organization.
 - There is no reusable editor dock or repair workflow. The investigator receives only validator-produced synthetic or generic evidence and cannot establish root cause by itself.
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
-- The Windows GitHub Actions workflow is locally contract-tested but has not yet been exercised on a GitHub-hosted runner.
+- The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow has been invoked by a hosted consumer, but that run stopped before measurement on an executable-path handoff defect; successful hosted capture remains unverified pending a rerun with the correction.
 - The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Portable capture is verified only for the included independent project on Godot 4.5.1. One tracked capture and its calibrated policy do not prove universal project, platform, or timing compatibility.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
@@ -692,7 +692,7 @@ Experiment 10 added the unified deterministic gate and Windows workflow without 
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - The [`Performance Guardian` workflow](.github/workflows/performance-guardian.yml) is the first automated deterministic gate; its tracked fixture output is uploaded as a JSON artifact, while broader categorized evidence packages remain planned.
-- The [`reusable consumer workflow`](.github/workflows/reusable-performance-guardian.yml) adds fresh three-run capture, validation, policy enforcement, sanitized logs, a manifest, and canonical gate output for another Godot repository; its local independent-consumer proof passed, while hosted invocation remains unverified.
+- The [`reusable consumer workflow`](.github/workflows/reusable-performance-guardian.yml) adds fresh three-run capture, validation, policy enforcement, sanitized logs, a manifest, and canonical gate output for another Godot repository. Its local independent-consumer proof passed; one hosted invocation exposed and motivated correction of the Godot executable handoff, while a successful hosted rerun remains unverified.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 
 The trajectory explains how an agent performed work. The improvement changelog explains how the product changes across evidence-backed experiments, including unsuccessful or removed approaches.

@@ -1546,3 +1546,37 @@ The first sandboxed staging attempt failed because `.git/index.lock` could not b
 Public GitHub API inspection after the push reported workflow IDs `345505769` (`Performance Guardian`) and `345528362` (`Reusable Performance Guardian`) with state `active`. No run existed for head commit `a672eda`; that is the expected trigger result because the repository workflow is pull-request/manual only and the reusable workflow is call-only. The latest run list still ended at the three historical zero-job failures on the prior commits.
 
 This verifies that GitHub accepted both corrected definitions. It does not verify execution of either hosted job or a call from another consumer repository. README and the Experiment 11 clarification were synchronized with that distinction in a follow-up documentation commit.
+
+## 2026-08-29 — Hosted consumer Godot executable correction
+
+### Request, evidence, and approved plan
+
+After a separate consumer workflow reached the capture stage, the user supplied its hosted log and reported:
+
+> i found the error
+>
+> godot executable not founc
+
+The visible log contained `ERROR: Godot executable was not found`. Earlier hosted evidence showed that checkout, Python setup, Godot setup, optional dependency installation, and artifact upload completed, while the capture outcome was failure and the authoritative gate rejected the incomplete capture. The user then approved the plan to use the executable installed by `setup-godot`, add regression coverage, synchronize the Experiment 11 evidence, commit, push, and inspect GitHub metadata. The consumer repository itself was explicitly left outside the implementation scope.
+
+The repository documentation skill, its complete README requirements reference, and the agent-trajectory skill were read before changes. The starting branch was clean `main` at `58cdb49`, and fetch/push `origin` remained `https://github.com/TaofeekS/godot_performance_guardian.git`.
+
+### Diagnosis and correction
+
+Inspection found that the reusable workflow pinned and ran `chickensoft-games/setup-godot`, but invoked the capture helper with `--godot-executable "godot"`. The helper resolves command names with `shutil.which()` and correctly rejected that name because it was not on the hosted process path. The hosted job environment supplied a `GODOT` path, so the defect was the workflow handoff rather than addon configuration or a measured budget regression.
+
+The capture step now rejects a missing, blank, or non-file `GODOT` value with a safe configuration error and passes `$env:GODOT` to the fixed capture helper argument. The workflow still preserves failed capture evidence with `continue-on-error`, forwards the actual capture outcome to the deterministic gate, and uploads artifacts unconditionally. The existing workflow contract test now requires the `GODOT` file check and setup-provided argument and rejects the prior literal command.
+
+### Local verification and remaining work
+
+The two focused reusable-workflow tests passed. The complete suite then reported:
+
+```text
+Ran 130 tests in 1.033s
+
+OK
+```
+
+Python byte compilation also returned `0`. Both workflow files parsed successfully with PyYAML `6.0.3`, supplied only through a uniquely named system-temporary directory that was validated before recursive cleanup and removed afterward. The official repository documentation-skill validator printed `Skill is valid!`. All checked Markdown links resolved, README retained its 17 numbered sections, every evidence document ended with a newline, `pip check` found no broken requirements, and `git diff --check` found no whitespace error. Filename-only credential-pattern scans found zero matching working-tree, tracked, staged, or reachable-history files or commits.
+
+No Godot process, benchmark, OpenAI request, fixture change, budget change, or consumer-repository mutation occurred. README and the Experiment 11 clarification now distinguish the failed hosted attempt from successful hosted capture. Commit, push, public workflow-metadata inspection, and the consumer rerun remain to be recorded after they occur.

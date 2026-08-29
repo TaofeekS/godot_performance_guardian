@@ -128,10 +128,14 @@ jobs:
           CAPTURE_RUNS: ${{ inputs['capture-runs'] }}
           SOURCE_REVISION: ${{ github.sha }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:GODOT) -or -not (Test-Path -LiteralPath $env:GODOT -PathType Leaf)) {
+            Write-Error "The setup-godot action did not provide a valid GODOT executable."
+            exit 2
+          }
           $arguments = @(
             "$env:GUARDIAN_TOOLS\tools\capture_project.py",
             "--workspace-root", "$env:GITHUB_WORKSPACE",
-            "--godot-executable", "godot",
+            "--godot-executable", "$env:GODOT",
             "--project-path", "$env:PROJECT_PATH",
             "--profile", "$env:PROFILE",
             "--output-base", ".performance-guardian",

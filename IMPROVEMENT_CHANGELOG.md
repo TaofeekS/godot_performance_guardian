@@ -506,3 +506,11 @@ The repository workflow now uses Windows' built-in `%RUNNER_TEMP%` inside comman
 Local evaluation passed all 130 tests, byte compilation, dependency consistency, and whitespace checks. This corrects the workflow-definition layer without changing capture, validation, budgets, investigation, or the Experiment 11 local Godot measurements. GitHub acceptance and a real hosted consumer call remain separate checks; the latter is still unverified.
 
 After commit `a672eda` was pushed to `main`, GitHub reported both `Performance Guardian` and `Reusable Performance Guardian` as active. The corrected push produced no Actions run, which is the expected result because neither definition has a direct `push` trigger. The three earlier zero-job failures remain historical evidence. Definition acceptance is now verified; repository-job execution and a real hosted consumer call remain unverified.
+
+### Experiment 11 clarification — setup-provided Godot executable
+
+A separate consumer repository provided the first hosted reusable-workflow execution evidence. Checkout, Python setup, Godot setup, optional investigator dependency installation, and artifact upload completed, but the capture helper reported `Godot executable was not found`. The capture step appeared successful because evidence preservation uses `continue-on-error`; its recorded outcome was failure, so the authoritative gate correctly refused to evaluate incomplete captures.
+
+Inspection showed that `setup-godot` supplied a `GODOT` executable path, while the reusable workflow passed the unresolved literal `godot` to the capture helper. The workflow now validates that `GODOT` is a file and passes that exact path. Regression coverage requires the setup-provided path and rejects restoration of the literal command.
+
+The focused workflow tests and complete 130-test suite passed, and byte compilation succeeded. This corrects the hosted executable handoff without changing capture calculations, budgets, deterministic exit authority, or optional investigation. A successful hosted consumer capture remains unverified until the caller updates to the corrected immutable Guardian commit and reruns. The consumer's separately observed budget path must also match its committed file location.
