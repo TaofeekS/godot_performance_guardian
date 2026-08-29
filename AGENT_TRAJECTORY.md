@@ -1742,3 +1742,9 @@ Python byte compilation succeeded and `pip check` reported no broken requirement
 The first Markdown-link command mishandled root-level files because `Split-Path -Parent README.md` returns an empty string. It produced only diagnostic path errors and no edits. The corrected command used the workspace root for root-level documents; all relative links resolved, README sections 1 through 17 were present, and all checked documents had final newlines. Working-tree, tracked-file, and reachable-history scans reported no credential-pattern filename or commit match. `git diff --check` reported no whitespace error.
 
 Commit, push, immutable SHA reporting, and hosted consumer rerun evidence follow this entry. No Godot process, benchmark, OpenAI request, fixture, budget, or consumer repository was changed or invoked during this correction.
+
+### Delivery and remaining hosted verification
+
+The seven-file focused diff passed staged whitespace inspection and was committed as `248dbcf551e7480b69bffced2ef458adab238e94` with message `Normalize reusable workflow artifact staging`. It was pushed from `820abba` to `origin/main`; a read-only remote check confirmed that `refs/heads/main` resolved to the same full commit.
+
+GitHub's public workflow metadata reported `Reusable Performance Guardian` as `active` at `.github/workflows/reusable-performance-guardian.yml`. This proves delivery and workflow-definition recognition, not successful hosted artifact staging. The consumer must update its `uses:` reference to `248dbcf551e7480b69bffced2ef458adab238e94` and rerun. Absolute-only acceptance requires candidate captures/logs plus available reports in the artifact; paired acceptance additionally requires protected-base evidence and its manifest.
