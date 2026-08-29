@@ -22,7 +22,7 @@ The README must cover these topics, using clear GitHub-flavored Markdown and rel
 4. Current baseline behavior, including collection, evaluation, pass/fail reporting, and the absence of automated investigation when applicable.
 5. An accurate repository tree and the purpose of important files and folders. Planned files must be explicitly labeled and not linked as if present.
 6. Exact verified Godot, Python, PowerShell, and OS versions; debug-build behavior; dependencies; and network or API-key requirements.
-7. Windows PowerShell quick start for obtaining/opening the checkout, opening Godot, each scenario, the evaluation harness, independent validation, and result location. Add other platforms only after verification.
+7. Windows PowerShell quick start for obtaining/opening the checkout, opening Godot, each scenario, the evaluation harness, independent validation, and result location. Verify the current Git remote and use its fetch URL for clone instructions when configured; use a labeled placeholder only when no remote exists. Add other platforms only after verification.
 8. Implemented methodology: seed, actors, warmup, measurement count, sampling order, repeated runs, metrics, cleanup boundaries, percentiles, duration, and raw evidence.
 9. Each scenario's workload, represented regression, expected changing metrics, and expected outcome.
 10. Current budget storage, field or assertion meaning, how it can be changed, healthy-run calibration, and machine-comparison warning. Do not imply a configurable schema exists when thresholds are embedded in code.
@@ -48,9 +48,24 @@ The README may add a short section for the repository-local documentation skill,
 
 ## Verification checklist
 
+- Inspect `git remote -v` or equivalent and compare the README clone URL with the configured fetch URL. If a remote contains credentials or embedded authentication, omit those secrets and document a safe public URL or labeled placeholder instead.
 - Inspect all README-linked targets with filesystem checks.
 - Compare commands with the GDScript parser, PowerShell parameters, and Python CLI.
 - Confirm cited result output against an existing result set or command log.
 - Confirm planned artifacts are labeled and not linked as existing files.
 - Check Markdown and diffs for malformed links, whitespace errors, machine-specific private paths, and accidental unsupported claims.
 - Update `AGENT_TRAJECTORY.md` with the verification performed and any remaining gaps.
+
+## Improvement changelog contract
+
+Treat `IMPROVEMENT_CHANGELOG.md` as the product-evolution record, distinct from the agent's execution history.
+
+- Begin with the user-designated baseline. Do not reconstruct earlier work when the user has declared the current state to be the starting baseline.
+- Keep entries chronological and append-only. Never delete a failed, reverted, or removed experiment; record why it was removed and what it taught.
+- Give every meaningful experiment its own entry containing the hypothesis or intended improvement, why it was tried, what changed, the evaluation method, the observed result, the decision, and the next step.
+- Use the same scenarios, seed, warmup, samples, repetitions, validator, hardware, and configuration as the baseline whenever possible. Call out deviations before comparing results.
+- Copy measurements only from saved results or recorded command output. Label unavailable evidence and do not infer missing values.
+- Documentation-only edits are trajectory events, not product experiments. When no post-baseline experiment exists, state that plainly instead of inventing a journey or final result.
+- Keep README's repository tree, evidence links, and current-status language synchronized with the changelog's existence and maturity.
+
+On every skill invocation, inspect the changelog even when no new experiment is expected. Leave existing entries unchanged when repository evidence has not changed.

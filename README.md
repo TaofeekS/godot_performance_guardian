@@ -8,9 +8,10 @@ Godot Performance Budget Guardian is a synthetic Godot 4.5 benchmark that detect
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation. |
+| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; a locally tested, read-only investigator that gates its reasoning on that validator. |
 | Partially implemented | Performance budgets are embedded as controller tolerances and validator assertions. There is no standalone, user-editable budget file or stored golden baseline. |
-| Planned | Configurable budgets, ten evaluation fixtures, a reusable Godot editor dock/plugin, agent-assisted investigation, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
+| Unverified | The investigator's live OpenAI API execution and the usefulness of its model-generated investigation report have not been exercised with a valid key. |
+| Planned | Configurable budgets, ten evaluation fixtures, a reusable Godot editor dock/plugin, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
 
@@ -28,9 +29,9 @@ The current baseline:
 - Collects raw timing, memory, object, node, and scenario-owned measurements.
 - Compares a multi-run result set against embedded cleanup, growth, and relative CPU thresholds.
 - Reports pass or fail through the validator's output and exit code.
-- Does not load configurable budgets or provide automated root-cause investigation.
+- Does not load configurable budgets. An optional investigator can validate stored evidence and produce constrained hypotheses, but it cannot prove root causes or modify the project.
 
-It is a benchmark and evaluation foundation, not yet the complete editor plugin and investigation-agent product.
+It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the complete editor plugin or automated repair product.
 
 ## 5. Repository structure
 
@@ -38,6 +39,13 @@ It is a benchmark and evaluation foundation, not yet the complete editor plugin 
 .
 |-- README.md
 |-- AGENT_TRAJECTORY.md
+|-- IMPROVEMENT_CHANGELOG.md
+|-- requirements-agent.txt
+|-- agent/
+|   |-- __init__.py
+|   `-- investigator.py
+|-- tests/
+|   `-- test_investigator.py
 |-- .agents/
 |   `-- skills/
 |       `-- godot-performance-guardian-docs/
@@ -61,7 +69,11 @@ It is a benchmark and evaluation foundation, not yet the complete editor plugin 
 - [`demo_project/scripts/test_actor.gd`](demo_project/scripts/test_actor.gd) implements the lightweight deterministic `Node2D` actors.
 - [`demo_project/run_benchmarks.ps1`](demo_project/run_benchmarks.ps1) launches three isolated runs of each scenario and calls the validator.
 - [`tools/validate_results.py`](tools/validate_results.py) validates schemas, calculations, cleanup evidence, leak growth, and relative CPU cost using only the Python standard library.
+- [`agent/investigator.py`](agent/investigator.py) defines the read-only OpenAI Agents SDK investigator and its sole restricted validator tool.
+- [`tests/test_investigator.py`](tests/test_investigator.py) verifies the tool boundary, path containment, subprocess failures, configuration, and no-key behavior without an API request.
+- [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator dependency to the installed SDK version.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record, beginning with the accepted current-state baseline.
 - [`.agents/skills/godot-performance-guardian-docs/SKILL.md`](.agents/skills/godot-performance-guardian-docs/SKILL.md) defines the repository-local documentation workflow.
 
 Godot-generated `.uid` files are present beside the GDScript sources. The `.godot/` cache and generated result JSON files are intentionally ignored.
@@ -75,15 +87,15 @@ Godot-generated `.uid` files are present beside the GDScript sources. The `.godo
 | PowerShell | PowerShell 7.6.4 was used successfully for the batch harness. |
 | Operating system | Windows 10.0.26200 is the only verified platform. Linux and macOS are unverified, and the supplied batch harness is PowerShell-specific. |
 | Debug build | Not required for scenario execution. `Performance.MEMORY_STATIC` is accepted only when a debug build reports a positive value; otherwise memory samples are `null` and explicitly marked unavailable. |
-| External dependencies | None beyond Godot, PowerShell for the batch harness, and Python for validation. |
-| Network or API key | Not required. |
+| External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation. The optional investigator pins `openai-agents==0.22.0`. |
+| Network or API key | Benchmarking and deterministic validation need neither. A live investigator run requires network access and `OPENAI_API_KEY`; local investigator tests do not. |
 
 ## 7. Quick start
 
-The repository currently has no configured Git remote. Substitute the actual URL supplied by the repository owner:
+Clone the configured `origin` repository:
 
 ```powershell
-git clone <repository-url> godot_performance_guardian
+git clone https://github.com/TaofeekS/godot_performance_guardian.git
 Set-Location .\godot_performance_guardian
 ```
 
@@ -124,6 +136,31 @@ python .\tools\validate_results.py .\demo_project\results
 ```
 
 Generated files are in `demo_project/results/`. They are local evidence and are ignored by Git.
+
+To install and run the optional read-only investigator in the repository virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r .\requirements-agent.txt
+$env:OPENAI_API_KEY = "<newly-issued-api-key>"
+$env:OPENAI_MODEL = "gpt-4.1-mini" # Optional; this is the default.
+.\.venv\Scripts\python.exe -m agent.investigator demo_project\results
+```
+
+The key is read only from the process environment. Do not place it in source files, command logs, `.env` files intended for commit, or documentation. The argument must be a repository-relative directory containing result JSON files. Absolute paths, missing directories, paths outside the repository, and directories without JSON results are rejected before any API request.
+
+### Investigator troubleshooting
+
+The investigator exits nonzero when it cannot obtain a model response. Its messages intentionally omit the API key, prompt, raw exception, response body, and general response headers.
+
+| Symptom | Meaning and next action |
+| --- | --- |
+| `OPENAI_API_KEY is not configured` | The variable is absent from the process running Python. Set a newly issued key in that same PowerShell session. |
+| `AuthenticationError` | The API rejected the credential. Replace or correct the environment value; never paste it into source or documentation. |
+| HTTP 429 with `code=insufficient_quota` or `type=insufficient_quota` | The API project has no available quota. Check its API billing, credits, and project usage limits. Repeating the command will not repair this condition. |
+| Other HTTP 429 | The request was throttled. The message includes a numeric retry delay when the server provides one. Wait before retrying and inspect the API project's rate limits if it persists. |
+| `PermissionDeniedError` or `NotFoundError` for the selected model | Verify that the API project can access `OPENAI_MODEL`. Do not switch models unless the error evidence indicates model-specific access or limits. |
+
+The installed OpenAI Python client already retries HTTP 429 twice. The investigator deliberately does not wrap the entire agent run in another retry loop, which avoids duplicate tool execution and additional requests when quota is exhausted. A request ID is printed when available so it can support diagnosis without exposing request content.
 
 ## 8. Benchmark methodology
 
@@ -251,6 +288,10 @@ Benchmark suite passed.
 
 This is evidence from one machine, not a portable performance promise. The same scenarios and validator logic are deterministic enough for controlled comparisons, while timing values remain noisy.
 
+The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. SDK configuration requires the tool on the first model turn and then allows a five-section report: Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty. A validator pass means only that the configured assertions passed; it is not proof that the project has no other performance issue.
+
+Local investigator verification on 2026-08-29 ran 20 standard-library unit tests with no API request and passed all 21 JSON files then present in `demo_project/results/`. The tests include safe classification of exhausted quota and transient 429 responses, numeric retry-delay handling, request-ID reporting, sensitive-content exclusion, and confirmation that application code does not retry the agent run. The validator command reported a 57.76× CPU-spike/healthy median-p95 workload ratio across that expanded result set. This 21-file safety check does not replace or revise the accepted nine-file Baseline 0 because it uses a different run set. Live model output remains unverified.
+
 ## 13. Reproducibility notes
 
 - Use unchanged scenarios for baseline and final comparisons.
@@ -271,7 +312,8 @@ This is evidence from one machine, not a portable performance promise. The same 
 - Evidence focuses on CPU work and object/node growth, not rendering or GPU performance.
 - Thresholds are duplicated in code rather than loaded from a configurable budget file.
 - There is no committed golden baseline or baseline/iteration/final result organization.
-- There is no reusable editor dock, automatic root-cause agent, or repair workflow.
+- There is no reusable editor dock or repair workflow. The investigator produces evidence-constrained hypotheses only; it has no source-reading tool and cannot establish root cause by itself.
+- Live investigator execution and report quality have not yet been evaluated with a valid API key.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
 - Individual result JSON does not contain a consolidated budget verdict or structured error object.
 
@@ -283,22 +325,22 @@ This is evidence from one machine, not a portable performance promise. The same 
 | 2. Configurable budgets | Partial/planned | Replace embedded thresholds with a single documented budget schema and explicit per-run verdicts. |
 | 3. Ten evaluation fixtures | Planned | Add a broader, objective regression fixture set. |
 | 4. Reusable Godot editor dock | Planned | Run and inspect budgets from a reusable editor plugin. |
-| 5. Agent-assisted investigation | Planned | Analyze failed evidence and propose likely root causes. |
+| 5. Agent-assisted investigation | Partial | A read-only, validator-gated command-line investigator is implemented and locally tested; live report quality is unverified. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
 
 ## 16. Hackathon evidence
 
-- [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of the documentation task: requests, decisions, inspections, edits, issues, and verification.
-- `IMPROVEMENT_CHANGELOG.md` is planned but does not yet exist. It should eventually summarize product improvements between iterations rather than reproduce the agent's execution history.
+- [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the first post-baseline investigator experiment.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 
-The trajectory explains how an agent performed work. The future improvement changelog should explain how the product changed and why those changes improved the evaluated outcome.
+The trajectory explains how an agent performed work. The improvement changelog explains how the product changes across evidence-backed experiments, including unsuccessful or removed approaches.
 
 ### Documentation skill
 
-The repository-local [`godot-performance-guardian-docs`](.agents/skills/godot-performance-guardian-docs/SKILL.md) skill instructs Codex to maintain this README and its trajectory from repository evidence. It is documentation tooling, not part of the runtime benchmark or planned investigation agent.
+The repository-local [`godot-performance-guardian-docs`](.agents/skills/godot-performance-guardian-docs/SKILL.md) skill instructs Codex to keep this README, `AGENT_TRAJECTORY.md`, and `IMPROVEMENT_CHANGELOG.md` synchronized with repository evidence. It is documentation tooling, not part of the runtime benchmark or planned investigation agent.
 
 ## 17. License
 

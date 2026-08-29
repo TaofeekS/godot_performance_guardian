@@ -455,3 +455,281 @@ Not freshly or independently verified by this documentation task:
 The root `README.md` now contains the required evidence-grounded developer documentation and all 17 requested sections. The repository-local `godot-performance-guardian-docs` skill contains a validated entrypoint, explicit automatic-invocation metadata, and a routed detailed requirements reference. This file records the documentation task and its verification without claiming completion of planned product work.
 
 Remaining product and documentation gaps are the configurable budget schema, ten fixtures, editor dock, investigation agent, automated repair workflow, categorized versioned results, `IMPROVEMENT_CHANGELOG.md`, Git remote, and license. Generated results remain ignored local evidence rather than a committed baseline/iteration/final package.
+
+## Follow-up: Integrated improvement changelog
+
+### Request and timeline decision
+
+On 2026-08-28, the user requested a short `IMPROVEMENT_CHANGELOG.md` that records every meaningful experiment, why it was tried, its result under the same evaluation method, the next decision, and lessons from experiments later removed. The user clarified that the baseline is the current repository state.
+
+After repository inspection exposed both earlier calibration results and the absence of a changelog, the agent asked how to reconcile a current-state baseline with a past journey. The user selected **Start baseline now**, meaning earlier implementation tuning would not be reconstructed as post-baseline improvement experiments.
+
+The user then required the existing `$godot-performance-guardian-docs` skill to maintain the improvement changelog whenever invoked and to update the README and trajectory in the same workflow. The revised plan was approved with `PLEASE IMPLEMENT THIS PLAN`.
+
+### Evidence inspected
+
+The agent reread the repository skill, its requirements reference, the skill-creator instructions, the agent-trajectory instructions, the README changelog references, and the end of this trajectory. Existing result files showed two historical CPU workload configurations, but the user-designated timeline starts from the current `240 x 240` configuration.
+
+The accepted baseline values came from the already verified nine-file suite identified by `20260828T193246205Z`: three files each for healthy, node leak, and CPU spike. No Godot process was rerun for this documentation change.
+
+### Changes made
+
+- Updated the repository skill description, workflow, and default prompt so every invocation reviews `README.md`, `AGENT_TRAJECTORY.md`, and `IMPROVEMENT_CHANGELOG.md` together.
+- Added an improvement-changelog contract to the skill reference. It requires chronological evidence, consistent evaluation, preservation of failed or removed experiments, and no fabricated entries for documentation-only work.
+- Created `IMPROVEMENT_CHANGELOG.md` with the accepted current-state Baseline 0, its evaluation method, verified measurements, decision, planned next direction, and an explicit statement that no post-baseline experiments exist yet.
+- Updated README's repository tree, evidence section, and skill description to link and accurately characterize the changelog.
+
+### Verification
+
+The official skill validator completed with:
+
+```text
+Skill is valid!
+```
+
+PyYAML 6.0.3 was supplied only in a named temporary directory because the validator depends on it but the installed Python environment does not include it. After validation, the directory was removed successfully:
+
+```text
+temporary_dependency_removed=True
+```
+
+The existing nine-file suite was reevaluated without rerunning Godot:
+
+```text
+INFO: median p95 workload: healthy=185.000 usec, cpu_spike=12725.000 usec, ratio=68.78x
+INFO: supporting evidence: process p95 healthy=0.605000 ms, cpu_spike=15.075000 ms; duration healthy=4976.010 ms, cpu_spike=7992.353 ms
+Validated 9 result files successfully.
+```
+
+A separate evidence check recalculated those medians from the saved JSON, confirmed retained-node sets of `[0]` for healthy, `[120]` for node leak, and `[0]` for CPU spike, and matched every displayed changelog value. It also confirmed that both the skill entrypoint and UI prompt route to all three documents, all 13 relative links resolve, and this follow-up exists in the trajectory.
+
+The final text audit checked six documentation and skill files, found README sections 1–17 in order, parsed both JSON examples, confirmed the changelog entry contract, and found no missing links, trailing whitespace, missing final newlines, private paths, or scaffold markers. `git diff --check` reported only Git's Windows line-ending notices and no whitespace error.
+
+No benchmark, documentation, or skill test failed during this follow-up. No Godot process was started. The changelog remains at Baseline 0 because documentation and skill edits are not product-performance experiments.
+
+## 2026-08-29 follow-up: Read-only performance investigator
+
+### Original request, safety correction, and approval
+
+The user supplied a new implementation request whose opening goal was:
+
+> Implement the first read-only Godot Performance Investigator agent using the OpenAI Agents SDK.
+>
+> The agent must expose the existing tools/validate_results.py program as a controlled function tool, call it before forming a verdict, and explain the resulting evidence without modifying the Godot project.
+
+The request included an API credential and required that it never appear in the repository. The credential is recorded here only as `[REDACTED]`; it was treated as compromised by disclosure, was never used, printed, written, or passed to a process, and must be revoked outside this repository.
+
+The request required an approval checkpoint before editing. The agent inspected the repository, validator, documentation, Git state, dependency pin, ignore rules, and locally installed SDK interface. It proposed a file-by-file plan for a one-tool investigator, repository-contained path handling, standard-library tests, deterministic validation, and synchronized documentation. The user approved that complete plan with `PLEASE IMPLEMENT THIS PLAN` and explicitly invoked `$godot-performance-guardian-docs` and `$agent-trajectory`.
+
+The approved default model is `gpt-4.1-mini`, overridable through `OPENAI_MODEL`. Live API execution was deliberately excluded because the supplied credential could not be used safely.
+
+### Pre-implementation security scan
+
+At the user's request, API-key patterns were scanned across repository-owned working-tree files, tracked `HEAD`, the staged index, and every reachable commit without printing matches. No repository-owned file, tracked file, staged file, or reachable commit matched. A literal ignored-workspace scan also reported pattern-like strings in four `.venv` package metadata or dependency-source files; no values were printed. The virtual environment remains ignored.
+
+### Evidence and implementation
+
+The agent confirmed:
+
+- `openai-agents==0.22.0` was both installed and pinned in `requirements-agent.txt`.
+- `.gitignore` already contained `.venv/`, `.env`, and `.env.*`.
+- The installed SDK supports an agent-level required tool choice, resetting that choice after a tool call, `Runner.run_sync`, and a named `function_tool`.
+- Existing benchmark results were available for local validation, so no Godot run was needed.
+
+The implementation added `agent/__init__.py`, `agent/investigator.py`, and `tests/test_investigator.py`. The investigator:
+
+- Is named exactly `Godot Performance Investigator`.
+- Has one tool named `validate_benchmark_results` and requires a tool call before the model can form its report.
+- Wraps the unchanged deterministic validator using `sys.executable`, a fixed resolved validator path, an argument list, no shell, captured output, and a 30-second timeout.
+- Rejects empty, absolute, missing, non-directory, JSON-empty, traversal, and resolved escape paths.
+- Returns consistent JSON-compatible evidence and removes repository absolute paths from captured process text.
+- Reads `OPENAI_API_KEY` only from the environment and exits before the SDK runner when it is absent.
+- Requires the five approved report headings and forbids treating validator success as proof of no performance problem or presenting unsupported causes as proven.
+
+An initial eager re-export from `agent/__init__.py` was removed before final verification because it could preload `agent.investigator` when using `python -m agent.investigator`. The package initializer remains intentionally minimal.
+
+### Commands and test evidence
+
+Substantive read-only inspection included:
+
+```powershell
+git status --short --branch
+rg --files -g '!.venv/**' -g '!.git/**'
+Get-Content -Raw tools\validate_results.py
+Get-Content -Raw README.md
+Get-Content -Raw AGENT_TRAJECTORY.md
+Get-Content -Raw IMPROVEMENT_CHANGELOG.md
+Get-Content -Raw requirements-agent.txt
+Get-Content -Raw .gitignore
+.\.venv\Scripts\python.exe -c "<inspect installed Agents SDK signatures>"
+```
+
+The standard-library unit suite ran without an API request:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+```text
+Ran 16 tests in 0.270s
+
+OK
+```
+
+The unchanged validator was run directly over the existing result directory:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\validate_results.py .\demo_project\results
+```
+
+```text
+INFO: median p95 workload: healthy=148.000 usec, cpu_spike=8549.000 usec, ratio=57.76x
+INFO: supporting evidence: process p95 healthy=0.408000 ms, cpu_spike=12.588500 ms; duration healthy=4976.010 ms, cpu_spike=6406.270 ms
+Validated 21 result files successfully.
+```
+
+The 21-file set is larger than the accepted nine-file Baseline 0, so these aggregate measurements are recorded as current regression-safety evidence rather than a replacement baseline.
+
+The CLI was invoked with `OPENAI_API_KEY` explicitly absent:
+
+```powershell
+$env:OPENAI_API_KEY = $null
+.\.venv\Scripts\python.exe -m agent.investigator demo_project\results
+```
+
+It stopped locally with `ERROR: OPENAI_API_KEY is not configured.` No API request occurred. No automated test failed during the initial implementation run.
+
+### Documentation classification and remaining verification
+
+The repository documentation now classifies the investigator as implemented and locally tested, while classifying live SDK execution and report quality as unverified. `IMPROVEMENT_CHANGELOG.md` retains Baseline 0 and adds the investigator as the first post-baseline product experiment; it does not present documentation edits as performance experiments.
+
+Final link, skill, secret-pattern, whitespace, diff, and repeated unit verification remained to be completed at the time of this chronological entry.
+
+### Final verification result
+
+The final unit run completed successfully:
+
+```text
+Ran 16 tests in 0.274s
+
+OK
+```
+
+The direct validator again passed all 21 stored result files with the same 57.76× workload ratio and supporting values recorded above. Python byte-compilation of the agent and test modules also succeeded.
+
+The repository skill's official `quick_validate.py` script was present, but both available Python runtimes lacked its undeclared `yaml` dependency. The first sandboxed attempt to install PyYAML 6.0.3 into a uniquely named temporary directory failed because network access was blocked. After approved network access, the dependency was installed only in a new temporary directory, the validator printed `Skill is valid!`, and the directory was removed after its resolved path was verified to remain under the system temporary root. No temporary dependency directory remained.
+
+The final documentation audit found all README sections 1 through 17 in order, resolved all 11 relative links, and confirmed every expected implementation and evidence file exists. It found no trailing whitespace, missing final newline, private absolute path, scaffold marker, or key-shaped value in repository-owned files. The dedicated key-pattern scan also found no match in the repository working tree excluding `.venv`, tracked `HEAD`, the staged index, or any reachable commit.
+
+`git diff --check` reported no whitespace error; Git emitted only its existing Windows line-ending conversion warnings. The final Git status retained the user's pre-existing documentation, skill, ignore-rule, changelog, and dependency changes alongside the new `agent/` and `tests/` directories. Nothing was committed or pushed, and the Godot benchmark was not rerun.
+
+### Result and remaining uncertainty
+
+The approved read-only investigator, restricted validator tool, path controls, failure handling, tests, README update, product experiment entry, and task trajectory are implemented and locally verified. The deterministic validator remains unchanged and authoritative.
+
+A live OpenAI API call was not made. Whether the selected model produces consistently useful, evidence-grounded reports remains unverified and is the recommended next experiment with a newly issued environment-only key.
+
+## 2026-08-29 follow-up: Correct configured Git remote documentation
+
+### User correction and verified evidence
+
+The user reported that README's statement about having no configured Git remote was stale and required the repository documentation skill to prevent the same error in future updates.
+
+The agent invoked `$godot-performance-guardian-docs`, reread `README.md`, `AGENT_TRAJECTORY.md`, `IMPROVEMENT_CHANGELOG.md`, the skill entrypoint, and its complete README requirements reference. It then ran:
+
+```powershell
+git remote -v
+git remote get-url origin
+git remote get-url --push origin
+git status --short --branch
+```
+
+Both the fetch and push configuration for `origin` resolved to:
+
+```text
+https://github.com/TaofeekS/godot_performance_guardian.git
+```
+
+### Documentation and skill changes
+
+- Replaced README's stale no-remote statement and `<repository-url>` placeholder with a copyable clone command using the verified `origin` fetch URL.
+- Strengthened the skill entrypoint so every documentation run must inspect Git remotes, prefer a configured fetch URL, fall back to a labeled placeholder only when no remote exists, and avoid exposing embedded authentication.
+- Added the same remote-source and credential-safety requirements to the detailed README contract and verification checklist.
+- Left `IMPROVEMENT_CHANGELOG.md` unchanged because correcting documentation and its maintenance workflow is not a product experiment.
+
+Final skill, remote, link, formatting, secret-pattern, and diff verification followed these edits.
+
+### Verification result
+
+The post-edit remote check confirmed that the README clone URL exactly matches the configured `origin` fetch URL and that fetch and push URLs remain identical. Searches found no stale `no configured Git remote` statement or `<repository-url>` placeholder in README.
+
+The official repository-skill validator printed:
+
+```text
+Skill is valid!
+```
+
+As in the preceding documentation task, PyYAML 6.0.3 was supplied only in a uniquely named system-temporary directory and removed after validation. The final documentation audit found README sections 1 through 17 in order, resolved all 11 relative links, and found no trailing whitespace, missing final newline, or key-pattern match in repository-owned files. `git diff --check` reported no whitespace error beyond Git's existing Windows line-ending notices.
+
+No clone, commit, push, Godot run, benchmark validation, or OpenAI API request occurred. `IMPROVEMENT_CHANGELOG.md` was inspected and deliberately left unchanged.
+
+## 2026-08-29 follow-up: Actionable rate-limit diagnosis
+
+### Reported failure and approved response
+
+The user reported this investigator output after configuring a key:
+
+```text
+Error getting response
+ERROR: investigator run failed (RateLimitError).
+```
+
+The existing CLI was inspected and found to catch every model exception generically, retaining only its class name. Consequently, it could not distinguish temporary throttling from an API project with no available quota.
+
+The agent used the `openai-docs` workflow. Official documentation searches and direct page fetches for API error codes and rate limits returned no content in the available web tool, so no current account-specific limit or billing claim was inferred from those pages. Local inspection of the installed `openai==3.6.0` exception and client code established the implementable interface: `RateLimitError` carries status, code, type, request ID, and response headers, while the client default is two retries for HTTP 429. The current Codex process had no API key configured, consistent with the reported failure occurring in the user's separate terminal.
+
+The user approved a plan to add allowlisted diagnostics and selected **Diagnose and stop**, explicitly rejecting an additional application retry after the SDK's built-in attempts.
+
+### Implementation
+
+`agent/investigator.py` now catches `RateLimitError` before the generic safe fallback. Its formatter accepts only restricted alphanumeric API metadata and finite nonnegative numeric retry delays. It never emits the raw exception message, body, prompt, request, authorization header, or arbitrary response header.
+
+The handler classifies `insufficient_quota` as an API billing, credit, or project-limit issue for which retrying is ineffective. Other 429 responses are described as throttling after built-in retries, with a server-provided numeric wait when available. Automatic model switching and application-level retry were deliberately omitted.
+
+Four tests were added with constructed local `RateLimitError` instances and mocked `Runner.run_sync`. Their embedded sentinel values verify that credential-like environment content, request authorization, response authorization, raw error messages, and response-body content do not reach stderr. The runner call count remains one.
+
+### Verification evidence
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+```text
+Ran 20 tests in 0.298s
+
+OK
+```
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\validate_results.py .\demo_project\results
+```
+
+```text
+INFO: median p95 workload: healthy=148.000 usec, cpu_spike=8549.000 usec, ratio=57.76x
+INFO: supporting evidence: process p95 healthy=0.408000 ms, cpu_spike=12.588500 ms; duration healthy=4976.010 ms, cpu_spike=6406.270 ms
+Validated 21 result files successfully.
+```
+
+Python byte-compilation of the edited agent and test modules succeeded. No live API request or Godot run occurred. README now distinguishes missing credentials, rejected authentication, insufficient quota, transient rate limiting, and model access failures. `IMPROVEMENT_CHANGELOG.md` records this as Experiment 2 because it materially changes runtime diagnosis rather than merely documenting existing behavior.
+
+Final skill, link, secret-pattern, whitespace, and Git-state checks remained to be completed after this chronological entry.
+
+### Final verification result
+
+The official repository documentation-skill validator printed `Skill is valid!`. Its PyYAML 6.0.3 dependency was installed only into a uniquely named, verified system-temporary directory and removed after the check.
+
+The documentation audit found README sections 1 through 17 in order, resolved all 11 relative links, and confirmed the documented clone URL still matches the configured `origin` fetch URL. No trailing whitespace, missing final newline, or temporary dependency directory remained.
+
+The final key-pattern scan found no match in repository-owned working-tree files, tracked `HEAD`, the staged index, or any reachable commit. `git diff --check` reported no whitespace error beyond Git's existing Windows line-ending warnings. All user changes remained uncommitted for review.
+
+No test failed. No application-level retry, automatic model fallback, live API request, Godot run, commit, or push occurred. A successful investigator response still depends on a newly issued key whose API project has available quota and access to the selected model.
