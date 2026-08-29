@@ -1580,3 +1580,11 @@ OK
 Python byte compilation also returned `0`. Both workflow files parsed successfully with PyYAML `6.0.3`, supplied only through a uniquely named system-temporary directory that was validated before recursive cleanup and removed afterward. The official repository documentation-skill validator printed `Skill is valid!`. All checked Markdown links resolved, README retained its 17 numbered sections, every evidence document ended with a newline, `pip check` found no broken requirements, and `git diff --check` found no whitespace error. Filename-only credential-pattern scans found zero matching working-tree, tracked, staged, or reachable-history files or commits.
 
 No Godot process, benchmark, OpenAI request, fixture change, budget change, or consumer-repository mutation occurred. README and the Experiment 11 clarification now distinguish the failed hosted attempt from successful hosted capture. Commit, push, public workflow-metadata inspection, and the consumer rerun remain to be recorded after they occur.
+
+### Commit, push, and public verification
+
+The five focused files were staged after a clean staged whitespace check and reviewed as a 54-insertion, five-deletion diff. Commit `580606bcf603bb0279d90a957c6498947d366182` was created with the approved message `Use setup Godot path in reusable workflow` and pushed from `58cdb49` to `origin/main`.
+
+The planned GitHub CLI query could not run because `gh` is not installed on this machine. No repository state changed as a result. A read-only query to GitHub's public REST API then reported `Performance Guardian` and `Reusable Performance Guardian` as `active`. The reusable workflow content at commit `580606b` had blob SHA `80cf79ea20e8ec3440ea0135c524b6ada18ef11f`, exactly matching `git hash-object` for the verified local workflow.
+
+This confirms the correction is pushed and GitHub recognizes the definition. It does not establish successful hosted capture. The consumer repository must update its reusable-workflow reference to full commit `580606bcf603bb0279d90a957c6498947d366182`, correct its separate budget path to `performance_budgets.json`, and rerun. No consumer repository was modified or dispatched during this task.
