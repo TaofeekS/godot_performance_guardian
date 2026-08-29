@@ -1619,3 +1619,9 @@ OK
 Python byte compilation returned `0`, and `pip check` reported no broken requirements. Both workflows parsed successfully with PyYAML `6.0.3`, supplied only through a uniquely named system-temporary directory that was validated before recursive removal. The official documentation-skill validator printed `Skill is valid!`. All checked Markdown links resolved, README retained its 17 numbered sections, all evidence documents ended with newlines, and `git diff --check` found no whitespace error. Filename-only credential-pattern scans found zero matching working-tree, tracked, staged, or reachable-history files or commits.
 
 No Godot process, benchmark, OpenAI request, fixture or budget change, or consumer-repository mutation occurred. README and the Experiment 11 record now treat the hosted deterministic run as verified while keeping corrected raw artifact preservation pending a new consumer ZIP. Commit, push, and public metadata checks follow this entry.
+
+### Commit, push, and public verification
+
+The five focused files were staged after the complete diff and staged whitespace check passed. Commit `0cd6a573d21b5ddd1ffd624be2782d0e9979e3ab` was created with message `Preserve raw performance evidence artifacts` and pushed from `2a2c0e3` to `origin/main`.
+
+GitHub's public REST metadata reported the reusable workflow as `active`. The workflow at commit `0cd6a57` had blob SHA `fba8347337dfa640bf363c9d2c621ea5857bc377`, exactly matching the verified local file. This establishes that the correction is delivered and recognized; it does not prove the next ZIP contains the raw files. The consumer must pin the new full commit, rerun `never`, and inspect the artifact for the three captures, three logs, manifest, and gate report. No consumer repository was changed or dispatched during implementation.
