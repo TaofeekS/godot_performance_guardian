@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "budgets": [
+    {
+      "id": "healthy-process-p95",
+      "scenario": "healthy",
+      "metric": "median_p95_process_time",
+      "maximum": 2.0,
+      "unit": "ms",
+      "description": "Healthy process p95 should remain below two milliseconds."
+    },
+    {
+      "id": "healthy-retained-nodes",
+      "scenario": "healthy",
+      "metric": "post_cleanup_retained_nodes",
+      "maximum": 0,
+      "unit": "nodes",
+      "description": "Healthy cleanup must retain no scenario-owned nodes."
+    },
+    {
+      "id": "cpu-spike-workload-p95",
+      "scenario": "cpu_spike",
+      "metric": "median_p95_workload_time",
+      "maximum": 1000,
+      "unit": "usec",
+      "description": "Demonstrates detection of excessive CPU workload time."
+    },
+    {
+      "id": "node-leak-retained-nodes",
+      "scenario": "node_leak",
+      "metric": "post_cleanup_retained_nodes",
+      "maximum": 0,
+      "unit": "nodes",
+      "description": "Demonstrates detection of retained scenario-owned nodes."
+    }
+  ]
+}

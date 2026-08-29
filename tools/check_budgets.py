@@ -1,0 +1,402 @@
+#!/usr/bin/env python3
+"""Evaluate configurable budgets against deterministic validator evidence."""
+
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+import json
+import math
+from pathlib import Path
+import re
+import subprocess
+import sys
+from typing import Any, Callable
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+VALIDATOR_PATH = (REPOSITORY_ROOT / "tools" / "validate_results.py").resolve()
+VALIDATOR_TIMEOUT_SECONDS = 30.0
+ID_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9._-]{0,63}$")
+TOP_LEVEL_FIELDS = {"schema_version", "budgets"}
+REQUIRED_RULE_FIELDS = {"id", "scenario", "metric", "maximum", "unit", "description"}
+METRIC_SPECS = {
+    "median_p95_workload_time": {
+        "scenarios": {"healthy", "cpu_spike"},
+        "unit": "usec",
+        "source_type": "validated_aggregate",
+    },
+    "median_p95_process_time": {
+        "scenarios": {"healthy", "cpu_spike"},
+        "unit": "ms",
+        "source_type": "validated_aggregate",
+    },
+    "median_scenario_duration": {
+        "scenarios": {"healthy", "cpu_spike"},
+        "unit": "ms",
+        "source_type": "validated_aggregate",
+    },
+    "post_cleanup_retained_nodes": {
+        "scenarios": {"healthy", "node_leak", "cpu_spike"},
+        "unit": "nodes",
+        "source_type": "validated_result",
+    },
+}
+
+
+class BudgetConfigurationError(ValueError):
+    """The budget configuration is invalid."""
+
+
+class BudgetEvidenceError(ValueError):
+    """Validated evidence is unavailable or incompatible."""
+
+
+@dataclass(frozen=True)
+class BudgetRule:
+    budget_id: str
+    scenario: str
+    metric: str
+    maximum: int | float
+    unit: str
+    description: str
+
+
+def _is_finite_number(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
+def parse_budget_configuration(data: Any) -> list[BudgetRule]:
+    if not isinstance(data, dict):
+        raise BudgetConfigurationError("top-level budget configuration must be an object")
+    fields = set(data)
+    if fields != TOP_LEVEL_FIELDS:
+        missing = sorted(TOP_LEVEL_FIELDS - fields)
+        unknown = sorted(fields - TOP_LEVEL_FIELDS)
+        detail = []
+        if missing:
+            detail.append(f"missing fields {missing}")
+        if unknown:
+            detail.append(f"unknown fields {unknown}")
+        raise BudgetConfigurationError("top-level configuration has " + " and ".join(detail))
+    if isinstance(data["schema_version"], bool) or data["schema_version"] != 1:
+        raise BudgetConfigurationError("schema_version must be the integer 1")
+    budgets = data["budgets"]
+    if not isinstance(budgets, list) or not budgets:
+        raise BudgetConfigurationError("budgets must be a nonempty array")
+
+    parsed: list[BudgetRule] = []
+    identifiers: set[str] = set()
+    for index, raw_rule in enumerate(budgets, 1):
+        source = f"budget rule {index}"
+        if not isinstance(raw_rule, dict):
+            raise BudgetConfigurationError(f"{source} must be an object")
+        fields = set(raw_rule)
+        missing = sorted(REQUIRED_RULE_FIELDS - fields)
+        unknown = sorted(fields - REQUIRED_RULE_FIELDS)
+        if missing:
+            raise BudgetConfigurationError(f"{source} is missing fields {missing}")
+        if unknown:
+            raise BudgetConfigurationError(f"{source} has unknown fields {unknown}")
+
+        budget_id = raw_rule["id"]
+        if not isinstance(budget_id, str) or not ID_PATTERN.fullmatch(budget_id):
+            raise BudgetConfigurationError(f"{source} has an invalid id")
+        if budget_id in identifiers:
+            raise BudgetConfigurationError(f"duplicate budget id {budget_id!r}")
+        identifiers.add(budget_id)
+
+        scenario = raw_rule["scenario"]
+        if not isinstance(scenario, str) or scenario not in {
+            "healthy",
+            "node_leak",
+            "cpu_spike",
+        }:
+            raise BudgetConfigurationError(f"{source} has an unsupported scenario")
+        metric = raw_rule["metric"]
+        if not isinstance(metric, str) or metric not in METRIC_SPECS:
+            raise BudgetConfigurationError(f"{source} has an unsupported metric")
+        specification = METRIC_SPECS[metric]
+        if scenario not in specification["scenarios"]:
+            raise BudgetConfigurationError(
+                f"{source} metric {metric!r} is unsupported for scenario {scenario!r}"
+            )
+        unit = raw_rule["unit"]
+        if unit != specification["unit"]:
+            raise BudgetConfigurationError(
+                f"{source} metric {metric!r} requires unit {specification['unit']!r}"
+            )
+        maximum = raw_rule["maximum"]
+        if not _is_finite_number(maximum):
+            raise BudgetConfigurationError(f"{source} maximum must be a finite number")
+        if maximum < 0:
+            raise BudgetConfigurationError(f"{source} maximum must not be negative")
+
+        description = raw_rule["description"]
+        if (
+            not isinstance(description, str)
+            or not description.strip()
+            or len(description) > 200
+            or "\n" in description
+            or "\r" in description
+        ):
+            raise BudgetConfigurationError(
+                f"{source} description must be a short single-line string"
+            )
+        parsed.append(
+            BudgetRule(
+                budget_id=budget_id,
+                scenario=scenario,
+                metric=metric,
+                maximum=maximum,
+                unit=unit,
+                description=description,
+            )
+        )
+    return sorted(parsed, key=lambda rule: rule.budget_id)
+
+
+def load_budget_configuration(path: Path) -> list[BudgetRule]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except OSError as error:
+        raise BudgetConfigurationError("budget configuration could not be read") from error
+    except json.JSONDecodeError as error:
+        raise BudgetConfigurationError("budget configuration is not valid JSON") from error
+    return parse_budget_configuration(data)
+
+
+def run_validator_packet(
+    results_directory: str,
+    *,
+    subprocess_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        str(VALIDATOR_PATH),
+        "--evidence-json",
+        results_directory,
+    ]
+    try:
+        completed = subprocess_runner(
+            command,
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=VALIDATOR_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise BudgetEvidenceError("deterministic validation timed out") from error
+    except OSError as error:
+        raise BudgetEvidenceError("deterministic validator could not be started") from error
+
+    try:
+        packet = json.loads(completed.stdout)
+    except (json.JSONDecodeError, TypeError) as error:
+        raise BudgetEvidenceError("validator did not return a valid evidence packet") from error
+    if not isinstance(packet, dict) or packet.get("packet_type") != "godot_performance_evidence":
+        raise BudgetEvidenceError("validator returned an unsupported evidence packet")
+    validation = packet.get("validation")
+    if not isinstance(validation, dict) or validation.get("exit_code") != completed.returncode:
+        raise BudgetEvidenceError("validator evidence disagrees with its process exit status")
+    if completed.returncode != 0 or validation.get("status") != "passed":
+        raise BudgetEvidenceError("deterministic result validation failed")
+    return packet
+
+
+def _validated_packet_parts(
+    packet: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, str]]]:
+    if packet.get("packet_type") != "godot_performance_evidence" or (
+        isinstance(packet.get("schema_version"), bool)
+        or packet.get("schema_version") != 1
+    ):
+        raise BudgetEvidenceError("validator evidence packet schema is unsupported")
+    validation = packet.get("validation")
+    if (
+        not isinstance(validation, dict)
+        or validation.get("status") != "passed"
+        or validation.get("exit_code") != 0
+    ):
+        raise BudgetEvidenceError("deterministic result validation did not pass")
+    for key in ("candidate_file_count", "validated_file_count"):
+        value = validation.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            raise BudgetEvidenceError("validator count metadata is invalid")
+    results_directory = packet.get("results_directory")
+    if (
+        not isinstance(results_directory, str)
+        or not results_directory
+        or Path(results_directory).is_absolute()
+        or ".." in Path(results_directory).parts
+    ):
+        raise BudgetEvidenceError("validator results-directory metadata is unsafe")
+
+    evidence = packet.get("evidence")
+    if not isinstance(evidence, list):
+        raise BudgetEvidenceError("validator evidence must be an array")
+    evidence_ids: list[str] = []
+    for item in evidence:
+        if not isinstance(item, dict):
+            raise BudgetEvidenceError("validator evidence items must be objects")
+        evidence_id = item.get("id")
+        if not isinstance(evidence_id, str) or not ID_PATTERN.fullmatch(evidence_id):
+            raise BudgetEvidenceError("validator evidence contains an invalid id")
+        evidence_ids.append(evidence_id)
+    if len(evidence_ids) != len(set(evidence_ids)):
+        raise BudgetEvidenceError("validator evidence ids are not unique")
+
+    raw_limitations = packet.get("limitations")
+    if not isinstance(raw_limitations, list):
+        raise BudgetEvidenceError("validator limitations must be an array")
+    limitations: list[dict[str, str]] = []
+    for limitation in raw_limitations:
+        if (
+            not isinstance(limitation, dict)
+            or set(limitation) != {"id", "statement"}
+            or not isinstance(limitation["id"], str)
+            or not limitation["id"]
+            or not isinstance(limitation["statement"], str)
+            or not limitation["statement"]
+        ):
+            raise BudgetEvidenceError("validator limitation metadata is invalid")
+        limitations.append(
+            {"id": limitation["id"], "statement": limitation["statement"]}
+        )
+    return validation, evidence, limitations
+
+
+def _display_number(value: int | float) -> str:
+    return format(value, ".12g")
+
+
+def evaluate_budgets(
+    rules: list[BudgetRule], packet: dict[str, Any]
+) -> dict[str, Any]:
+    validation, evidence, limitations = _validated_packet_parts(packet)
+    results: list[dict[str, Any]] = []
+    for rule in sorted(rules, key=lambda candidate: candidate.budget_id):
+        specification = METRIC_SPECS[rule.metric]
+        matches = [
+            item
+            for item in evidence
+            if item.get("metric") == rule.metric
+            and item.get("scenario") == rule.scenario
+            and item.get("source_type") == specification["source_type"]
+            and item.get("unit") == rule.unit
+        ]
+        if len(matches) != 1:
+            raise BudgetEvidenceError(
+                f"budget {rule.budget_id!r} has missing or ambiguous evidence"
+            )
+        item = matches[0]
+        measured = item.get("value")
+        if not _is_finite_number(measured) or measured < 0:
+            raise BudgetEvidenceError(
+                f"budget {rule.budget_id!r} evidence value is invalid"
+            )
+        passed = measured <= rule.maximum
+        relation = "within" if passed else "exceeds"
+        explanation = (
+            f"Measured {_display_number(measured)} {rule.unit} {relation} maximum "
+            f"{_display_number(rule.maximum)} {rule.unit}."
+        )
+        results.append(
+            {
+                "budget_id": rule.budget_id,
+                "description": rule.description,
+                "scenario": rule.scenario,
+                "metric": rule.metric,
+                "measured_value": measured,
+                "maximum_value": rule.maximum,
+                "unit": rule.unit,
+                "evidence_id": item["id"],
+                "status": "passed" if passed else "failed",
+                "explanation": explanation,
+            }
+        )
+
+    passed_count = sum(result["status"] == "passed" for result in results)
+    failed_count = len(results) - passed_count
+    return {
+        "schema_version": 1,
+        "status": "passed" if failed_count == 0 else "failed",
+        "validator": {
+            "status": "passed",
+            "candidate_file_count": validation["candidate_file_count"],
+            "validated_file_count": validation["validated_file_count"],
+            "results_directory": packet["results_directory"],
+        },
+        "summary": {
+            "total": len(results),
+            "passed": passed_count,
+            "failed": failed_count,
+        },
+        "results": results,
+        "limitations": limitations,
+    }
+
+
+def canonical_json(report: dict[str, Any]) -> str:
+    return json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+
+
+def human_report(report: dict[str, Any]) -> str:
+    validator = report["validator"]
+    summary = report["summary"]
+    lines = [
+        f"Validation: passed ({validator['validated_file_count']} files)",
+        (
+            f"Budgets: {report['status'].upper()} "
+            f"({summary['passed']} passed, {summary['failed']} failed, "
+            f"{summary['total']} total)"
+        ),
+    ]
+    for result in report["results"]:
+        label = "PASS" if result["status"] == "passed" else "FAIL"
+        lines.append(
+            f"{label}: {result['budget_id']} - "
+            f"{result['explanation']} Evidence [{result['evidence_id']}]"
+        )
+    lines.append("Validator limitations:")
+    for limitation in report["limitations"]:
+        lines.append(f"- {limitation['id']}: {limitation['statement']}")
+    return "\n".join(lines) + "\n"
+
+
+def _argument_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="emit canonical machine-readable JSON",
+    )
+    parser.add_argument("results_directory", help="benchmark result directory")
+    parser.add_argument("budget_file", help="versioned JSON budget configuration")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _argument_parser().parse_args(argv)
+    try:
+        rules = load_budget_configuration(Path(args.budget_file))
+        packet = run_validator_packet(args.results_directory)
+        report = evaluate_budgets(rules, packet)
+    except (BudgetConfigurationError, BudgetEvidenceError) as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 2
+
+    output = canonical_json(report) if args.json_output else human_report(report)
+    print(output, end="")
+    return 0 if report["status"] == "passed" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

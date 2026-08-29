@@ -902,3 +902,89 @@ The documentation skill's official validator printed `Skill is valid!`. PyYAML 6
 The final README audit found all 17 numbered sections, resolved all 15 Markdown links, confirmed the clone URL still matches the configured `origin` fetch URL, and found no trailing whitespace or missing final newline. Filename-only secret-pattern scans found no match in the working tree, tracked files, staged content, or reachable history. `git diff --check` reported no whitespace error; Git emitted only its existing Windows line-ending notices.
 
 Five repository files were modified for Experiment 4: the investigator, its tests, README, improvement changelog, and trajectory. The benchmark controller and validator were unchanged. No Godot run, live API request, commit, or push occurred.
+
+## 2026-08-29 — Experiment 5: Configurable performance budgets
+
+### Original request and approval
+
+The user first supplied the Experiment 5 goal and added this exact correction:
+
+> Create budgets/example_budgets.json using this exact v1 schema. The completed example file must contain the four demonstration rules listed below.
+
+The final approved implementation request began:
+
+> PLEASE IMPLEMENT THIS PLAN:
+> # Experiment 5: Configurable Performance Budgets
+>
+> Add a standard-library-only checker that compares validated evidence with configurable project budgets and produces deterministic local/CI pass-fail results without AI.
+>
+> The validator, investigator, Godot scenarios, and stored results remain unchanged.
+
+It required the exact four-rule example, semantic evidence matching rather than `E`-number coupling, strict configuration validation, deterministic human and canonical JSON modes, exit codes `0`/`1`/`2`, fixed-fixture standard-library tests, documentation through `$godot-performance-guardian-docs`, and this execution history through `$agent-trajectory`. It prohibited Godot reruns, API-key inspection or use, API requests, added dependencies, commits, and pushes.
+
+### Inspection and design evidence
+
+The agent read both invoked skills completely, including the documentation skill's complete README requirements reference. It inspected `README.md`, `AGENT_TRAJECTORY.md`, `IMPROVEMENT_CHANGELOG.md`, Git status and the configured remote, the validator's structured packet contract, existing investigator semantic matching, tests, and the current stored evidence. The pre-change working tree was clean and `origin` still used `https://github.com/TaofeekS/godot_performance_guardian.git` for fetch and push.
+
+The current validator evidence contained 40 files and exposed the required aggregate metrics as unique semantic items. The design therefore kept all benchmark calculations in `tools/validate_results.py`: the new checker invokes `--evidence-json`, rejects failed or malformed packets, and evaluates only validated items selected by metric, scenario, source type, and unit. Evidence IDs are retained in output as opaque traceability labels.
+
+### Implementation
+
+The implementation added exactly three runtime/test artifacts before documentation:
+
+- `budgets/example_budgets.json`, containing the four rules and field values approved by the user.
+- `tools/check_budgets.py`, using only the Python standard library and a fixed validator subprocess with no shell.
+- `tests/test_check_budgets.py`, using synthetic evidence packets and mocks rather than exact expectations from the changing result directory.
+
+The checker rejects missing or unknown fields, unsafe or duplicate IDs, unsupported metric/scenario pairs, wrong units, empty descriptions, and nonfinite, Boolean, or negative limits. It requires unambiguous semantic evidence with the declared source type and unit, preserves matched evidence IDs and validator limitations, sorts results by budget ID, and treats equality as a pass. Human output and canonical JSON share one evaluated result. Exit code `0` means all budgets passed, `1` means valid evidence produced policy failures, and `2` means configuration, evidence, validation, or execution failed.
+
+The Godot project, stored results, validator, and investigator were not modified.
+
+### Tests, failures, and responses
+
+The first complete test run executed 56 tests and found one presentation-only failure: the human renderer printed `PASSED` and `FAILED`, while its test expected the concise `PASS` and `FAIL` labels. The renderer was corrected and packet schema-version validation was added. The final suite then reported:
+
+```text
+Ran 57 tests in 1.579s
+
+OK
+```
+
+Python byte-compilation of the checker and its tests also succeeded. A final source review then found that `description` was optional even though the approved exact v1 rule shape requires it. The parser and fixed tests were tightened, and the complete 57-test suite still passed in 1.601 seconds.
+
+The unchanged validator and real example policy were then run:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\validate_results.py .\demo_project\results
+.\.venv\Scripts\python.exe .\tools\check_budgets.py .\demo_project\results .\budgets\example_budgets.json
+```
+
+The validator passed all 40 existing files with healthy/CPU-spike median p95 workload of 166/11,771.5 µs (70.91×), process p95 of 0.8115/13.112 ms, and duration of 4,976.0085/7,577.4265 ms. The policy result was exactly two passes and two intentional failures:
+
+```text
+PASS: healthy-process-p95
+PASS: healthy-retained-nodes
+FAIL: cpu-spike-workload-p95
+FAIL: node-leak-retained-nodes
+BUDGET_CHECK_EXIT=1
+```
+
+The sorted human display placed the CPU-spike rule first by ID. A first JSON repeat-check script failed because it assumed result fields named `id` and `fail`; the implemented contract uses `budget_id` and `failed`. After inspecting the actual safe field names and correcting only the verification harness, two independent JSON-mode invocations were byte-identical, returned `1`, and identified only the two intended failures.
+
+### Documentation synchronization
+
+The repository documentation skill synchronized all three maintained documents. README now distinguishes deterministic evidence validation, configurable project policy, and optional AI investigation; documents the exact schema, supported metrics, commands, output, exit behavior, tree entries, current integration evidence, limitations, and roadmap status. `IMPROVEMENT_CHANGELOG.md` retains the earlier history and appends Experiment 5 as a product change. This trajectory records documentation operations and the two corrected verification assumptions rather than presenting them as performance experiments.
+
+The official documentation-skill validator initially could not start because its own undeclared `yaml` dependency was absent. PyYAML 6.0.3 was installed only into a uniquely named, verified system-temporary directory. The validator printed `Skill is valid!`, and the temporary directory was removed immediately and verified absent.
+
+Final link, Markdown, secret-pattern, whitespace, and Git-state verification follows this entry. No Godot run or API request occurred.
+
+### Final verification result
+
+The final unchanged validator invocation passed all 40 stored result files. The example checker again returned the expected policy exit `1`, with only `cpu-spike-workload-p95` and `node-leak-retained-nodes` failing. Two fresh canonical JSON invocations were byte-identical.
+
+The first README audit command incorrectly collected only the first numbered heading because it addressed `MatchCollection.Groups` without enumerating matches. The corrected audit enumerated all matches. A second harness check used PowerShell's literal backtick inside a single-quoted regular expression and falsely identified lines ending in the letter `t` as trailing whitespace; `rg` showed no actual match, and the corrected `\t` expression passed. Neither harness issue identified or required a repository-content fix.
+
+The final documentation audit resolved all 20 relative README links, confirmed all 17 numbered sections in order, found every required artifact, verified final newlines and no trailing whitespace, and reconfirmed that the documented clone URL matches both configured `origin` URLs. Filename-only secret-pattern scans found no match in the working tree, tracked files, staged content, or reachable Git history. `git diff --check` returned zero; Git printed only its existing Windows line-ending notices.
+
+Git status contained only the three synchronized documentation files and the three intended Experiment 5 additions. No validator, investigator, Godot project, stored result, documentation-skill source, or dependency file changed. No Godot run, API-key value access, API request, added permanent dependency, commit, or push occurred.

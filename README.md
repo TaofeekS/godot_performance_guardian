@@ -8,10 +8,10 @@ Godot Performance Budget Guardian is a synthetic Godot 4.5 benchmark that detect
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; and a locally tested, read-only investigator with schema-driven evidence citations, a post-generation grounding gate, and a deterministic fallback. |
-| Partially implemented | Performance budgets are embedded as controller tolerances and validator assertions. There is no standalone, user-editable budget file or stored golden baseline. |
+| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; a versioned, user-editable budget checker; and a locally tested, read-only investigator with schema-driven evidence citations, a post-generation grounding gate, and a deterministic fallback. |
+| Partially implemented | Configurable policy covers four validated aggregate metrics. The benchmark's integrity assertions and controller noise tolerances remain embedded in code, and there is no stored golden baseline. |
 | Unverified | A post-Experiment-3 live report was rejected by the grounding gate. Experiment 4's deterministic fallback is locally verified but has not yet been exercised by another live request. |
-| Planned | Configurable budgets, ten evaluation fixtures, a reusable Godot editor dock/plugin, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
+| Planned | Ten evaluation fixtures, broader budget coverage, a reusable Godot editor dock/plugin, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
 
@@ -27,9 +27,9 @@ The current baseline:
 
 - Runs three deterministic synthetic scenarios with a fixed seed and fixed frame counts.
 - Collects raw timing, memory, object, node, and scenario-owned measurements.
-- Compares a multi-run result set against embedded cleanup, growth, and relative CPU thresholds.
-- Reports pass or fail through the validator's output and exit code.
-- Does not load configurable budgets. An optional investigator can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
+- Compares a multi-run result set against embedded data-integrity, cleanup, growth, and relative CPU assertions.
+- Applies optional versioned project policy from `budgets/example_budgets.json` after deterministic validation, with a separate pass/fail exit status.
+- Offers an optional investigator that can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
 
 It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the complete editor plugin or automated repair product.
 
@@ -41,10 +41,13 @@ It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the
 |-- AGENT_TRAJECTORY.md
 |-- IMPROVEMENT_CHANGELOG.md
 |-- requirements-agent.txt
+|-- budgets/
+|   `-- example_budgets.json
 |-- agent/
 |   |-- __init__.py
 |   `-- investigator.py
 |-- tests/
+|   |-- test_check_budgets.py
 |   `-- test_investigator.py
 |-- .agents/
 |   `-- skills/
@@ -61,6 +64,7 @@ It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the
 |   |   `-- test_actor.gd
 |   `-- results/                 # Generated locally; ignored by Git
 `-- tools/
+    |-- check_budgets.py
     `-- validate_results.py
 ```
 
@@ -69,8 +73,11 @@ It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the
 - [`demo_project/scripts/test_actor.gd`](demo_project/scripts/test_actor.gd) implements the lightweight deterministic `Node2D` actors.
 - [`demo_project/run_benchmarks.ps1`](demo_project/run_benchmarks.ps1) launches three isolated runs of each scenario and calls the validator.
 - [`tools/validate_results.py`](tools/validate_results.py) validates schemas, calculations, cleanup evidence, leak growth, and relative CPU cost using only the Python standard library.
+- [`tools/check_budgets.py`](tools/check_budgets.py) evaluates validated semantic evidence against a versioned project policy without AI or third-party packages.
+- [`budgets/example_budgets.json`](budgets/example_budgets.json) demonstrates two passing limits and two intentionally failing regression limits.
 - [`agent/investigator.py`](agent/investigator.py) defines the read-only OpenAI Agents SDK investigator and its sole restricted validator tool.
 - [`tests/test_investigator.py`](tests/test_investigator.py) verifies the tool boundary, path containment, subprocess failures, configuration, and no-key behavior without an API request.
+- [`tests/test_check_budgets.py`](tests/test_check_budgets.py) uses fixed evidence fixtures to verify configuration, semantic matching, deterministic output, and exit behavior.
 - [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator dependency to the installed SDK version.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record, beginning with the accepted current-state baseline.
@@ -83,12 +90,12 @@ Godot-generated `.uid` files are present beside the GDScript sources. The `.godo
 | Requirement | Current evidence |
 | --- | --- |
 | Godot | Exactly tested with `4.5.1.stable.official.f62fdbde1`. Other 4.5.x builds have not been verified. |
-| Python | Python 3.14.6 was used successfully. The validator uses only the standard library; other Python versions have not been verified in this repository. |
+| Python | Python 3.14.6 was used successfully. The validator and budget checker use only the standard library; other Python versions have not been verified in this repository. |
 | PowerShell | PowerShell 7.6.4 was used successfully for the batch harness. |
 | Operating system | Windows 10.0.26200 is the only verified platform. Linux and macOS are unverified, and the supplied batch harness is PowerShell-specific. |
 | Debug build | Not required for scenario execution. `Performance.MEMORY_STATIC` is accepted only when a debug build reports a positive value; otherwise memory samples are `null` and explicitly marked unavailable. |
-| External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation. The optional investigator pins `openai-agents==0.22.0`. |
-| Network or API key | Benchmarking and deterministic validation need neither. A live investigator run requires network access and `OPENAI_API_KEY`; local investigator tests do not. |
+| External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation and budget policy. The optional investigator pins `openai-agents==0.22.0`. |
+| Network or API key | Benchmarking, deterministic validation, and configurable budget checking need neither. A live investigator run requires network access and `OPENAI_API_KEY`; local investigator tests do not. |
 
 ## 7. Quick start
 
@@ -140,6 +147,25 @@ Emit the same validated set as the deterministic investigator evidence packet:
 ```powershell
 python .\tools\validate_results.py --evidence-json .\demo_project\results
 ```
+
+Apply the example project budget in human-readable mode:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\check_budgets.py `
+  .\demo_project\results `
+  .\budgets\example_budgets.json
+```
+
+Use canonical JSON output for CI or another deterministic consumer:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\check_budgets.py `
+  --json `
+  .\demo_project\results `
+  .\budgets\example_budgets.json
+```
+
+The example intentionally returns exit code `1`: its healthy limits pass, while its CPU-spike and node-leak limits demonstrate policy failures. Exit code `0` means every configured budget passed; `1` means validation succeeded but at least one budget failed; `2` means configuration, evidence, validation, or execution was invalid.
 
 Generated files are in `demo_project/results/`. They are local evidence and are ignored by Git.
 
@@ -202,7 +228,20 @@ Runs the healthy actor lifecycle plus a fixed `240 x 240` nested numerical calcu
 
 ## 10. Performance budgets
 
-There is no configurable budget file yet. Current limits are embedded in two places:
+Performance policy is stored in the versioned [`budgets/example_budgets.json`](budgets/example_budgets.json) schema. [`tools/check_budgets.py`](tools/check_budgets.py) first invokes the validator's structured mode through a fixed subprocess command, then matches evidence by metric, scenario, source type, and unit. Evidence IDs such as `E3` remain opaque traceability labels rather than configuration keys.
+
+Each schema-version-1 rule has exactly `id`, `scenario`, `metric`, `maximum`, `unit`, and `description`. IDs must be unique and safe, descriptions must be nonempty, and limits must be finite nonnegative numbers. A measured value passes when it is equal to or below `maximum`.
+
+| Metric | Scenarios | Unit |
+| --- | --- | --- |
+| `median_p95_workload_time` | `healthy`, `cpu_spike` | `usec` |
+| `median_p95_process_time` | `healthy`, `cpu_spike` | `ms` |
+| `median_scenario_duration` | `healthy`, `cpu_spike` | `ms` |
+| `post_cleanup_retained_nodes` | `healthy`, `node_leak`, `cpu_spike` | `nodes` |
+
+The included example has four rules. Its healthy process and cleanup rules are expected to pass the current evidence. Its CPU-spike workload and node-leak cleanup rules deliberately set limits that the regression scenarios exceed, demonstrating deterministic failure output. The absolute timing limits are examples for this machine, not universal Godot recommendations.
+
+Configurable policy is separate from benchmark validity. The following safety and integrity limits remain embedded in two places and are not overridden by a budget file:
 
 - `benchmark_controller.gd` records a healthy object-growth tolerance of 32 and a memory-growth tolerance equal to the greater of 1 MiB or 2% of baseline memory.
 - `validate_results.py` requires healthy cleanup, exactly 120 retained leak nodes, increasing global node/object evidence, stable CPU-spike ownership, at least three unique runs per scenario, and a CPU-spike median p95 workload time at least 2× healthy.
@@ -220,7 +259,7 @@ Each JSON result records the controller tolerances using the implemented schema:
 }
 ```
 
-When static memory is unavailable, `healthy_memory_growth_bytes` is `null` and memory validation is skipped explicitly. Changing the present thresholds requires coordinated edits to the controller and validator; a single configurable schema is roadmap work.
+When static memory is unavailable, `healthy_memory_growth_bytes` is `null` and memory validation is skipped explicitly. Changing these integrity assertions still requires coordinated controller and validator edits; the versioned policy checker intentionally consumes only evidence that already passed them.
 
 Limits should be calibrated from repeated healthy runs on the target environment. Results from different machines, operating systems, power modes, background loads, or Godot builds should not be compared as though they share one performance budget.
 
@@ -269,7 +308,7 @@ Every run writes one JSON document atomically through a temporary sibling file. 
 
 The full document also includes engine and execution-environment metadata, physics time, orphan-node counts, baseline and post-cleanup snapshots, mean/p50/p95/max timing, initial/final/peak/delta count summaries, measurement duration, and a workload checksum.
 
-There is currently no `budget_results` or structured `errors` property in an individual JSON result. Budget-style evaluation happens when the Python validator reads a result set. Invalid arguments, output failures, and validation failures are written to stderr and produce a nonzero exit code.
+Individual Godot result files are unchanged and contain no `budget_results` or structured `errors` property. The separate checker emits a deterministic result document in `--json` mode containing its schema version, overall status, validator metadata, per-rule measured and maximum values, matched opaque evidence IDs, summary counts, and preserved validator limitations. Human mode reports the same evaluation. Invalid arguments and operational errors go to stderr; policy failures remain valid output and return exit code `1`.
 
 ## 12. Evaluation
 
@@ -315,7 +354,9 @@ The pre-Experiment-3 live report was useful enough to reproduce the principal ti
 
 Experiment 4 followed a real post-change live rejection containing `G03`, `G04`, `G07`, `G08`, `G11`, and `G13`. Local verification ran 39 tests without an API request. The tests prove that renumbered evidence still passes, unrelated evidence is ignored, missing or duplicate semantic evidence fails safely, rejected model text is never emitted, the SDK runner is called once, and a grounded fallback is returned successfully when validation passed.
 
-The current result directory contains 31 validated files: 13 healthy, nine node-leak, and nine CPU-spike runs. Its current aggregate is healthy/CPU-spike median p95 workload of 163 µs/11,510 µs (70.61×), process p95 of 0.605 ms/12.537 ms, and duration of 4,976.010 ms/7,285.752 ms. Every leak run retained 120 nodes; healthy and CPU-spike retained zero. The CPU results mix three `160 x 160` and six `240 x 240` configurations, so this remains a regression-safety set rather than a new controlled baseline.
+At Experiment 4 verification time, the result directory contained 31 validated files: 13 healthy, nine node-leak, and nine CPU-spike runs. That aggregate was healthy/CPU-spike median p95 workload of 163 µs/11,510 µs (70.61×), process p95 of 0.605 ms/12.537 ms, and duration of 4,976.010 ms/7,285.752 ms. Every leak run retained 120 nodes; healthy and CPU-spike retained zero. The CPU results mixed three `160 x 160` and six `240 x 240` configurations, so it remained a regression-safety set rather than a new controlled baseline.
+
+Experiment 5 added configurable policy without changing those stored results or validator calculations. Local verification ran 57 standard-library tests. The unchanged validator passed the current 40-file directory. The example policy produced exactly two passes (`healthy-process-p95`, `healthy-retained-nodes`) and two intentional failures (`cpu-spike-workload-p95`, `node-leak-retained-nodes`), returned exit code `1`, and produced byte-identical canonical JSON in two invocations. This 40-file aggregate mixes historical configurations and is integration evidence, not a replacement for Baseline 0.
 
 ## 13. Reproducibility notes
 
@@ -335,11 +376,11 @@ The current result directory contains 31 validated files: 13 healthy, nine node-
 - The benchmark implementation is GDScript-focused.
 - `MEMORY_STATIC` is debug-sensitive and can be unavailable.
 - Evidence focuses on CPU work and object/node growth, not rendering or GPU performance.
-- Thresholds are duplicated in code rather than loaded from a configurable budget file.
+- Configurable policy currently supports four aggregate evidence metrics; the validator's integrity assertions and controller noise tolerances remain embedded in code.
 - There is no committed golden baseline or baseline/iteration/final result organization.
 - There is no reusable editor dock or repair workflow. The investigator receives only validator-produced evidence, including narrowly allowlisted controller facts, and cannot establish root cause by itself.
 - The first live report predates deterministic grounding and was partly speculative; the next live report was rejected by the gate. The deterministic fallback has not yet been exercised live.
-- The current 31-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
+- The current 40-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
 - Individual result JSON does not contain a consolidated budget verdict or structured error object.
 
@@ -348,7 +389,7 @@ The current result directory contains 31 validated files: 13 healthy, nine node-
 | Stage | Status | Intended outcome |
 | --- | --- | --- |
 | 1. Deterministic baseline | Completed | Three synthetic scenarios, raw samples, summaries, repeated runs, and objective validation. |
-| 2. Configurable budgets | Partial/planned | Replace embedded thresholds with a single documented budget schema and explicit per-run verdicts. |
+| 2. Configurable budgets | Completed (v1) | Apply a versioned four-metric project policy to validated aggregate evidence with deterministic human/JSON output and CI exit codes. Broader metric coverage remains future work. |
 | 3. Ten evaluation fixtures | Planned | Add a broader, objective regression fixture set. |
 | 4. Reusable Godot editor dock | Planned | Run and inspect budgets from a reusable editor plugin. |
 | 5. Agent-assisted investigation | Partial | A read-only command-line investigator now uses semantic evidence matching, blocks ungrounded reports, and generates a locally verified deterministic fallback; live fallback behavior remains unverified. |
@@ -358,7 +399,7 @@ The current result directory contains 31 validated files: 13 healthy, nine node-
 ## 16. Hackathon evidence
 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
-- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator boundary, failure diagnosis, deterministic grounding, and schema-driven fallback experiments.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator boundary, failure diagnosis, deterministic grounding, schema-driven fallback, and configurable-budget experiments.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 

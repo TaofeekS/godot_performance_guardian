@@ -209,6 +209,64 @@ Retain the schema-driven matcher and fallback. Strict grounding remains the firs
 
 The next experiment should repeat one live investigator request against a fixed result directory and confirm that either the model report passes directly or the exact fallback disclosure and fully cited report are returned. Live fallback behavior remains unverified.
 
+## 2026-08-29 — Experiment 5: Configurable performance budgets
+
+**Status:** Retained; deterministic local and CI policy verified
+
+### Hypothesis and reason
+
+A small versioned budget file can turn already validated benchmark evidence into project-specific pass/fail policy without copying benchmark calculations, involving AI, or weakening the validator. This was tried because the earlier baseline had only embedded integrity assertions: changing project policy required code edits and could not produce a separate CI verdict.
+
+### Change
+
+Added `budgets/example_budgets.json` with four schema-version-1 demonstration rules and a standard-library-only `tools/check_budgets.py`. The checker validates the exact configuration shape, invokes the unchanged validator's structured mode through a fixed subprocess boundary, and matches facts semantically by metric, scenario, source type, and unit. Matched evidence IDs are preserved only for traceability.
+
+Rules pass at or below their configured maximum. Human and canonical JSON modes report budget results in stable budget-ID order and preserve validator limitations. Exit code `0` means all rules passed, `1` means valid evidence produced at least one policy failure, and `2` identifies invalid configuration, evidence, validation, or execution.
+
+The example intentionally tests healthy process time and cleanup as passing controls while using CPU-spike workload and node-leak cleanup as failing regression demonstrations. Its absolute timing thresholds are examples for the verified machine, not universal Godot guidance.
+
+### Evaluation method
+
+No Godot run, API request, validator edit, investigator edit, or stored-result change was made. Fixed synthetic packets and mocks tested configuration validation, semantic evidence selection, equality, ordering, output modes, subprocess safety, limitations, and all exit classes independently of the changing local result directory. The unchanged validator and example checker were then run against the complete existing result directory as an integration check.
+
+### Observed result
+
+The first complete test run found one presentation mismatch: human output used `PASSED` and `FAILED` while the fixed output contract expected `PASS` and `FAIL`. The labels were corrected without changing evaluation behavior. That suite reported:
+
+```text
+Ran 57 tests in 1.579s
+
+OK
+```
+
+A final schema review then found that the implementation treated `description` as optional despite the approved exact rule shape. It was made required and covered by a missing-field case. The final 57-test suite still passed in 1.601 seconds.
+
+The unchanged validator then reported:
+
+```text
+INFO: median p95 workload: healthy=166.000 usec, cpu_spike=11771.500 usec, ratio=70.91x
+INFO: supporting evidence: process p95 healthy=0.811500 ms, cpu_spike=13.112000 ms; duration healthy=4976.008 ms, cpu_spike=7577.426 ms
+Validated 40 result files successfully.
+```
+
+The example policy produced the intended outcome:
+
+```text
+Budgets: FAILED (2 passed, 2 failed, 4 total)
+FAIL: cpu-spike-workload-p95
+PASS: healthy-process-p95
+PASS: healthy-retained-nodes
+FAIL: node-leak-retained-nodes
+```
+
+The checker returned `1`, correctly distinguishing policy failure from invalid evidence. Two JSON-mode invocations were byte-identical and identified only `cpu-spike-workload-p95` and `node-leak-retained-nodes` as failures. A later verification script initially asserted the wrong JSON field names (`id`/`fail` instead of the implemented `budget_id`/`failed`); inspecting the documented schema corrected the harness, and the repeated-output check then passed.
+
+### Decision and next step
+
+Retain the versioned budget checker as the deterministic policy layer between validation and optional AI investigation. The separation is now explicit: the validator establishes evidence integrity, the budget file defines project limits, and the investigator may explain only validated evidence.
+
+The next planned experiment is the ten-fixture evaluation set. It should exercise each supported metric and error class with versioned fixed inputs before expanding the budget schema or integrating the checker into an editor dock.
+
 
 
 ## Removed-experiment status
