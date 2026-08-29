@@ -1,0 +1,44 @@
+{
+  "evidence": [
+    {"claim": "Two generic fixture captures passed validation.", "id": "PX_COUNT", "metric": "validated_file_count", "profile": "all", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "files", "value": 2},
+    {"claim": "battle_scene process p95 median.", "id": "PX_BP", "metric": "median_p95_process_time", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 1.25},
+    {"claim": "battle_scene physics-process p95 median.", "id": "PX_BPH", "metric": "median_p95_physics_process_time", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 0.4},
+    {"claim": "battle_scene measurement-duration median.", "id": "PX_BD", "metric": "median_measurement_duration", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 4200.0},
+    {"claim": "battle_scene peak-object median.", "id": "PX_BO", "metric": "median_peak_object_count", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "objects", "value": 42.0},
+    {"claim": "battle_scene peak-node median.", "id": "PX_BN", "metric": "median_peak_node_count", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "nodes", "value": 8.0},
+    {"claim": "battle_scene peak-orphan-node median.", "id": "PX_BOR", "metric": "median_peak_orphan_node_count", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "nodes", "value": 0.0},
+    {"claim": "battle_scene static-memory availability.", "id": "PX_BMA", "metric": "memory_static_availability", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_metadata", "unit": null, "value": "unavailable"},
+    {"claim": "battle_scene source-revision availability.", "id": "PX_BRA", "metric": "source_revision_availability", "profile": "battle_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_metadata", "unit": null, "value": "unknown"},
+    {"claim": "main_scene process p95 median.", "id": "PX_MP", "metric": "median_p95_process_time", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 0.5},
+    {"claim": "main_scene physics-process p95 median.", "id": "PX_MPH", "metric": "median_p95_physics_process_time", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 0.2},
+    {"claim": "main_scene measurement-duration median.", "id": "PX_MD", "metric": "median_measurement_duration", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "ms", "value": 3.0},
+    {"claim": "main_scene peak-memory median.", "id": "PX_MM", "metric": "median_peak_memory_static_bytes", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "bytes", "value": 1100.0},
+    {"claim": "main_scene peak-object median.", "id": "PX_MO", "metric": "median_peak_object_count", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "objects", "value": 21.0},
+    {"claim": "main_scene peak-node median.", "id": "PX_MN", "metric": "median_peak_node_count", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "nodes", "value": 3.0},
+    {"claim": "main_scene peak-orphan-node median.", "id": "PX_MOR", "metric": "median_peak_orphan_node_count", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "nodes", "value": 0.0},
+    {"claim": "main_scene static-memory availability.", "id": "PX_MMA", "metric": "memory_static_availability", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_metadata", "unit": null, "value": "available"},
+    {"claim": "main_scene source-revision availability.", "id": "PX_MRA", "metric": "source_revision_availability", "profile": "main_scene", "run_count": 1, "source": "tests/fixtures/investigator", "source_type": "validated_metadata", "unit": null, "value": "present"}
+  ],
+  "evidence_kind": "generic",
+  "limitations": [
+    {"id": "PXL1", "statement": "Validator success proves only that configured generic schema and summary checks passed."},
+    {"id": "PXL2", "statement": "Global engine monitors are not owned solely by the named project profile."},
+    {"id": "PXL3", "statement": "Process timing includes engine scheduling and probe overhead; no project workload timer is claimed."},
+    {"id": "PXL4", "statement": "Headless capture does not establish rendering or GPU performance."},
+    {"id": "PXL5", "statement": "Timing limits require calibration on stable project hardware and are not universal recommendations."},
+    {"id": "PXL6", "statement": "Because the probe accumulates raw samples during capture, static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak."},
+    {"id": "PXL7", "statement": "At least one capture did not supply a source revision, so its exact source revision is unknown."}
+  ],
+  "packet_type": "godot_performance_evidence",
+  "results_directory": "tests/fixtures/investigator",
+  "schema_version": 1,
+  "validation": {
+    "candidate_file_count": 2,
+    "error_type": null,
+    "errors": [],
+    "exit_code": 0,
+    "status": "passed",
+    "timed_out": false,
+    "validated_file_count": 2
+  }
+}

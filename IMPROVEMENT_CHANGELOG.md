@@ -315,7 +315,77 @@ The same evaluation entrypoints confirmed the correction: all 67 Python tests pa
 
 A subsequent real-world validation attempt used the still-present ignored `1.0.0` runtime result and correctly failed the new `1.0.1` contract. The validator diagnostic was made actionable, and the README now uses one UTC-derived run-ID variable through capture, validation, and budget checking. The old file remained byte-identical. Exactly one fresh `1.0.1` capture then recorded 600 sequential samples, process p95 `0.951 ms`, peak node count `3`, measurement duration `4139.238 ms`, capture duration `4953.588 ms`, and all six required limitations. Generic validation and both calibrated budgets passed; the complete suite passed 68 tests. This retained result confirms the decision to require recapture instead of relabeling historical evidence.
 
+## 2026-08-29 — Experiment 7: Portable generic-capture investigator integration
 
+**Status:** Retained; generic grounding and fallback verified locally, live generic response unverified
+
+### Hypothesis and reason
+
+A schema-aware investigator can interpret validated portable captures by project-defined profile without weakening the established synthetic evidence boundary. This was tried because the portable probe, generic validator, and profile budgets already worked, but the investigator's instructions, semantic requirements, gate, and fallback still assumed `healthy`, `node_leak`, and `cpu_spike`.
+
+### Change
+
+The evidence packet now declares `evidence_kind` as `synthetic`, `generic`, or `failed`. As a pre-release schema-v1 correction, generic evidence uses `profile` exclusively; the reserved `all` profile carries only the global validation count. Profile discovery uses only profile-scoped metric and availability evidence.
+
+Generic packets add memory and source-revision availability. Revision status is `present` when every contributing capture supplied a value, `unknown` when none did, and `mixed` when only some did. Revision values are never copied into evidence, compared, or reported.
+
+The investigator now dispatches through the explicit packet kind. Its generic branch covers all profiles and available engine aggregates, preserves limitations, rejects unsupported numbers, invented memory, synthetic claims, causal conclusions, revision values or equality claims, unsafe recommendations, and sensitive paths. Rejected model output produces a deterministic generic fallback from semantic packet fields without another request. The synthetic path and one-tool read-only boundary remain intact.
+
+### Evaluation method
+
+Tracked synthetic and generic evidence fixtures, the real tracked generic capture, temporary variants, and SDK mocks exercised packet dispatch, reserved-profile exclusion, multiple profiles, available/unavailable/mixed memory, all revision states, citations, semantic ambiguity, grounding rejection, fallback determinism, and exactly one runner call. No test used ignored generated results or contacted the OpenAI API.
+
+The existing generic validator and v2 policy were rerun against the canonical fixture. The 49 ignored historical synthetic results and Experiment 5 demonstration policy were checked separately as integration evidence. Godot was not rerun.
+
+### Observed result
+
+```text
+Ran 86 tests in 1.760s
+
+OK
+```
+
+Two structured generic packet generations were byte-identical. The tracked generic packet declared `evidence_kind: generic`, exposed `main_scene` as its only reportable profile, and kept `all` reserved for validation count. Both generic and synthetic deterministic reports passed their gates.
+
+The canonical portable policy again passed process p95 `0.529 ms <= 1.1 ms` and peak nodes `3 <= 3`. All 49 historical synthetic files validated, while Experiment 5 retained exit `1` with only its CPU-spike workload and node-leak retention demonstration rules failing.
+
+No `OPENAI_API_KEY` was configured, so no live request occurred. Generic model-response quality and live generic fallback behavior remain unverified.
+
+### Decision and next step
+
+Retain the explicit schema-kind dispatch and generic fallback. The change completes the offline-to-optional-investigator workflow without moving credentials or SDK code into Godot and without merging deterministic budgets into the agent.
+
+The next iteration should make exactly one live generic request with a valid environment-only key, then expand tracked generic fixtures to cover additional real profiles and comparable multi-capture aggregates.
+
+## 2026-08-29 — Experiment 8: Grounded model upgrade evaluation
+
+**Status:** Retained as a negative comparison; no default-model change
+
+### Hypothesis and reason
+
+A stronger current model might follow the investigator's strict generic evidence contract closely enough to pass the deterministic grounding gate without fallback. The experiment evaluated balanced `gpt-5.6-terra` first and reserved flagship `gpt-5.6-sol` for the conditional case where Terra failed.
+
+### Change
+
+No product code changed during the comparison. Each candidate was supplied through the existing process-scoped `OPENAI_MODEL` override, preserving the one-tool read-only boundary, the tracked fixture, the prompt, the validator packet, and the gate. The acceptance rule was one exit-`0` five-section model report with no grounding warning or fallback.
+
+### Evaluation method
+
+The environment was checked only for API-key presence. Terra was invoked exactly once against `tests/fixtures/generic_results`. Because its direct response failed grounding, Sol was then invoked exactly once against the same fixture. No application-level retry, second call per model, fixture change, benchmark run, or rejected-text capture was added.
+
+### Observed result
+
+Terra's direct response failed six rules: `G14_UNCITED_VERIFIED_FACT`, `G18_MEMORY_AVAILABILITY`, `G19_REVISION_AVAILABILITY`, `G21_GENERIC_LIMITATION_MISSING`, `G23_UNSUPPORTED_GENERIC_CAUSE`, and `G24_REVISION_VALUE_OR_EQUALITY`.
+
+Sol's direct response failed seven rules: `G13_UNTESTABLE_RECOMMENDATION`, `G14_UNCITED_VERIFIED_FACT`, `G18_MEMORY_AVAILABILITY`, `G19_REVISION_AVAILABILITY`, `G21_GENERIC_LIMITATION_MISSING`, `G23_UNSUPPORTED_GENERIC_CAUSE`, and `G24_REVISION_VALUE_OR_EQUALITY`.
+
+Both commands returned `0` because the investigator suppressed the rejected response, generated the deterministic five-section fallback from the validated packet, and accepted that fallback. The live fallback reported the same tracked fixture values, including `0.5 ms` process p95 and three peak nodes. Neither model met the direct-grounding acceptance rule. These are single nondeterministic observations and do not establish a general quality ranking.
+
+After the comparison, `pip check` reported no broken requirements, all 86 tests passed in 0.449 seconds, and byte compilation completed successfully. The documentation skill, links, headings, credential-pattern scan, and whitespace checks also passed.
+
+### Decision and next step
+
+Keep `gpt-4.1-mini` as the default and retain `OPENAI_MODEL` for explicit experiments. The stronger model alone did not resolve the format mismatch, so the next experiment should improve the model-facing report contract or generate a structured intermediate response while keeping the existing deterministic gate unchanged.
 
 ## Removed-experiment status
 

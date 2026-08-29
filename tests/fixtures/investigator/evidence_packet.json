@@ -1,4 +1,5 @@
 {
+  "evidence_kind": "synthetic",
   "evidence": [
     {"claim": "Nine fixed test runs passed validation.", "id": "FX1", "metric": "validated_file_count", "scenario": "all", "source": "tests/fixtures/investigator", "source_type": "validated_result", "unit": "files", "value": 9},
     {"claim": "Healthy fixture workload p95 median.", "id": "FX2", "metric": "median_p95_workload_time", "scenario": "healthy", "source": "tests/fixtures/investigator", "source_type": "validated_aggregate", "unit": "usec", "value": 100.0},

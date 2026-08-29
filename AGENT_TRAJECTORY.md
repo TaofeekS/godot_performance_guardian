@@ -1201,3 +1201,114 @@ The canonical integration recheck initially used a stale guessed budget filename
 The final audit found both new fixtures tracked, no ignored-results path or direct `httpx2` import under `tests/`, all 28 README links present, all 17 required README headings in order, final newlines, and no trailing whitespace. `git diff --check` and its staged equivalent passed. A first changelog-unchanged harness used PowerShell command output as a Boolean even though `git diff --quiet` communicates through its exit code; the corrected check inspected `$LASTEXITCODE` and confirmed both staged and unstaged changelog content was unchanged. A strict filename-only API-key scan found no candidate in the working tree, tracked files, staged content, or reachable history. Both configured `origin` URLs still matched the documented repository URL, and no clean-test or skill-validation temporary directory remained.
 
 The staged set contains only this trajectory, README, the dependency pin, two tracked fixtures, and the two fixture-refactored test modules. The requested single commit uses subject `Make investigator tests reproducible from clean environment`; its identifier is reported in the task handoff. No push is performed.
+
+## 2026-08-29 — Experiment 7 portable generic investigator
+
+### Original request, correction, and approval
+
+The supplied request began:
+
+> # Experiment 7: Portable Generic-Capture Investigator Integration
+>
+> Extend the existing `Godot Performance Investigator` so it can investigate validated portable-addon captures identified by project-defined `profile` values, while preserving all current synthetic `healthy`, `node_leak`, and `cpu_spike` behavior.
+
+It required an inspection and approval checkpoint, explicit synthetic/generic/failed dispatch, generic five-section grounding and fallback, tracked fixtures, no general shell or filesystem tool, no addon credential, no budget integration, and no edits before approval.
+
+Inspection started from clean commit `d0d64e0`. The existing 68-test suite, tracked generic fixture, canonical v2 policy, 49-result optional integration set, and Experiment 5 result were rechecked successfully. The investigator was confirmed synthetic-specific in its instructions, required semantic map, fallback renderer, and grounding rules.
+
+The critical packet mismatch was found before planning: generic evidence had no explicit kind, its global count used `scenario: all`, and every profile metric contained both `scenario: generic` and `profile`. The generic packet also lacked evidence that could safely state memory or source-revision availability. The user then clarified:
+
+> Generic profile discovery must exclude the reserved profile: "all" validation-count item. Only profile-scoped metric and availability evidence defines reportable profiles.
+>
+> present means every contributing capture supplied a revision value, not that all supplied values are identical. unknown means none supplied one, and mixed means only some supplied one. The investigator must never claim revision equality or reveal revision values.
+>
+> Treat the generic identity change as a pre-release schema correction. If the evidence packet has external consumers beyond this repository, bump the schema instead of silently changing v1.
+
+Repository, branch, tag, packaging, and reference inspection found only the repository's validator, checker, investigator, tests, and documentation consuming the packet. The corrected plan therefore retained schema version 1 as a pre-release correction, and the user approved that complete plan with `PLEASE IMPLEMENT THIS PLAN` plus explicit `$godot-performance-guardian-docs` and `$agent-trajectory` invocations.
+
+### Implementation
+
+`tools/validate_results.py` now emits `evidence_kind` as `synthetic`, `generic`, or `failed`. Synthetic items retain scenario identity. Generic items use profile identity only, reserve `profile: all` for the validation count, and add per-profile memory and revision availability. Memory is `available`, `unavailable`, or `mixed`. Revision is `present`, `unknown`, or `mixed` using the user's contributing-capture definitions; revision values never enter the evidence packet.
+
+`agent/investigator.py` now validates packet identity, schema, status, counts, identifiers, safe sources, limitations, and exclusive scenario/profile identity before dispatch. The existing synthetic semantic matcher and report behavior remain. The generic matcher discovers sorted profiles only from recognized profile-scoped metric and availability evidence, excludes `all`, requires unique metrics, and permits peak-memory evidence only for `available` status.
+
+The generic gate checks five-section order, dynamic citations, number support, every discovered profile, memory and revision availability, every limitation, exact uncertainty language, absence of synthetic-only claims and unsupported causes, read-only testable recommendations, and sensitive output. The deterministic generic fallback uses only matched packet values, preserves opaque IDs, handles all availability states, passes the same gate, never emits rejected model text, and makes no second API request.
+
+The existing synthetic investigator fixture gained kind metadata. A tracked multi-profile generic packet fixture was added with opaque nonsequential IDs, one available-memory profile, one unavailable-memory profile, present and unknown revision status, and all generic limitations. Test-generated variants exercise mixed status without storing revision values.
+
+The addon, Godot projects, scenarios, stored results, dependencies, and budget checker were not modified.
+
+### Test failures and corrections
+
+The first post-implementation 68-test run reported four failures. Two mocked validator packets lacked the new schema/kind metadata; the investigator-instruction assertion expected the established phrase `opaque evidence ID`; and the portable evidence test incorrectly required the reserved `all` item to equal `main_scene`. The fixtures and assertions were updated to the approved packet contract, and the instruction retained the established phrase.
+
+The next 82-test run had one failure: the unavailable-memory rule searched for `static memory`, while the rendered contract used `static-memory`. The gate normalized that hyphenated form before checking for an invented byte value.
+
+The following 84-test run had one fixture-test failure. Removing one occurrence of a citation did not make the ID absent because the same evidence correctly supported a recommendation later in the report. The test removed every occurrence to exercise the required-evidence rule. No grounding or validator rule was weakened in response to these failures.
+
+### Verification evidence
+
+The first complete acceptance suite after the main generic cases reported 85 tests in 1.667 seconds. A final audit added an explicit rejection case proving that the reserved `all` validation-count identity cannot be presented as a reportable profile. The final complete suite then reported:
+
+```text
+Ran 86 tests in 1.760s
+
+OK
+```
+
+`pip check` reported no broken requirements, and byte compilation completed successfully. The tracked generic capture validated with exit `0`. Two structured packet invocations were byte-identical, declared `evidence_kind: generic`, contained one reserved `all` validation-count item, and discovered only `main_scene` as reportable. The tracked synthetic and generic fallback fixtures both produced zero grounding errors.
+
+The canonical portable capture validated and its v2 policy passed both established rules:
+
+```text
+PASS: main-scene-peak-nodes - Measured 3 nodes within maximum 3 nodes.
+PASS: main-scene-process-p95 - Measured 0.529 ms within maximum 1.1 ms.
+```
+
+All 49 ignored historical synthetic files validated with exit `0`. Their current aggregate remained healthy/CPU-spike median p95 workload `163 usec`/`11,585 usec`, ratio `71.07x`. The unchanged Experiment 5 policy returned its expected `1`; only `cpu-spike-workload-p95` and `node-leak-retained-nodes` failed.
+
+The environment-only presence check returned `OPENAI_API_KEY_PRESENT=False`. No key value was accessed and no live request occurred. Generic model output and live generic fallback therefore remain unverified. No Godot process, commit, or push occurred.
+
+The repository documentation skill updated README's status, tree, commands, packet contract, generic grounding/fallback behavior, availability semantics, local evidence, limitations, and roadmap. `IMPROVEMENT_CHANGELOG.md` appends Experiment 7 while preserving all earlier entries. Final skill, link, Markdown, secret, diff, and Git-state checks follow this entry.
+
+### Final audit and Git state
+
+The repository-local documentation skill passed its official `quick_validate.py` check. PyYAML was supplied only through a uniquely named temporary directory for that check, and the directory was removed afterward. README retained all 17 required headings; all 29 relative links resolved to existing tracked paths. The documented `origin` fetch and push URL remained `https://github.com/TaofeekS/godot_performance_guardian.git`.
+
+The final test-source audit found no dependency on ignored `demo_project/results` data and no direct `httpx2` import. A strict filename-only credential-pattern scan found no candidate in working-tree, tracked, staged, or reachable-history content. Focused source review confirmed generic identity exclusivity, reserved-`all` exclusion, semantic profile discovery, conditional memory evidence, revision-availability semantics, dynamic citations, and packet-kind dispatch. `git diff --check` passed; its only messages were Git's informational LF-to-CRLF conversion warnings.
+
+The final working tree contains the Experiment 7 changes to the validator, investigator, tracked fixtures, tests, README, changelog, and this trajectory. `tools/check_budgets.py`, the addon, Godot projects, stored results, and dependency manifests remain unchanged. No commit or push was performed.
+
+## 2026-08-29 — Experiment 8 grounded model upgrade evaluation
+
+### Request and approved decision
+
+The user requested:
+
+> 1. Run `gpt-5.6-terra` against the same tracked fixture.
+> 2. Check whether the model-generated report passes grounding without fallback.
+> 3. If Terra still fails, test `gpt-5.6-sol`.
+
+The follow-up decision adopted a one-clean-pass threshold: select Terra if its first response passed directly, otherwise test Sol once and select it only if that response passed directly. If both required fallback, retain `gpt-4.1-mini`. Operational API failures would be inconclusive rather than model-quality failures.
+
+### Inspection and live evaluation
+
+The task used the OpenAI documentation guidance and the repository-local `godot-performance-guardian-docs` skill. Inspection confirmed `DEFAULT_MODEL = "gpt-4.1-mini"`, the existing `OPENAI_MODEL` override, one required validator tool, and the tracked `tests/fixtures/generic_results` input. The working tree already contained the uncommitted Experiment 7 changes and was preserved. The configured Git remote still used the documented public URL.
+
+The environment check reported only `OPENAI_API_KEY_PRESENT=True`; the credential value was never read, printed, or stored. A process-scoped Terra override made exactly one investigator invocation. It reached the API and returned `0`, but the direct response failed `G14`, `G18`, `G19`, `G21`, `G23`, and `G24`, so the accepted output was the deterministic fallback.
+
+Because Terra failed the agreed direct-grounding rule, a process-scoped Sol override made exactly one conditional invocation against the same fixture. It returned `0`, but its direct response failed `G13`, `G14`, `G18`, `G19`, `G21`, `G23`, and `G24`; the deterministic fallback again supplied the accepted report. Rejected model text was not emitted, no application-level retry was added, and no additional live confirmation call was made.
+
+### Decision and documentation
+
+Neither candidate qualified. The investigator default and its configuration test therefore remain `gpt-4.1-mini`; `OPENAI_MODEL` remains available for explicit overrides. README now distinguishes live fallback verification from direct model-grounding success. `IMPROVEMENT_CHANGELOG.md` preserves Experiment 8 as a negative comparison and records the lesson that increasing model capability alone did not satisfy the exact generic report contract in these single live observations.
+
+No Godot process, benchmark, fixture/result/budget change, dependency change, commit, or push occurred. Final local tests, byte compilation, documentation-skill validation, link checks, secret checks, whitespace checks, and Git-state review follow this entry.
+
+### Final verification
+
+`pip check` reported no broken requirements. The complete suite passed all 86 tests in 0.449 seconds, including the default-without-environment assertion for `gpt-4.1-mini` and the explicit `OPENAI_MODEL` override assertion. Byte compilation completed successfully.
+
+The official skill validator printed `Skill is valid!`. Its PyYAML dependency was installed only into a uniquely named system-temporary directory; path validation preceded recursive cleanup, and the directory was confirmed absent afterward. README retained 17 numbered headings, all 29 links resolved, and all three evidence documents ended with newlines.
+
+An initial combined audit harness exited without output, so the read-only checks were split into smaller commands. A later combined final check also had a Python quoting error; its repository checks still ran, and the link/headings/newline portion was rerun separately. The corrected checks found 29 resolvable README links, 17 numbered headings, final newlines, and no key-shaped value in working-tree, tracked, staged, or reachable-history content. `git diff --check` passed with only informational LF-to-CRLF warnings. The final status still contains the pre-existing uncommitted Experiment 7 implementation plus the three Experiment 8 documentation updates; no code default or test expectation changed for Experiment 8. The public `origin` fetch and push URL remained unchanged. No commit or push was performed.

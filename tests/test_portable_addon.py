@@ -206,10 +206,13 @@ class GenericValidationTests(unittest.TestCase):
             validation,
         )
         self.assertEqual(packet["validation"]["status"], "passed")
+        self.assertEqual(packet["evidence_kind"], "generic")
+        self.assertTrue(all("scenario" not in item for item in packet["evidence"]))
         self.assertTrue(all(not Path(item["source"]).is_absolute() for item in packet["evidence"]))
         profile_items = [item for item in packet["evidence"] if "profile" in item]
         self.assertTrue(profile_items)
-        self.assertTrue(all(item["profile"] == "main_scene" for item in profile_items))
+        self.assertEqual(profile_items[0]["profile"], "all")
+        self.assertTrue(all(item["profile"] == "main_scene" for item in profile_items[1:]))
         self.assertIn(
             validate_results.GENERIC_MEMORY_STORAGE_LIMITATION,
             [item["statement"] for item in packet["limitations"]],
@@ -240,6 +243,33 @@ class GenericValidationTests(unittest.TestCase):
         self.assertEqual(report["budget_schema_version"], 2)
         self.assertEqual(report["summary"], {"total": 2, "passed": 2, "failed": 0})
         self.assertTrue(all("profile" in result and "scenario" not in result for result in report["results"]))
+
+    def test_generic_revision_availability_never_exposes_values(self) -> None:
+        variants = {
+            "present": [generic_capture("revision-one"), generic_capture("revision-two")],
+            "unknown": [generic_capture(), generic_capture()],
+            "mixed": [generic_capture("revision-one"), generic_capture()],
+        }
+        for expected, captures in variants.items():
+            validation = validate_results.Validation()
+            packet = validate_results.generic_evidence_packet(
+                ["tests/fixtures/generic_results"],
+                [Path(f"capture-{index}.json") for index in range(len(captures))],
+                [
+                    (Path(f"capture-{index}.json"), capture)
+                    for index, capture in enumerate(captures)
+                ],
+                validation,
+            )
+            status = next(
+                item
+                for item in packet["evidence"]
+                if item["metric"] == "source_revision_availability"
+            )
+            self.assertEqual(status["value"], expected)
+            serialized = json.dumps(packet)
+            self.assertNotIn("revision-one", serialized)
+            self.assertNotIn("revision-two", serialized)
 
     def test_v2_rejects_unsafe_profiles_and_synthetic_metrics(self) -> None:
         base = {

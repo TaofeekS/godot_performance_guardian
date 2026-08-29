@@ -575,6 +575,31 @@ def _item(
     return item
 
 
+def _generic_item(
+    evidence_id: str,
+    claim: str,
+    metric: str,
+    value: Any,
+    unit: str | None,
+    profile: str,
+    source_type: str,
+    source: str,
+    **details: Any,
+) -> dict[str, Any]:
+    item = {
+        "id": evidence_id,
+        "claim": claim,
+        "metric": metric,
+        "value": value,
+        "unit": unit,
+        "profile": profile,
+        "source_type": source_type,
+        "source": source,
+    }
+    item.update(details)
+    return item
+
+
 def _controller_behavior_evidence(validation: Validation) -> list[dict[str, Any]]:
     try:
         source = CONTROLLER_PATH.read_text(encoding="utf-8")
@@ -738,6 +763,7 @@ def evidence_packet(
     return {
         "packet_type": "godot_performance_evidence",
         "schema_version": 1,
+        "evidence_kind": "failed" if validation.errors else "synthetic",
         "validation": {
             "status": "failed" if validation.errors else "passed",
             "candidate_file_count": len(paths),
@@ -769,7 +795,7 @@ def generic_evidence_packet(
     if not validation.errors:
         source = _normalized_results_directory(arguments)
         evidence.append(
-            _item(
+            _generic_item(
                 "G1",
                 "All candidate generic capture files passed the configured validator checks.",
                 "validated_file_count",
@@ -805,20 +831,64 @@ def generic_evidence_packet(
                 if len(values) != len(results):
                     continue
                 value = statistics.median(values)
-                item = _item(
+                item = _generic_item(
                     f"G{evidence_index}",
                     f"{profile} median {metric.replace('_', ' ')} across validated captures.",
                     metric,
                     value,
                     unit,
-                    "generic",
+                    profile,
                     "validated_aggregate",
                     source,
-                    profile=profile,
                     run_count=len(results),
                 )
                 evidence.append(item)
                 evidence_index += 1
+
+            memory_flags = [
+                bool(result["metric_availability"]["memory_static_bytes"]["available"])
+                for result in results
+            ]
+            memory_status = (
+                "available" if all(memory_flags) else
+                "unavailable" if not any(memory_flags) else
+                "mixed"
+            )
+            evidence.append(
+                _generic_item(
+                    f"G{evidence_index}",
+                    f"{profile} static-memory evidence availability across validated captures.",
+                    "memory_static_availability",
+                    memory_status,
+                    None,
+                    profile,
+                    "validated_metadata",
+                    source,
+                    run_count=len(results),
+                )
+            )
+            evidence_index += 1
+
+            revision_flags = [result.get("source_revision") is not None for result in results]
+            revision_status = (
+                "present" if all(revision_flags) else
+                "unknown" if not any(revision_flags) else
+                "mixed"
+            )
+            evidence.append(
+                _generic_item(
+                    f"G{evidence_index}",
+                    f"{profile} source-revision availability across validated captures.",
+                    "source_revision_availability",
+                    revision_status,
+                    None,
+                    profile,
+                    "validated_metadata",
+                    source,
+                    run_count=len(results),
+                )
+            )
+            evidence_index += 1
 
     limitations = [
         {"id": "GL1", "statement": "Validator success proves only that configured generic schema and summary checks passed."},
@@ -833,6 +903,7 @@ def generic_evidence_packet(
     return {
         "packet_type": "godot_performance_evidence",
         "schema_version": 1,
+        "evidence_kind": "failed" if validation.errors else "generic",
         "validation": {
             "status": "failed" if validation.errors else "passed",
             "candidate_file_count": len(paths),

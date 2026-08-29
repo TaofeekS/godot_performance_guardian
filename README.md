@@ -8,9 +8,9 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; headless atomic JSON capture in an independent Godot 4.5.1 project; schema-specific deterministic validation; v1 scenario and v2 profile budgets; and a locally tested read-only investigator for synthetic evidence. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; headless atomic JSON capture in an independent Godot 4.5.1 project; schema-specific deterministic validation; v1 scenario and v2 profile budgets; and a read-only investigator whose generic validation, grounding rejection, and deterministic fallback have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | A post-Experiment-3 live report was rejected by the grounding gate. Experiment 4's deterministic fallback is locally verified but has not yet been exercised by another live request. |
+| Unverified | No evaluated model has yet produced a generic report accepted directly by the grounding gate; live `gpt-4.1-mini`, `gpt-5.6-terra`, and `gpt-5.6-sol` responses all required deterministic fallback. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -56,7 +56,8 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |-- tests/
 |   |-- fixtures/
 |   |   |-- generic_results/main_scene.json
-|   |   `-- investigator/evidence_packet.json
+|   |   |-- investigator/evidence_packet.json
+|   |   `-- investigator/generic_evidence_packet.json
 |   |-- test_check_budgets.py
 |   |-- test_investigator.py
 |   `-- test_portable_addon.py
@@ -101,7 +102,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`tests/test_investigator.py`](tests/test_investigator.py) verifies the tool boundary, path containment, subprocess failures, configuration, and no-key behavior without an API request.
 - [`tests/test_check_budgets.py`](tests/test_check_budgets.py) uses fixed evidence fixtures to verify configuration, semantic matching, deterministic output, and exit behavior.
 - [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, and v2 budgets against tracked test fixtures.
-- [`tests/fixtures/generic_results/main_scene.json`](tests/fixtures/generic_results/main_scene.json) and [`tests/fixtures/investigator/evidence_packet.json`](tests/fixtures/investigator/evidence_packet.json) are small deterministic fixtures used by the default test suite.
+- [`tests/fixtures/generic_results/main_scene.json`](tests/fixtures/generic_results/main_scene.json), [`tests/fixtures/investigator/evidence_packet.json`](tests/fixtures/investigator/evidence_packet.json), and [`tests/fixtures/investigator/generic_evidence_packet.json`](tests/fixtures/investigator/generic_evidence_packet.json) are small deterministic fixtures used by the default test suite.
 - [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator and OpenAI SDK versions used by the clean test environment.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record, beginning with the accepted current-state baseline.
@@ -264,6 +265,14 @@ $env:OPENAI_API_KEY = "<newly-issued-api-key>"
 $env:OPENAI_MODEL = "gpt-4.1-mini" # Optional; this is the default.
 .\.venv\Scripts\python.exe -m agent.investigator demo_project\results
 ```
+
+Investigate portable generic captures with the same command and a profile-result directory. This tracked example performs the real deterministic validator step before the optional model response:
+
+```powershell
+.\.venv\Scripts\python.exe -m agent.investigator tests\fixtures\generic_results
+```
+
+The packet declares `evidence_kind` as `synthetic`, `generic`, or `failed`. Synthetic evidence uses `scenario`; generic evidence uses `profile`. The reserved generic profile `all` is validation-count metadata and is never reported as a project profile. Generic reports cite the packet's opaque IDs, such as `[G2]`, rather than depending on a fixed number.
 
 The key is read only from the process environment. Do not place it in source files, command logs, `.env` files intended for commit, or documentation. The argument must be a repository-relative directory containing result JSON files. Absolute paths, missing directories, paths outside the repository, and directories without JSON results are rejected before any API request.
 
@@ -475,17 +484,19 @@ Benchmark suite passed.
 
 This is evidence from one machine, not a portable performance promise. The same scenarios and validator logic are deterministic enough for controlled comparisons, while timing values remain noisy.
 
-The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. The tool invokes the validator's `--evidence-json` mode, which returns a deterministic JSON-compatible packet containing validation status, a repository-relative result directory, opaque evidence IDs, aggregate timing comparisons, cleanup evidence for all three scenarios, allowlisted controller behavior, and explicit limitations. The normal validator command and human-readable output remain unchanged.
+The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. The tool invokes the validator's `--evidence-json` mode, which returns a deterministic JSON-compatible packet containing explicit evidence kind, validation status, a repository-relative result directory, opaque evidence IDs, and explicit limitations. Synthetic packets contain scenario comparisons, cleanup evidence, and allowlisted controller behavior. Generic packets contain profile-scoped engine aggregates plus memory and source-revision availability. The normal validator command and human-readable output remain unchanged.
 
-SDK configuration requires the tool on the first model turn and then allows a five-section report: Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty. Verified statements cite the opaque ID supplied by their packet item. The gate and fallback locate required facts through `metric`, `scenario`, `source_type`, unit, and value shape, so renumbering evidence or adding unrelated items does not change behavior. Missing or duplicate required semantic matches fail safely.
+SDK configuration requires the tool on the first model turn and then allows a five-section report: Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty. Verified statements cite opaque packet IDs. Synthetic matching uses metric, scenario, source type, unit, and value shape. Generic matching uses metric, profile, source type, unit, and availability state. IDs may be renumbered without changing selection; missing, duplicate, mixed-identity, or malformed matches fail safely.
 
-After generation, the local gate checks section order, evidence references, supported numeric values, scenario coverage, causal language, the required root-cause uncertainty statement, and read-only evidence-linked recommendations. When model output fails, the rejected text is not printed or stored. The CLI emits safe rule IDs and a five-section report beginning with:
+After generation, the schema-specific local gate checks section order, evidence references, supported numeric values, scenario or profile coverage, causal language, required limitations, the root-cause uncertainty statement, and read-only evidence-linked recommendations. Generic grounding additionally rejects invented unavailable-memory values, synthetic-only claims, revision values or equality claims, and private paths. When model output fails, the rejected text is not printed or stored. The CLI emits safe rule IDs and a five-section report beginning with:
 
 ```text
 Report source: Deterministic fallback generated after model output failed grounding.
 ```
 
 The fallback is generated only from the validated packet, is checked by the same gate, and does not cause another API request. It returns success when deterministic validation passed; validator failure remains nonzero. A validator pass means only that the configured assertions passed, not that the project has no other performance issue.
+
+For generic profiles, the fallback covers process and physics-process p95, measurement duration, peak object/node/orphan counts, and peak static memory when available. It says `unavailable` or `mixed` when memory cannot support an aggregate. Revision metadata is reported only as `present`, `unknown`, or `mixed`: present means every contributing capture supplied some value, unknown means none did, and mixed means only some did. Revision values are never emitted, compared, or claimed equal. Every generic limitation is preserved, including global-monitor ownership, engine/probe timing overhead, headless GPU limits, and probe sample-storage memory overhead.
 
 Experiment 3 local verification on 2026-08-29 ran 32 standard-library unit tests without an API request and passed all 21 JSON files in `demo_project/results/`. The deterministic packet records healthy and CPU-spike median p95 workload times of 148 µs and 8,549 µs, a 57.76× ratio, process medians of 0.408 ms and 12.5885 ms, median durations of 4,976.010 ms and 6,406.270 ms, and a correctly calculated duration increase of approximately 28.7%. It also records 120 retained nodes in every node-leak run and zero in every healthy and CPU-spike run.
 
@@ -504,6 +515,10 @@ Experiment 6 verification finished with 66 passing tests and exercised Godot `4.
 After addon `1.0.1` made the raw-sample memory limitation mandatory, the earlier ignored `1.0.0` runtime file correctly failed with an actionable recapture diagnostic. A new uniquely identified `1.0.1` capture produced 600 samples, process p95 `0.951 ms`, and three peak nodes; it validated and passed both existing v2 budgets. The complete suite then passed 68 tests. The earlier file remained byte-identical, demonstrating that upgrades preserve historical evidence rather than rewriting it.
 
 The clean-environment audit exported only the staged Git index into a temporary directory, created a fresh Python 3.14 virtual environment, installed only `requirements-agent.txt`, and confirmed `pip check` plus all 68 tests passed. The export contained neither the repository `.venv` nor ignored `demo_project/results/` files. The tracked canonical portable fixture was reevaluated separately: process p95 `0.529 ms <= 1.1 ms` and peak nodes `3 <= 3`, so validation and both v2 budgets returned `0`. As an optional local integration check, all 49 ignored historical results validated, while the Experiment 5 demonstration policy returned its expected `1` with only the CPU-spike workload and node-leak retention rules failing.
+
+Experiment 7 locally verified synthetic/generic packet dispatch, multi-profile grounding, reserved-`all` exclusion, unavailable and mixed memory, all three revision-availability states, opaque-ID renumbering, deterministic fallback, rejected-output suppression, and one-runner-call behavior. The complete suite passed 86 tests. The tracked generic packet was byte-identical across two generations, both synthetic and generic fallback fixtures passed their respective gates, the canonical v2 budgets remained `0.529 ms <= 1.1 ms` and `3 <= 3`, and all 49 historical synthetic results retained their prior outcomes.
+
+Experiment 8 then used the same tracked `main_scene` fixture for one live `gpt-5.6-terra` evaluation and, after Terra failed direct grounding, one conditional `gpt-5.6-sol` evaluation. Terra failed six grounding rules and Sol failed seven; each CLI run returned `0` only after suppressing the rejected model text and producing a grounded deterministic fallback without another application invocation. Neither candidate met the one-clean-pass adoption rule, so `gpt-4.1-mini` remains the default and `OPENAI_MODEL` remains the explicit override. The post-evaluation local suite passed all 86 tests. These two observations compare single nondeterministic responses, not general model quality.
 
 ## 13. Reproducibility notes
 
@@ -526,8 +541,8 @@ The clean-environment audit exported only the staged Git index into a temporary 
 - Evidence focuses on CPU work and object/node growth, not rendering or GPU performance.
 - Configurable policy supports four synthetic metrics and seven generic engine metrics; the validator's synthetic integrity assertions and controller tolerances remain embedded in code.
 - There is no committed golden baseline or baseline/iteration/final result organization.
-- There is no reusable editor dock or repair workflow. The investigator receives only validator-produced evidence, including narrowly allowlisted controller facts, and cannot establish root cause by itself.
-- The first live report predates deterministic grounding and was partly speculative; the next live report was rejected by the gate. The deterministic fallback has not yet been exercised live.
+- There is no reusable editor dock or repair workflow. The investigator receives only validator-produced synthetic or generic evidence and cannot establish root cause by itself.
+- Live generic responses from `gpt-4.1-mini`, `gpt-5.6-terra`, and `gpt-5.6-sol` were rejected by the gate; the deterministic generic fallback recovered each invocation. One response per candidate is insufficient to rank general model quality.
 - The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Portable capture is verified only for the included independent project on Godot 4.5.1. One tracked capture and its calibrated policy do not prove universal project, platform, or timing compatibility.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
@@ -541,14 +556,14 @@ The clean-environment audit exported only the staged Git index into a temporary 
 | 2. Configurable budgets | Completed (v1/v2) | Apply scenario or profile policies to validated evidence with deterministic human/JSON output and CI exit codes. |
 | 3. Ten evaluation fixtures | Partial | One sanitized live generic fixture is tracked; nine broader objective fixtures remain planned. |
 | 4. Reusable Godot editor dock | Partial | A copyable runtime probe and editor-registered node exist; an interactive dock is still planned. |
-| 5. Agent-assisted investigation | Partial | A read-only command-line investigator now uses semantic evidence matching, blocks ungrounded reports, and generates a locally verified deterministic fallback; live fallback behavior remains unverified. |
+| 5. Agent-assisted investigation | Partial | A read-only command-line investigator handles synthetic scenarios and generic profiles, blocks ungrounded reports, and has recovered live generic failures with deterministic fallbacks; no tested model has yet passed generic grounding directly. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
 
 ## 16. Hackathon evidence
 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
-- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, and portable-capture experiments.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, portable-capture, generic-investigator, and model-upgrade experiments.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.

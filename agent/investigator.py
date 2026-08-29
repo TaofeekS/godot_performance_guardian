@@ -31,11 +31,28 @@ repository-relative results directory supplied by the user.
 Treat the tool result as the only verified benchmark evidence available to you.
 A successful validator exit means only that the supplied result set passed the
 validator's configured assertions. It does not prove that the project has no
-performance problems. Cite every numerical claim and every verified factual
-claim with the opaque evidence ID supplied by the matching packet item, using
-square brackets. Cover healthy, node_leak, and cpu_spike. You may connect
-scenario behavior to an observed result only
-when citing both validated-result evidence and allowlisted-source evidence.
+performance problems. Dispatch only from the packet's evidence_kind metadata:
+synthetic evidence uses scenario, while generic portable evidence uses profile.
+Never infer the evidence kind from filenames or the user's wording. Cite every
+numerical claim and every verified factual claim with the opaque evidence ID
+supplied by the matching evidence or limitation item, using square brackets.
+
+For synthetic evidence, cover healthy, node_leak, and cpu_spike. You may connect
+scenario behavior to an observed result only when citing both validated-result
+evidence and allowlisted-source evidence.
+
+For generic evidence, cover every profile represented by profile-scoped metric
+or availability evidence. The reserved profile all is validation-count metadata,
+not a reportable profile. Cover process p95, physics-process p95, measurement
+duration, peak object/node/orphan counts, and peak static memory when available.
+State unavailable or mixed memory without inventing a value. State only whether
+source-revision availability is present, unknown, or mixed; never reveal a
+revision value or claim revisions are equal. Preserve every packet limitation.
+Generic global monitors are not profile-owned, process timing includes engine
+scheduling and probe overhead, stored samples contribute to static-memory
+growth, and headless evidence does not establish rendering or GPU performance.
+Do not introduce synthetic scenarios or synthetic-only workload, actor,
+cleanup, or retained-node claims into a generic report.
 
 Do not introduce thermal throttling, scheduling delays, locking, contention,
 resource contention, system load, or another cause absent from the evidence.
@@ -54,11 +71,14 @@ Return a concise Markdown report using exactly these section headings:
 ## Remaining uncertainty
 
 Use this content skeleton. Validation status cites the validated-file-count
-item. Verified facts cite workload, process, duration, retained-node,
-configuration, and scenario-behavior items for all three scenarios. Possible
-explanations connect observations only to allowlisted scenario behavior.
-Every recommendation begins with a read-only test action and cites the evidence
-that motivated it. Remaining uncertainty includes the exact required sentence.
+item. For synthetic evidence, Verified facts cite workload, process, duration,
+retained-node, configuration, and scenario-behavior items for all three
+scenarios. For generic evidence, Verified facts uses one cited block per sorted
+profile, exact availability wording, and every available generic metric.
+Possible explanations never promote generic measurements into causes. Every
+recommendation begins with a read-only test action and cites the evidence that
+motivated it. Remaining uncertainty includes every packet limitation and the
+exact required sentence.
 
 If validation fails or the tool returns an error, explain that limitation and
 recommend resolving it before interpreting performance. Never propose edits as
@@ -86,7 +106,7 @@ REPORT_SOURCE_DISCLOSURE = (
     "grounding."
 )
 EVIDENCE_CITATION = re.compile(r"\[([A-Za-z][A-Za-z0-9_.:-]{0,63})\]")
-REQUIRED_EVIDENCE = {
+SYNTHETIC_REQUIRED_EVIDENCE = {
     "validated_count": ("validated_file_count", "all", "validated_result", "files", "number"),
     "healthy_workload": ("median_p95_workload_time", "healthy", "validated_aggregate", "usec", "number"),
     "cpu_workload": ("median_p95_workload_time", "cpu_spike", "validated_aggregate", "usec", "number"),
@@ -104,6 +124,25 @@ REQUIRED_EVIDENCE = {
     "leak_behavior": ("scenario_behavior", "node_leak", "allowlisted_source", None, "string"),
     "cpu_behavior": ("scenario_behavior", "cpu_spike", "allowlisted_source", None, "string"),
 }
+REQUIRED_EVIDENCE = SYNTHETIC_REQUIRED_EVIDENCE
+GENERIC_METRIC_SPECS = {
+    "process": ("median_p95_process_time", "validated_aggregate", "ms", "number"),
+    "physics": ("median_p95_physics_process_time", "validated_aggregate", "ms", "number"),
+    "duration": ("median_measurement_duration", "validated_aggregate", "ms", "number"),
+    "objects": ("median_peak_object_count", "validated_aggregate", "objects", "number"),
+    "nodes": ("median_peak_node_count", "validated_aggregate", "nodes", "number"),
+    "orphans": ("median_peak_orphan_node_count", "validated_aggregate", "nodes", "number"),
+    "memory": ("median_peak_memory_static_bytes", "validated_aggregate", "bytes", "number"),
+    "memory_status": ("memory_static_availability", "validated_metadata", None, "memory_status"),
+    "revision_status": ("source_revision_availability", "validated_metadata", None, "revision_status"),
+}
+GENERIC_PROFILE_DISCOVERY_METRICS = {
+    specification[0] for specification in GENERIC_METRIC_SPECS.values()
+}
+GENERIC_MEMORY_STATUSES = {"available", "unavailable", "mixed"}
+GENERIC_REVISION_STATUSES = {"present", "unknown", "mixed"}
+SAFE_EVIDENCE_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,63}$")
+SAFE_PROFILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 class EvidenceSchemaError(ValueError):
@@ -224,6 +263,7 @@ def _evidence_packet(
     return {
         "packet_type": "godot_performance_evidence",
         "schema_version": 1,
+        "evidence_kind": "failed",
         "validation": {
             "status": validation_status,
             "validator_invoked": validator_invoked,
@@ -319,7 +359,12 @@ def run_validator(
             error_type="invalid_evidence_packet",
         )
 
-    if not isinstance(packet, dict) or packet.get("packet_type") != "godot_performance_evidence":
+    if (
+        not isinstance(packet, dict)
+        or packet.get("packet_type") != "godot_performance_evidence"
+        or packet.get("schema_version") != 1
+        or packet.get("evidence_kind") not in {"synthetic", "generic", "failed"}
+    ):
         return _evidence_packet(
             validation_status="error",
             validator_invoked=True,
@@ -404,28 +449,133 @@ def _report_sections(report: str) -> dict[str, str] | None:
     return sections
 
 
-def _semantic_evidence(packet: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Resolve required evidence by semantics; IDs are opaque citation labels."""
+def _safe_repository_reference(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    candidate = Path(value)
+    return not candidate.is_absolute() and not candidate.drive and ".." not in candidate.parts
+
+
+def _packet_evidence_kind(packet: dict[str, Any]) -> str:
+    """Validate common packet metadata and return its explicit evidence kind."""
+
+    if (
+        not isinstance(packet, dict)
+        or packet.get("packet_type") != "godot_performance_evidence"
+        or isinstance(packet.get("schema_version"), bool)
+        or packet.get("schema_version") != 1
+    ):
+        raise EvidenceSchemaError("evidence packet identity is unsupported")
+    kind = packet.get("evidence_kind")
+    if kind not in {"synthetic", "generic", "failed"}:
+        raise EvidenceSchemaError("evidence kind is missing or unsupported")
+    validation = packet.get("validation")
+    if not isinstance(validation, dict) or validation.get("status") not in {
+        "passed",
+        "failed",
+        "error",
+    }:
+        raise EvidenceSchemaError("validation metadata is invalid")
+    passed = validation.get("status") == "passed"
+    if passed != (kind in {"synthetic", "generic"}):
+        raise EvidenceSchemaError("evidence kind disagrees with validation status")
+    for key in ("candidate_file_count", "validated_file_count"):
+        value = validation.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise EvidenceSchemaError("validation count metadata is invalid")
+    if passed and (
+        validation.get("exit_code") != 0
+        or validation["candidate_file_count"] < 1
+        or validation["validated_file_count"] < 1
+    ):
+        raise EvidenceSchemaError("passed validation metadata is inconsistent")
+    if not isinstance(validation.get("errors"), list):
+        raise EvidenceSchemaError("validation errors metadata is invalid")
+    if not isinstance(validation.get("timed_out"), bool):
+        raise EvidenceSchemaError("validation timeout metadata is invalid")
+    if validation.get("error_type") is not None and not isinstance(
+        validation.get("error_type"), str
+    ):
+        raise EvidenceSchemaError("validation error metadata is invalid")
+    results_directory = packet.get("results_directory")
+    if kind == "failed":
+        if results_directory is not None and not _safe_repository_reference(results_directory):
+            raise EvidenceSchemaError("results directory metadata is unsafe")
+    elif not _safe_repository_reference(results_directory):
+        raise EvidenceSchemaError("results directory metadata is unsafe")
 
     evidence = packet.get("evidence")
     if not isinstance(evidence, list):
         raise EvidenceSchemaError("evidence must be a list")
+    if kind == "failed" and evidence:
+        raise EvidenceSchemaError("failed evidence packets must be empty")
 
     identifiers: list[str] = []
     for item in evidence:
         if not isinstance(item, dict):
             raise EvidenceSchemaError("evidence items must be objects")
         identifier = item.get("id")
-        if not isinstance(identifier, str) or not re.fullmatch(
-            r"[A-Za-z][A-Za-z0-9_.:-]{0,63}", identifier
-        ):
+        if not isinstance(identifier, str) or not SAFE_EVIDENCE_ID.fullmatch(identifier):
             raise EvidenceSchemaError("evidence IDs must be safe opaque labels")
         identifiers.append(identifier)
+        has_scenario = "scenario" in item
+        has_profile = "profile" in item
+        if has_scenario == has_profile:
+            raise EvidenceSchemaError("evidence items require exactly one identity")
+        if kind == "synthetic" and not has_scenario:
+            raise EvidenceSchemaError("synthetic evidence must use scenario")
+        if kind == "generic" and not has_profile:
+            raise EvidenceSchemaError("generic evidence must use profile")
+        identity = item.get("scenario") if has_scenario else item.get("profile")
+        if not isinstance(identity, str) or not SAFE_PROFILE.fullmatch(identity):
+            raise EvidenceSchemaError("evidence identity is unsafe")
+        if (
+            not isinstance(item.get("claim"), str)
+            or not item["claim"]
+            or not isinstance(item.get("metric"), str)
+            or not item["metric"]
+            or not isinstance(item.get("source_type"), str)
+            or not item["source_type"]
+            or (item.get("unit") is not None and not isinstance(item.get("unit"), str))
+        ):
+            raise EvidenceSchemaError("evidence item metadata is invalid")
+        if not _safe_repository_reference(item.get("source")):
+            raise EvidenceSchemaError("evidence source metadata is unsafe")
     if len(identifiers) != len(set(identifiers)):
         raise EvidenceSchemaError("evidence IDs must be unique")
 
+    limitations = packet.get("limitations")
+    if not isinstance(limitations, list) or not limitations:
+        raise EvidenceSchemaError("limitations must be a nonempty list")
+    limitation_ids: list[str] = []
+    for limitation in limitations:
+        if (
+            not isinstance(limitation, dict)
+            or set(limitation) != {"id", "statement"}
+            or not isinstance(limitation.get("id"), str)
+            or not SAFE_EVIDENCE_ID.fullmatch(limitation["id"])
+            or not isinstance(limitation.get("statement"), str)
+            or not limitation["statement"]
+        ):
+            raise EvidenceSchemaError("limitation metadata is invalid")
+        limitation_ids.append(limitation["id"])
+    if len(limitation_ids) != len(set(limitation_ids)) or set(identifiers) & set(limitation_ids):
+        raise EvidenceSchemaError("packet identifiers must be unique")
+    return kind
+
+
+def _semantic_evidence(packet: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Resolve required evidence by semantics; IDs are opaque citation labels."""
+
+    if _packet_evidence_kind(packet) != "synthetic":
+        raise EvidenceSchemaError("synthetic evidence is required")
+
+    evidence = packet.get("evidence")
+    if not isinstance(evidence, list):
+        raise EvidenceSchemaError("evidence must be a list")
+
     resolved: dict[str, dict[str, Any]] = {}
-    for name, (metric, scenario, source_type, unit, value_kind) in REQUIRED_EVIDENCE.items():
+    for name, (metric, scenario, source_type, unit, value_kind) in SYNTHETIC_REQUIRED_EVIDENCE.items():
         matches = [
             item
             for item in evidence
@@ -472,6 +622,99 @@ def _semantic_evidence(packet: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return resolved
 
 
+def _generic_semantic_evidence(packet: dict[str, Any]) -> dict[str, Any]:
+    """Resolve generic evidence by profile semantics, excluding reserved all."""
+
+    if _packet_evidence_kind(packet) != "generic":
+        raise EvidenceSchemaError("generic evidence is required")
+    evidence = packet["evidence"]
+    count_matches = [
+        item
+        for item in evidence
+        if item.get("metric") == "validated_file_count"
+        and item.get("profile") == "all"
+        and item.get("source_type") == "validated_result"
+        and item.get("unit") == "files"
+    ]
+    if len(count_matches) != 1:
+        raise EvidenceSchemaError("generic validation-count evidence is missing or ambiguous")
+    count = count_matches[0]
+    if (
+        not isinstance(count.get("value"), (int, float))
+        or isinstance(count.get("value"), bool)
+        or not math.isfinite(count["value"])
+        or count["value"] < 1
+    ):
+        raise EvidenceSchemaError("generic validation-count evidence is invalid")
+
+    profiles = sorted(
+        {
+            item["profile"]
+            for item in evidence
+            if item.get("profile") != "all"
+            and item.get("metric") in GENERIC_PROFILE_DISCOVERY_METRICS
+            and item.get("source_type") in {"validated_aggregate", "validated_metadata"}
+            and isinstance(item.get("profile"), str)
+            and SAFE_PROFILE.fullmatch(item["profile"])
+        }
+    )
+    if not profiles:
+        raise EvidenceSchemaError("generic packet has no reportable profiles")
+
+    resolved_profiles: dict[str, dict[str, dict[str, Any]]] = {}
+    for profile in profiles:
+        resolved: dict[str, dict[str, Any]] = {}
+        for name, (metric, source_type, unit, value_kind) in GENERIC_METRIC_SPECS.items():
+            matches = [
+                item
+                for item in evidence
+                if item.get("metric") == metric
+                and item.get("profile") == profile
+                and item.get("source_type") == source_type
+                and item.get("unit") == unit
+            ]
+            if name == "memory":
+                if len(matches) > 1:
+                    raise EvidenceSchemaError(f"generic {profile} memory evidence is ambiguous")
+                if matches:
+                    value = matches[0].get("value")
+                    if (
+                        not isinstance(value, (int, float))
+                        or isinstance(value, bool)
+                        or not math.isfinite(value)
+                    ):
+                        raise EvidenceSchemaError(f"generic {profile} memory evidence is invalid")
+                    resolved[name] = matches[0]
+                continue
+            if len(matches) != 1:
+                raise EvidenceSchemaError(
+                    f"generic {profile} evidence {name!r} is missing or ambiguous"
+                )
+            item = matches[0]
+            value = item.get("value")
+            if value_kind == "number" and (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not math.isfinite(value)
+            ):
+                raise EvidenceSchemaError(f"generic {profile} evidence {name!r} must be numeric")
+            if value_kind == "memory_status" and value not in GENERIC_MEMORY_STATUSES:
+                raise EvidenceSchemaError(f"generic {profile} memory status is invalid")
+            if value_kind == "revision_status" and value not in GENERIC_REVISION_STATUSES:
+                raise EvidenceSchemaError(f"generic {profile} revision status is invalid")
+            resolved[name] = item
+
+        memory_available = resolved["memory_status"]["value"] == "available"
+        if memory_available != ("memory" in resolved):
+            raise EvidenceSchemaError(
+                f"generic {profile} memory metric conflicts with availability"
+            )
+        resolved_profiles[profile] = resolved
+
+    limitations = packet["limitations"]
+    return {"validated_count": count, "profiles": resolved_profiles, "limitations": limitations}
+
+
 def _citation(item: dict[str, Any]) -> str:
     return f"[{item['id']}]"
 
@@ -480,13 +723,8 @@ def _formatted_number(value: int | float, decimal_places: int) -> str:
     return f"{float(value):,.{decimal_places}f}"
 
 
-def render_deterministic_fallback(packet: dict[str, Any]) -> str:
-    """Render a report using only semantically matched packet evidence."""
-
-    validation = packet.get("validation")
-    passed = isinstance(validation, dict) and validation.get("status") == "passed"
-    if not passed:
-        return f"""## Validation status
+def _failure_report() -> str:
+    return f"""## Validation status
 {REPORT_SOURCE_DISCLOSURE}
 Deterministic validation failed, so no benchmark fact is treated as verified.
 
@@ -502,6 +740,123 @@ The validation failure must be resolved before interpreting performance.
 ## Remaining uncertainty
 {REQUIRED_UNCERTAINTY}
 """
+
+
+def _generic_status_sentence(label: str, profile: str, status: str, item: dict[str, Any]) -> str:
+    return f"{label} for {profile} was {status} {_citation(item)}."
+
+
+def _render_generic_fallback(packet: dict[str, Any]) -> str:
+    semantic = _generic_semantic_evidence(packet)
+    count = semantic["validated_count"]
+    capture_label = "capture file" if float(count["value"]) == 1.0 else "capture files"
+    profile_lines: list[str] = []
+    explanation_lines: list[str] = []
+    recommendation_lines: list[str] = []
+    for profile, items in semantic["profiles"].items():
+        profile_lines.append(
+            f"Profile {profile} recorded median p95 process time "
+            f"{_formatted_number(items['process']['value'], 6)} ms, median p95 physics-process time "
+            f"{_formatted_number(items['physics']['value'], 6)} ms, and median measurement duration "
+            f"{_formatted_number(items['duration']['value'], 3)} ms "
+            f"{_citation(items['process'])} {_citation(items['physics'])} {_citation(items['duration'])}."
+        )
+        profile_lines.append(
+            f"Profile {profile} recorded median peak object count "
+            f"{_formatted_number(items['objects']['value'], 0)}, median peak node count "
+            f"{_formatted_number(items['nodes']['value'], 0)}, and median peak orphan-node count "
+            f"{_formatted_number(items['orphans']['value'], 0)} "
+            f"{_citation(items['objects'])} {_citation(items['nodes'])} {_citation(items['orphans'])}."
+        )
+        memory_status = items["memory_status"]["value"]
+        if memory_status == "available":
+            profile_lines.append(
+                f"Profile {profile} recorded median peak static memory "
+                f"{_formatted_number(items['memory']['value'], 0)} bytes "
+                f"{_citation(items['memory'])}; "
+                + _generic_status_sentence(
+                    "static-memory evidence", profile, memory_status, items["memory_status"]
+                )
+            )
+        else:
+            profile_lines.append(
+                _generic_status_sentence(
+                    "Static-memory evidence", profile, memory_status, items["memory_status"]
+                )
+            )
+        profile_lines.append(
+            _generic_status_sentence(
+                "Source-revision availability",
+                profile,
+                items["revision_status"]["value"],
+                items["revision_status"],
+            )
+        )
+        explanation_lines.append(
+            f"Profile {profile}'s measurements identify controlled comparisons to run next, "
+            f"but do not establish a causal defect {_citation(items['process'])} "
+            f"{_citation(items['objects'])} {_citation(items['nodes'])}."
+        )
+        recommendation_lines.append(
+            f"- Compare repeated {profile} captures with identical probe settings and host conditions "
+            f"{_citation(items['process'])} {_citation(items['physics'])} {_citation(items['duration'])}."
+        )
+        recommendation_lines.append(
+            f"- Measure {profile} object, node, and orphan-node peaks across one controlled change "
+            f"{_citation(items['objects'])} {_citation(items['nodes'])} {_citation(items['orphans'])}."
+        )
+        if memory_status == "available":
+            recommendation_lines.append(
+                f"- Compare {profile} static-memory captures only with matching measured-frame and "
+                f"sampling settings {_citation(items['memory'])} {_citation(items['memory_status'])}."
+            )
+        else:
+            recommendation_lines.append(
+                f"- Capture {profile} again in a comparable environment that declares static-memory "
+                f"availability {_citation(items['memory_status'])}."
+            )
+        recommendation_lines.append(
+            f"- Capture {profile} with source-revision metadata when correlating future evidence "
+            f"{_citation(items['revision_status'])}."
+        )
+
+    limitation_lines = [
+        f"- {limitation['statement']} [{limitation['id']}]"
+        for limitation in semantic["limitations"]
+    ]
+    return f"""## Validation status
+{REPORT_SOURCE_DISCLOSURE}
+The validator passed {_formatted_number(count['value'], 0)} generic {capture_label} under its configured checks {_citation(count)}.
+
+## Verified facts
+{chr(10).join(profile_lines)}
+
+## Possible explanations
+{chr(10).join(explanation_lines)}
+
+## Recommended next investigation
+{chr(10).join(recommendation_lines)}
+
+## Remaining uncertainty
+{chr(10).join(limitation_lines)}
+{REQUIRED_UNCERTAINTY}
+"""
+
+
+def render_deterministic_fallback(packet: dict[str, Any]) -> str:
+    """Render a report using only semantically matched packet evidence."""
+
+    validation = packet.get("validation")
+    passed = isinstance(validation, dict) and validation.get("status") == "passed"
+    if not passed:
+        _packet_evidence_kind(packet)
+        return _failure_report()
+
+    kind = _packet_evidence_kind(packet)
+    if kind == "generic":
+        return _render_generic_fallback(packet)
+    if kind != "synthetic":
+        raise EvidenceSchemaError("passed evidence kind is unsupported")
 
     evidence = _semantic_evidence(packet)
     configurations = evidence["cpu_configurations"]["value"]
@@ -566,7 +921,7 @@ def _supported_number(token: str, cited_items: list[dict[str, Any]]) -> bool:
     )
 
 
-def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
+def _validate_synthetic_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
     """Return stable rule identifiers for any grounding-contract violations."""
 
     errors: set[str] = set()
@@ -662,6 +1017,159 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
             errors.add("G13_UNTESTABLE_RECOMMENDATION")
 
     return sorted(errors)
+
+
+def _validate_generic_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
+    """Validate a generic-profile report against its exact packet evidence."""
+
+    errors: set[str] = set()
+    sections = _report_sections(report)
+    if sections is None:
+        return ["G01_REPORT_SECTIONS"]
+    try:
+        semantic = _generic_semantic_evidence(packet)
+    except EvidenceSchemaError:
+        return ["G15_EVIDENCE_SCHEMA"]
+
+    evidence_items = packet["evidence"]
+    limitations = semantic["limitations"]
+    by_id = {item["id"]: item for item in evidence_items}
+    by_id.update({item["id"]: item for item in limitations})
+    citations = EVIDENCE_CITATION.findall(report)
+    if any(citation not in by_id for citation in citations):
+        errors.add("G02_UNKNOWN_EVIDENCE")
+
+    required_ids = {semantic["validated_count"]["id"]}
+    for items in semantic["profiles"].values():
+        required_ids.update(item["id"] for item in items.values())
+    required_ids.update(item["id"] for item in limitations)
+    if not required_ids.issubset(set(citations)):
+        errors.add("G03_REQUIRED_EVIDENCE_MISSING")
+
+    lowered = report.lower()
+    if re.search(r"\bprofile\s+[`\"']?all\b", lowered):
+        errors.add("G26_RESERVED_PROFILE")
+    for profile, items in semantic["profiles"].items():
+        if profile.lower() not in lowered:
+            errors.add("G17_PROFILE_COVERAGE")
+        memory_status = items["memory_status"]["value"]
+        memory_sentence = f"static-memory evidence for {profile} was {memory_status}"
+        if memory_sentence.lower() not in lowered:
+            errors.add("G18_MEMORY_AVAILABILITY")
+        revision_status = items["revision_status"]["value"]
+        revision_sentence = f"source-revision availability for {profile} was {revision_status}"
+        if revision_sentence.lower() not in lowered:
+            errors.add("G19_REVISION_AVAILABILITY")
+        if memory_status != "available":
+            for line in report.splitlines():
+                normalized_line = line.lower().replace("static-memory", "static memory")
+                if profile.lower() in normalized_line and "static memory" in normalized_line and "bytes" in normalized_line:
+                    errors.add("G20_INVENTED_MEMORY")
+
+    for limitation in limitations:
+        if limitation["statement"] not in report:
+            errors.add("G21_GENERIC_LIMITATION_MISSING")
+    if REQUIRED_UNCERTAINTY not in sections["## Remaining uncertainty"]:
+        errors.add("G08_REQUIRED_UNCERTAINTY")
+
+    for line in report.splitlines():
+        if line.startswith("##"):
+            continue
+        line_citations = EVIDENCE_CITATION.findall(line)
+        numeric_text = EVIDENCE_CITATION.sub("", line)
+        numeric_text = re.sub(r"(?<=\d)[x×](?=\d)", " ", numeric_text)
+        numbers = re.findall(r"(?<![A-Za-z_0-9])\d[\d,]*(?:\.\d+)?", numeric_text)
+        if numbers and not line_citations:
+            errors.add("G06_UNCITED_NUMBER")
+        cited_items = [by_id[citation] for citation in line_citations if citation in by_id]
+        if numbers and cited_items and any(
+            not _supported_number(number, cited_items) for number in numbers
+        ):
+            errors.add("G07_UNSUPPORTED_NUMBER")
+
+    for heading in ("## Validation status", "## Verified facts"):
+        for line in sections[heading].splitlines():
+            content = line.strip().lstrip("-* ")
+            if content and content != REPORT_SOURCE_DISCLOSURE and not EVIDENCE_CITATION.search(content):
+                errors.add("G14_UNCITED_VERIFIED_FACT")
+
+    for synthetic_term in (
+        "healthy",
+        "node_leak",
+        "cpu_spike",
+        "workload_time_usec",
+        "retained nodes",
+        "scenario-owned",
+    ):
+        if synthetic_term in lowered:
+            errors.add("G22_SYNTHETIC_CLAIM")
+
+    limitation_stripped = report
+    for limitation in limitations:
+        limitation_stripped = limitation_stripped.replace(limitation["statement"], "")
+    if re.search(
+        r"\b(proves?|confirms?|demonstrates?|shows?|is|was|caused by)\b.{0,50}\b(bottleneck|memory leak|leak|causal defect)\b",
+        limitation_stripped,
+        flags=re.IGNORECASE,
+    ):
+        errors.add("G23_UNSUPPORTED_GENERIC_CAUSE")
+    for phrase in BANNED_SPECULATION:
+        if phrase in limitation_stripped.lower():
+            errors.add("G09_UNSUPPORTED_CAUSE")
+
+    revision_stripped = limitation_stripped
+    for profile, items in semantic["profiles"].items():
+        allowed = (
+            f"Source-revision availability for {profile} was "
+            f"{items['revision_status']['value']} {_citation(items['revision_status'])}."
+        )
+        revision_stripped = revision_stripped.replace(allowed, "")
+        allowed_recommendation = (
+            f"- Capture {profile} with source-revision metadata when correlating future evidence "
+            f"{_citation(items['revision_status'])}."
+        )
+        revision_stripped = revision_stripped.replace(allowed_recommendation, "")
+    if "revision" in revision_stripped.lower():
+        errors.add("G24_REVISION_VALUE_OR_EQUALITY")
+
+    recommendations = sections["## Recommended next investigation"]
+    for line in recommendations.splitlines():
+        content = line.strip().lstrip("-* ")
+        if not content:
+            continue
+        if not EVIDENCE_CITATION.search(content):
+            errors.add("G11_UNCITED_RECOMMENDATION")
+        if re.search(r"\b(modify|edit|delete|overwrite|repair|fix|write)\b", content.lower()):
+            errors.add("G12_MUTATING_RECOMMENDATION")
+        if not re.search(
+            r"\b(inspect|compare|measure|profile|validate|review|run|re-run|separate|capture)\b",
+            content.lower(),
+        ):
+            errors.add("G13_UNTESTABLE_RECOMMENDATION")
+
+    sensitive_patterns = (
+        r"(?i)(?:^|[\s(\"'])\b[A-Z]:[\\/]",
+        r"(?i)(?:^|\s)\\\\[^\s]+",
+        r"(?i)/(?:users|home)/[^\s]+",
+        r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}",
+        r"(?i)bearer\s+[A-Za-z0-9._-]+",
+        r"OPENAI_API_KEY\s*=\s*\S+",
+    )
+    if any(re.search(pattern, report, flags=re.MULTILINE) for pattern in sensitive_patterns):
+        errors.add("G25_SENSITIVE_OUTPUT")
+    return sorted(errors)
+
+
+def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
+    """Dispatch grounding validation from explicit packet evidence kind."""
+
+    try:
+        kind = _packet_evidence_kind(packet)
+    except EvidenceSchemaError:
+        return ["G15_EVIDENCE_SCHEMA"]
+    if kind == "generic":
+        return _validate_generic_grounded_report(report, packet)
+    return _validate_synthetic_grounded_report(report, packet)
 
 
 def _argument_parser() -> argparse.ArgumentParser:

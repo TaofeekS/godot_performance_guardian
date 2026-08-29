@@ -23,10 +23,18 @@ FIXTURE_RESULTS_DIRECTORY = "tests/fixtures/generic_results"
 EVIDENCE_PACKET_PATH = (
     investigator.REPOSITORY_ROOT / "tests/fixtures/investigator/evidence_packet.json"
 )
+GENERIC_EVIDENCE_PACKET_PATH = (
+    investigator.REPOSITORY_ROOT
+    / "tests/fixtures/investigator/generic_evidence_packet.json"
+)
 
 
 def load_evidence_packet() -> dict[str, object]:
     return json.loads(EVIDENCE_PACKET_PATH.read_text(encoding="utf-8"))
+
+
+def load_generic_evidence_packet() -> dict[str, object]:
+    return json.loads(GENERIC_EVIDENCE_PACKET_PATH.read_text(encoding="utf-8"))
 
 
 class ResultsDirectoryTests(unittest.TestCase):
@@ -79,6 +87,8 @@ class ValidatorRunnerTests(unittest.TestCase):
     def test_invokes_validator_with_restricted_subprocess_arguments(self) -> None:
         packet = {
             "packet_type": "godot_performance_evidence",
+            "schema_version": 1,
+            "evidence_kind": "synthetic",
             "validation": {"status": "passed", "exit_code": 0},
         }
         runner = Mock(
@@ -108,6 +118,8 @@ class ValidatorRunnerTests(unittest.TestCase):
     def test_captures_nonzero_validator_output(self) -> None:
         packet = {
             "packet_type": "godot_performance_evidence",
+            "schema_version": 1,
+            "evidence_kind": "failed",
             "validation": {"status": "failed", "exit_code": 1},
             "evidence": [],
         }
@@ -472,6 +484,220 @@ The available evidence does not establish the root cause.
         self.assertEqual(exit_code, 1)
         self.assertEqual(runner.call_count, 1)
         self.assertIn("G00_EVIDENCE_PACKET", stderr.getvalue())
+
+
+class GenericGroundingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.packet = load_generic_evidence_packet()
+
+    def fallback(self, packet: dict[str, object] | None = None) -> str:
+        return investigator.render_deterministic_fallback(packet or self.packet)
+
+    def test_dispatches_synthetic_generic_and_failed_packets(self) -> None:
+        self.assertEqual(investigator._packet_evidence_kind(load_evidence_packet()), "synthetic")
+        self.assertEqual(investigator._packet_evidence_kind(self.packet), "generic")
+        failed = investigator._evidence_packet(
+            validation_status="failed",
+            validator_invoked=True,
+            results_directory=FIXTURE_RESULTS_DIRECTORY,
+            json_file_count=1,
+            exit_code=1,
+        )
+        self.assertEqual(investigator._packet_evidence_kind(failed), "failed")
+
+    def test_profile_discovery_excludes_reserved_all_and_unrelated_items(self) -> None:
+        packet = copy.deepcopy(self.packet)
+        packet["evidence"].append(
+            {
+                "id": "PX_IGNORED",
+                "claim": "Unrelated profile note.",
+                "metric": "unrelated_metric",
+                "profile": "ignored_profile",
+                "source": "tests/fixtures/investigator",
+                "source_type": "validated_aggregate",
+                "unit": None,
+                "value": "ignored",
+            }
+        )
+        semantic = investigator._generic_semantic_evidence(packet)
+        self.assertEqual(list(semantic["profiles"]), ["battle_scene", "main_scene"])
+        self.assertNotIn("all", semantic["profiles"])
+        self.assertNotIn("ignored_profile", semantic["profiles"])
+
+    def test_reserved_all_cannot_be_reported_as_a_profile(self) -> None:
+        report = self.fallback().replace(
+            "Profile battle_scene recorded",
+            "Profile all is validation metadata [PX_COUNT].\nProfile battle_scene recorded",
+            1,
+        )
+        self.assertIn(
+            "G26_RESERVED_PROFILE",
+            investigator.validate_grounded_report(report, self.packet),
+        )
+
+    def test_missing_unsupported_and_mixed_identity_packets_fail(self) -> None:
+        missing_kind = copy.deepcopy(self.packet)
+        missing_kind.pop("evidence_kind")
+        unsupported = copy.deepcopy(self.packet)
+        unsupported["evidence_kind"] = "portable"
+        mixed_identity = copy.deepcopy(self.packet)
+        mixed_identity["evidence"][1]["scenario"] = "generic"
+        for packet in (missing_kind, unsupported, mixed_identity):
+            with self.subTest(packet=packet.get("evidence_kind")):
+                with self.assertRaises(investigator.EvidenceSchemaError):
+                    investigator._packet_evidence_kind(packet)
+                self.assertEqual(
+                    investigator.validate_grounded_report(self.fallback(), packet),
+                    ["G15_EVIDENCE_SCHEMA"],
+                )
+
+    def test_fully_grounded_generic_fallback_passes_and_covers_profiles(self) -> None:
+        report = self.fallback()
+        self.assertEqual(investigator.validate_grounded_report(report, self.packet), [])
+        self.assertIn("battle_scene", report)
+        self.assertIn("main_scene", report)
+        self.assertNotIn("Profile all", report)
+        self.assertIn("Static-memory evidence for battle_scene was unavailable", report)
+        self.assertIn("Source-revision availability for main_scene was present", report)
+        for heading in investigator.REPORT_HEADINGS:
+            self.assertIn(heading, report)
+
+    def test_fully_grounded_model_style_generic_report_passes(self) -> None:
+        report = self.fallback().replace(
+            investigator.REPORT_SOURCE_DISCLOSURE + "\n", ""
+        )
+        self.assertEqual(investigator.validate_grounded_report(report, self.packet), [])
+
+    def test_fallback_is_deterministic_and_uses_renumbered_ids(self) -> None:
+        first = self.fallback()
+        self.assertEqual(first, self.fallback(copy.deepcopy(self.packet)))
+        packet = copy.deepcopy(self.packet)
+        replacements: dict[str, str] = {}
+        for index, item in enumerate(packet["evidence"], 200):
+            replacements[item["id"]] = f"Q{index}"
+            item["id"] = replacements[item["id"]]
+        for index, limitation in enumerate(packet["limitations"], 300):
+            limitation["id"] = f"Q{index}"
+        report = self.fallback(packet)
+        self.assertEqual(investigator.validate_grounded_report(report, packet), [])
+        self.assertIn("[Q200]", report)
+        self.assertNotIn("[PX_COUNT]", report)
+
+    def test_missing_or_duplicate_generic_semantics_fail_safely(self) -> None:
+        missing = copy.deepcopy(self.packet)
+        missing["evidence"] = [
+            item for item in missing["evidence"] if item["id"] != "PX_BP"
+        ]
+        duplicate = copy.deepcopy(self.packet)
+        repeated = copy.deepcopy(duplicate["evidence"][1])
+        repeated["id"] = "PX_DUPLICATE"
+        duplicate["evidence"].append(repeated)
+        for packet in (missing, duplicate):
+            with self.assertRaises(investigator.EvidenceSchemaError):
+                investigator.render_deterministic_fallback(packet)
+            self.assertEqual(
+                investigator.validate_grounded_report(self.fallback(), packet),
+                ["G15_EVIDENCE_SCHEMA"],
+            )
+
+    def test_unknown_citation_and_altered_number_fail(self) -> None:
+        report = self.fallback().replace("[PX_BP]", "[UNKNOWN]", 1)
+        self.assertIn("G02_UNKNOWN_EVIDENCE", investigator.validate_grounded_report(report, self.packet))
+        altered = self.fallback().replace("1.250000 ms", "99.250000 ms", 1)
+        self.assertIn("G07_UNSUPPORTED_NUMBER", investigator.validate_grounded_report(altered, self.packet))
+
+    def test_missing_citation_and_profile_coverage_fail(self) -> None:
+        missing_citation = self.fallback().replace(" [PX_MPH]", "")
+        self.assertIn(
+            "G03_REQUIRED_EVIDENCE_MISSING",
+            investigator.validate_grounded_report(missing_citation, self.packet),
+        )
+        omitted_profile = self.fallback().replace("main_scene", "second profile")
+        self.assertIn(
+            "G17_PROFILE_COVERAGE",
+            investigator.validate_grounded_report(omitted_profile, self.packet),
+        )
+
+    def test_mixed_availability_states_render_without_values(self) -> None:
+        packet = copy.deepcopy(self.packet)
+        for item in packet["evidence"]:
+            if item["id"] == "PX_BMA":
+                item["value"] = "mixed"
+            if item["id"] == "PX_MRA":
+                item["value"] = "mixed"
+        report = self.fallback(packet)
+        self.assertEqual(investigator.validate_grounded_report(report, packet), [])
+        self.assertIn("Static-memory evidence for battle_scene was mixed", report)
+        self.assertIn("Source-revision availability for main_scene was mixed", report)
+
+    def test_unavailable_memory_value_is_rejected(self) -> None:
+        report = self.fallback().replace(
+            "Static-memory evidence for battle_scene was unavailable [PX_BMA].",
+            "Static-memory evidence for battle_scene was unavailable at 999 bytes [PX_BMA].",
+        )
+        errors = investigator.validate_grounded_report(report, self.packet)
+        self.assertIn("G20_INVENTED_MEMORY", errors)
+        self.assertIn("G07_UNSUPPORTED_NUMBER", errors)
+
+    def test_synthetic_claims_and_unsupported_causes_are_rejected(self) -> None:
+        synthetic = self.fallback().replace(
+            "Profile battle_scene recorded",
+            "The healthy scenario retained nodes. Profile battle_scene recorded",
+            1,
+        )
+        self.assertIn("G22_SYNTHETIC_CLAIM", investigator.validate_grounded_report(synthetic, self.packet))
+        causal = self.fallback().replace(
+            "do not establish a causal defect",
+            "show a memory leak",
+            1,
+        )
+        self.assertIn("G23_UNSUPPORTED_GENERIC_CAUSE", investigator.validate_grounded_report(causal, self.packet))
+
+    def test_missing_limitations_and_uncertainty_are_rejected(self) -> None:
+        limitation = self.packet["limitations"][0]
+        report = self.fallback().replace(
+            f"- {limitation['statement']} [{limitation['id']}]\n", ""
+        ).replace(investigator.REQUIRED_UNCERTAINTY, "A cause was established.")
+        errors = investigator.validate_grounded_report(report, self.packet)
+        self.assertIn("G21_GENERIC_LIMITATION_MISSING", errors)
+        self.assertIn("G08_REQUIRED_UNCERTAINTY", errors)
+
+    def test_revision_equality_or_value_language_is_rejected(self) -> None:
+        report = self.fallback().replace(
+            "Source-revision availability for main_scene was present [PX_MRA].",
+            "Source-revision availability for main_scene was present and revisions were equal [PX_MRA].",
+        )
+        self.assertIn("G24_REVISION_VALUE_OR_EQUALITY", investigator.validate_grounded_report(report, self.packet))
+
+    def test_unsafe_and_untestable_recommendations_are_rejected(self) -> None:
+        report = self.fallback().replace(
+            "- Compare repeated battle_scene captures",
+            "- Fix C:\\private\\project then admire repeated battle_scene captures",
+            1,
+        )
+        errors = investigator.validate_grounded_report(report, self.packet)
+        self.assertIn("G12_MUTATING_RECOMMENDATION", errors)
+        self.assertIn("G13_UNTESTABLE_RECOMMENDATION", errors)
+        self.assertIn("G25_SENSITIVE_OUTPUT", errors)
+
+    def test_cli_uses_generic_fallback_once_without_rejected_text(self) -> None:
+        rejected = "REJECTED GENERIC MODEL OUTPUT"
+        result = SimpleNamespace(
+            final_output=rejected,
+            new_items=[SimpleNamespace(output=json.dumps(self.packet))],
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        runner = Mock(return_value=result)
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-credential"}):
+            with patch.object(investigator.Runner, "run_sync", runner):
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    exit_code = investigator.main([FIXTURE_RESULTS_DIRECTORY])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(runner.call_count, 1)
+        self.assertIn(investigator.REPORT_SOURCE_DISCLOSURE, stdout.getvalue())
+        self.assertNotIn(rejected, stdout.getvalue() + stderr.getvalue())
 
 
 class InvestigatorConfigurationTests(unittest.TestCase):
