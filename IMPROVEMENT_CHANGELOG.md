@@ -313,6 +313,8 @@ The portable probe retains each raw sample in memory until it serializes the res
 
 The same evaluation entrypoints confirmed the correction: all 67 Python tests passed, the updated canonical generic fixture validated, its two calibrated v2 budgets passed, all 49 historical synthetic results still validated, and the Experiment 5 demonstration policy retained exactly its two intentional failures. No new Godot capture was made, so the original timing measurements remain unchanged.
 
+A subsequent real-world validation attempt used the still-present ignored `1.0.0` runtime result and correctly failed the new `1.0.1` contract. The validator diagnostic was made actionable, and the README now uses one UTC-derived run-ID variable through capture, validation, and budget checking. The old file remained byte-identical. Exactly one fresh `1.0.1` capture then recorded 600 sequential samples, process p95 `0.951 ms`, peak node count `3`, measurement duration `4139.238 ms`, capture duration `4953.588 ms`, and all six required limitations. Generic validation and both calibrated budgets passed; the complete suite passed 68 tests. This retained result confirms the decision to require recapture instead of relabeling historical evidence.
+
 
 
 ## Removed-experiment status

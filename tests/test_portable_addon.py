@@ -162,6 +162,16 @@ class GenericValidationTests(unittest.TestCase):
         errors = self.validate(capture).errors
         self.assertTrue(any("probe-storage memory limitation" in error for error in errors))
 
+    def test_old_addon_version_requires_actionable_recapture(self) -> None:
+        capture = generic_capture()
+        capture["addon"]["version"] = "1.0.0"
+        errors = self.validate(capture).errors
+        self.assertIn(
+            "capture.json: addon version '1.0.0' is unsupported; expected '1.0.1'; "
+            "recapture with the current addon and a new run ID",
+            errors,
+        )
+
     def test_invalid_profile_numeric_path_samples_and_summary_fail(self) -> None:
         variants = []
         profile = generic_capture()

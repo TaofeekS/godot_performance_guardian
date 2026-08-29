@@ -8,4 +8,6 @@ Because the probe accumulates raw samples during capture, static-memory growth i
 
 Command-line overrides are `--pbg-profile`, `--pbg-warmup-frames`, `--pbg-measured-frames`, `--pbg-sampling-interval`, `--pbg-output`, `--pbg-run-id`, `--pbg-source-revision`, and `--pbg-auto-quit`. Value-bearing arguments use `--name=value`.
 
+When upgrading the addon, replace the installed addon directory while the plugin is disabled and create a fresh capture with a new run ID. Do not change old capture metadata to claim a newer addon version: result files are evidence of the version that produced them.
+
 To remove the addon, remove its probe nodes, disable the plugin, and delete only `res://addons/performance_budget_guardian/`.

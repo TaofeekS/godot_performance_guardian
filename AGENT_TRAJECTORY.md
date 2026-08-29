@@ -1109,3 +1109,45 @@ The first documentation-skill validation attempt encountered two operational iss
 No Godot run, API request, credential access, permanent dependency, commit, or push occurred. Final link, Markdown, secret-pattern, whitespace, and Git-state checks follow this entry.
 
 The final documentation audit resolved all 26 relative README links, confirmed all 17 numbered sections, and found valid final newlines with no trailing whitespace. Filename-only API-key scans found no candidate in the working tree, tracked files, staged content, or reachable Git history. `git diff --check` returned `0` with only the repository's existing Windows line-ending notices. The temporary skill-validation directory count was zero, and Git status showed the ongoing intended Experiment 6 work plus this correction; no unrelated file was reverted or overwritten.
+
+## 2026-08-29 — Recapture after addon-version validation failure
+
+### Reported failure and diagnosis
+
+The user reported:
+
+```text
+ERROR: portable-run-001.json: addon identity or version is unsupported
+ERROR: portable-run-001.json: known_limitations is missing the required probe-storage memory limitation
+Validation failed with 2 error(s).
+```
+
+Inspection confirmed that the ignored `portable-run-001.json` was produced by addon `1.0.0`, contained five earlier limitations, and still had 600 samples. The current addon, validator, and tracked canonical fixture use `1.0.1` and require the sixth probe-storage limitation. The consumer addon copy had been removed after the original portability test as designed. Before implementation, the old file's SHA-256 was `CB866CE8D7D47520054B31E78481D17AE45FBA82E7738B72FDCFE02C91831805`.
+
+The approved plan preserved the old result, prohibited retroactive metadata edits, required one new uniquely identified capture, and retained strict version validation. It also required an actionable validator diagnostic and a copyable UTC-run-ID documentation workflow.
+
+### Implementation and fresh capture
+
+Generic validation now distinguishes an unsupported addon identity from an unsupported version. A version mismatch reports the detected version, expected `1.0.1`, and the instruction to recapture with the current addon and a new run ID. A fixed test covers the exact `1.0.0` diagnostic. README now assigns one UTC-derived `$RunId` and reuses it for capture, validation, and budget checking; both README files explain that old evidence must not be relabeled.
+
+The canonical addon was copied into the ignored consumer path after verifying that its resolved destination remained inside `examples/minimal_project/`. Exactly one new headless Godot process was launched with run ID `portable-20260829T142235301Z`. The Windows executable detached from the invoking PowerShell command, leaving `$LASTEXITCODE` empty and making the immediate result check occur too early. No second process was launched. A follow-up process check found that the original process had completed and that its result existed.
+
+The first privacy audit repeated an earlier harness mistake: a case-insensitive drive-letter expression matched the `s:/` substring in `res://results`. The result was unchanged. Requiring a drive path at the beginning of a JSON string corrected the audit and found no private path or identifying path component.
+
+The fresh capture reported addon `1.0.1`, 600 sequential samples, all six limitations, process p95 `0.951 ms`, peak node count `3`, measurement duration `4139.238 ms`, and capture duration `4953.588 ms`. No result temporary file remained. Generic validation returned `0`, and both calibrated v2 budgets passed. The old result's SHA-256 was unchanged. The ignored consumer addon copy was then removed from its verified example-project path and remains recoverable from the canonical addon.
+
+### Compatibility verification
+
+The targeted portable suite passed 11 tests before capture. The final complete suite reported:
+
+```text
+Ran 68 tests in 1.874s
+
+OK
+```
+
+Python byte-compilation succeeded. All 49 historical synthetic results validated, and the tracked canonical generic fixture plus its two budgets passed. The unchanged Experiment 5 policy retained exit `1` with only `cpu-spike-workload-p95` and `node-leak-retained-nodes` failing. Repeated structured evidence and budget JSON for the fresh capture were byte-identical.
+
+No original synthetic Godot benchmark, API request, credential access, permanent dependency, commit, or push occurred. Final skill, link, secret-pattern, whitespace, and Git-state checks follow this entry.
+
+The documentation skill printed `Skill is valid!` using PyYAML 6.0.3 from a uniquely named temporary directory; cleanup left zero matching temporary directories. The final audit resolved all 26 relative README links, confirmed all 17 numbered sections, verified final newlines and no trailing whitespace, and matched the documented repository remote to both configured `origin` URLs. Filename-only API-key scans found no candidate in the working tree, tracked files, staged content, or reachable Git history. `git diff --check` returned `0` with only existing Windows line-ending notices. Git status contained only the intended validator test, documentation, and ongoing addon work; both ignored result files remained present and the ignored addon copy remained absent.

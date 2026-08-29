@@ -195,6 +195,7 @@ Copy the canonical addon into the independent consumer project, then run its pre
 
 ```powershell
 $GodotExe = "C:\path\to\Godot_v4.5.1-stable_win64.exe"
+$RunId = "portable-" + (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssfffZ")
 
 New-Item -ItemType Directory -Force .\examples\minimal_project\addons | Out-Null
 Copy-Item -Recurse `
@@ -206,7 +207,7 @@ Copy-Item -Recurse `
   --path .\examples\minimal_project `
   -- `
   --pbg-profile=main_scene `
-  --pbg-run-id=portable-run-001 `
+  --pbg-run-id=$RunId `
   --pbg-output=res://results `
   --pbg-auto-quit
 ```
@@ -217,12 +218,14 @@ Validate and enforce the example's profile policy:
 
 ```powershell
 .\.venv\Scripts\python.exe .\tools\validate_results.py `
-  .\examples\minimal_project\results\portable-run-001.json
+  ".\examples\minimal_project\results\$RunId.json"
 
 .\.venv\Scripts\python.exe .\tools\check_budgets.py `
-  .\examples\minimal_project\results\portable-run-001.json `
+  ".\examples\minimal_project\results\$RunId.json" `
   .\examples\minimal_project\budgets\performance_budgets.json
 ```
+
+Capture files are versioned evidence. If validation reports an older addon version, copy the current addon and create a fresh capture with a new run ID; do not edit, delete, or overwrite the earlier JSON. Keep the same `$RunId` variable in the PowerShell session for capture, validation, and budget checking.
 
 To use the addon elsewhere, copy the same directory to the target project's `res://addons/performance_budget_guardian/`, enable **Performance Budget Guardian** under Project Settings > Plugins, and add a `PerformanceBudgetProbe` node. To remove it, remove probe nodes, disable the plugin, and delete only that addon directory. The included example installation copy is ignored and can be removed with:
 
@@ -475,6 +478,8 @@ At Experiment 4 verification time, the result directory contained 31 validated f
 Experiment 5 added configurable policy without changing those stored results or validator calculations. Local verification ran 57 standard-library tests. The unchanged validator passed the current 40-file directory. The example policy produced exactly two passes (`healthy-process-p95`, `healthy-retained-nodes`) and two intentional failures (`cpu-spike-workload-p95`, `node-leak-retained-nodes`), returned exit code `1`, and produced byte-identical canonical JSON in two invocations. This 40-file aggregate mixes historical configurations and is integration evidence, not a replacement for Baseline 0.
 
 Experiment 6 verification finished with 66 passing tests and exercised Godot `4.5.1.stable.official.f62fdbde1`. The addon copy parsed and its helper tests returned `0`; one live `main_scene` capture produced 600 samples and validated with exit `0`. Its two calibrated v2 budgets passed with exit `0`. An explicit collision returned `3` and left the capture byte-identical. All 49 historical synthetic results still validated with exit `0`, while the unchanged Experiment 5 policy returned its expected `1`. Generic evidence and budget JSON were byte-identical across repeated invocations.
+
+After addon `1.0.1` made the raw-sample memory limitation mandatory, the earlier ignored `1.0.0` runtime file correctly failed with an actionable recapture diagnostic. A new uniquely identified `1.0.1` capture produced 600 samples, process p95 `0.951 ms`, and three peak nodes; it validated and passed both existing v2 budgets. The complete suite then passed 68 tests. The earlier file remained byte-identical, demonstrating that upgrades preserve historical evidence rather than rewriting it.
 
 ## 13. Reproducibility notes
 

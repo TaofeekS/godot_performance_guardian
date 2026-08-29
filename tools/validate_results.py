@@ -48,6 +48,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONTROLLER_RELATIVE_PATH = "demo_project/scripts/benchmark_controller.gd"
 CONTROLLER_PATH = REPOSITORY_ROOT / CONTROLLER_RELATIVE_PATH
 GENERIC_RESULT_TYPE = "performance_budget_guardian_capture"
+GENERIC_ADDON_NAME = "Performance Budget Guardian"
+GENERIC_ADDON_VERSION = "1.0.1"
 GENERIC_MEMORY_STORAGE_LIMITATION = (
     "Because the probe accumulates raw samples during capture, static-memory growth includes probe storage overhead "
     "and cannot by itself prove a project memory leak."
@@ -216,8 +218,14 @@ def validate_generic_result(data: Any, path: Path, validation: Validation) -> No
         validation.fail(source, "sampling_interval_frames is invalid")
 
     addon = require_mapping(data, "addon", source, validation)
-    if addon.get("name") != "Performance Budget Guardian" or addon.get("version") != "1.0.1":
-        validation.fail(source, "addon identity or version is unsupported")
+    if addon.get("name") != GENERIC_ADDON_NAME:
+        validation.fail(source, "addon identity is unsupported")
+    if addon.get("version") != GENERIC_ADDON_VERSION:
+        validation.fail(
+            source,
+            f"addon version {addon.get('version')!r} is unsupported; expected {GENERIC_ADDON_VERSION!r}; "
+            "recapture with the current addon and a new run ID",
+        )
     configuration = require_mapping(data, "measurement_configuration", source, validation)
     if not isinstance(configuration.get("auto_start"), bool) or not isinstance(configuration.get("auto_quit"), bool):
         validation.fail(source, "measurement configuration booleans are invalid")
