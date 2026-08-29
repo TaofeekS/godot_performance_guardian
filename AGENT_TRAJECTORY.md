@@ -988,3 +988,124 @@ The first README audit command incorrectly collected only the first numbered hea
 The final documentation audit resolved all 20 relative README links, confirmed all 17 numbered sections in order, found every required artifact, verified final newlines and no trailing whitespace, and reconfirmed that the documented clone URL matches both configured `origin` URLs. Filename-only secret-pattern scans found no match in the working tree, tracked files, staged content, or reachable Git history. `git diff --check` returned zero; Git printed only its existing Windows line-ending notices.
 
 Git status contained only the three synchronized documentation files and the three intended Experiment 5 additions. No validator, investigator, Godot project, stored result, documentation-skill source, or dependency file changed. No Godot run, API-key value access, API request, added permanent dependency, commit, or push occurred.
+
+## 2026-08-29 — Experiment 6: Portable Godot 4.5 performance capture addon
+
+### Original request, corrections, and approval
+
+The supplied request began:
+
+> # Goal
+>
+> Implement Experiment 6: Portable Godot 4.5 Performance Capture Addon.
+>
+> Convert the existing project-specific measurement capability into a small reusable Godot 4.5 addon. Prove that a developer can copy it into an unrelated fresh Godot project, collect performance measurements headlessly, validate the output and apply configurable performance budgets.
+>
+> Do not use [unrelated private project].
+
+The unrelated private-project name is redacted from this repository record; no source, asset, data, or telemetry from that project was accessed or used.
+
+It required an inspection and approval checkpoint before edits. The agent inspected the complete benchmark implementation, validator, budget checker, tests, representative results from all three scenarios, documentation, Git state, remote, and local Godot executable. The working tree was clean at `cdfdd7f`; 49 ignored historical files comprised 19 healthy, 15 node-leak, and 15 CPU-spike results. Their validator exited `0`, while the unchanged Experiment 5 policy exited `1` with its two intentional failures.
+
+The agent compared a separate validator, an adapter, and backward-compatible schema dispatch. It recommended explicit synthetic/generic paths in the existing validator because a separate tool would duplicate calculations and an adapter could invent workload or cleanup meaning. The user selected an install-then-clean addon copy for the independent example and requested one tracked sanitized fixture. The final correction stated:
+
+> If an explicitly supplied run ID already exists, preserve the file, exit with code 3 and require the caller to provide a new run ID.
+
+The complete revised plan was then approved with `PLEASE IMPLEMENT THIS PLAN` and explicit invocations of `$godot-performance-guardian-docs` and `$agent-trajectory`.
+
+### Implementation
+
+The canonical addon was created under `addons/performance_budget_guardian/` with version `1.0.0`, editor registration, runtime probe, and focused installation documentation. The probe validates safe identifiers, revision text, numeric bounds, and `res://` output paths; captures generic engine metrics after configurable warmup; keeps raw samples and recalculated summaries together; records metric availability and limitations; writes atomically; and returns `2` for configuration errors or `3` for output collisions. It does not record workload time or synthetic cleanup/ownership fields.
+
+The independent `examples/minimal_project/` uses deterministic primitive-only 2D activity seeded with `1337`. Its scene references the addon at the normal consumer path, which is populated by an ignored copy during verification. The project contains GDScript helper tests, an ignored runtime-results location, and a calibrated schema-v2 profile policy.
+
+`tools/validate_results.py` gained explicit generic schema validation and profile evidence while retaining the synthetic path. Mixed input types fail. `tools/check_budgets.py` now accepts v1 scenario rules or v2 profile rules and semantically matches the corresponding evidence. The investigator was not modified. `tests/test_portable_addon.py` uses fixed synthetic capture fixtures and later the tracked live fixture rather than depending on the growing demo result directory.
+
+### Test failures and operational issues
+
+The initial 65-test Python suite passed; no Python test failed.
+
+The first Godot command used a relative custom `--log-file`. On this Windows invocation Godot attempted an invalid `user://C:` directory and crashed before project verification. No capture was produced. Removing custom log handling exposed normal sandbox-only AppData permission messages and one real plugin defect: `plugin.cfg` used a `res://` script path even though Godot resolves that field relative to the addon, producing a doubled path. The manifest was corrected from the full resource path to `plugin.gd`.
+
+Godot was then run with normal user-data access and `Start-Process -Wait -PassThru`. The editor parse and GDScript helper tests both exited `0`.
+
+After the live run, the first sanitization audit falsely treated the intended `res://results` value as a drive path because its regular expression matched the `s:/` substring. No fixture was copied during that failed audit. The check was restricted to drive prefixes at the start of a string while explicitly allowing `res://`; it then found no unsafe field and the unchanged capture was copied.
+
+Review also found that collision detection occurred only when writing after measurement. The probe was tightened to check its resolved target immediately after argument validation. A second invocation using `portable-run-001` then exited `3` before measurement, and hashing confirmed the live result remained byte-identical to the canonical fixture.
+
+### Verified capture and compatibility evidence
+
+Exactly one performance capture was made with:
+
+```powershell
+& $GodotExe --headless --path .\examples\minimal_project -- --pbg-profile=main_scene --pbg-run-id=portable-run-001 --pbg-output=res://results --pbg-auto-quit
+```
+
+It exited `0` and produced `examples/minimal_project/results/portable-run-001.json`. Generic validation exited `0` for 600 sequential samples covering frames 1–600. The result recorded process p95 `0.529 ms`, peak global nodes `3`, measurement duration `4140.02 ms`, capture duration `4949.63 ms`, five limitations, `source_revision: null`, and no temporary files or private absolute paths.
+
+The deterministic calibration rule produced `1.1 ms` and `3 nodes`. Both v2 budgets passed with exit `0`. The clean live file was preserved unchanged as `examples/fixtures/main_scene-godot-4.5.1.json`, and that fixture also validated with exit `0`.
+
+The compatibility commands reported:
+
+```text
+GENERIC_VALIDATION_EXIT=0
+GENERIC_BUDGET_EXIT=0
+SYNTHETIC_VALIDATION_EXIT=0
+SYNTHETIC_BUDGET_EXIT=1
+```
+
+All 49 historical files retained their original assertions. The Experiment 5 policy still failed only `cpu-spike-workload-p95` and `node-leak-retained-nodes`. Repeated generic evidence and budget JSON outputs were byte-identical. The complete suite before the final fixture-specific test reported 65 tests passed in 2.230 seconds; a final complete run follows documentation synchronization.
+
+### Documentation synchronization and remaining limits
+
+The repository documentation skill updated README's installation, CLI, exported behavior, schemas, policy versions, verified evidence, tree, limitations, and roadmap. `IMPROVEMENT_CHANGELOG.md` appended Experiment 6 and included the user-approved portability statement only after the addon copy, live measurement, validation, and budget enforcement all succeeded. This trajectory preserves the implementation chronology and operational failures.
+
+The claim is limited to the included independent project on Godot `4.5.1.stable.official.f62fdbde1`. Rendering/GPU performance, other operating systems, other projects, broader fixture coverage, and an editor dock remain unverified or planned. No original benchmark run, API-key inspection, API request, dependency addition, investigator change, commit, or push occurred.
+
+### Final verification result
+
+The final suite passed all 66 tests in 2.232 seconds, including the canonical live fixture and its v2 budget. Python byte-compilation succeeded. The official documentation-skill validator first failed to import its undeclared `yaml` dependency; PyYAML 6.0.3 was then supplied only in a verified system-temporary directory. The skill printed `Skill is valid!`, and the directory was removed immediately.
+
+The copied consumer addon directory was resolved beneath `examples/minimal_project/` and removed after Godot verification. The ignored live result and tracked canonical fixture were preserved. Final README links, Markdown structure, command/schema evidence, secret patterns, whitespace, and Git state were audited after this entry.
+
+A final source audit then found that the GDScript safety helpers passed `false` for `String.split`'s empty-segment behavior. Doubled separators could therefore be normalized before rejection, although the Python validator would reject the resulting capture. Both helpers were changed to retain empty segments, two GDScript assertions were added, and the non-capture helper suite was rerun before cleanup.
+
+That final helper run exited `0`, and its ignored addon copy was again removed from the verified example-project path. The subsequent complete Python suite passed 66 tests in 2.232 seconds.
+
+The final audit resolved all 26 relative README links, confirmed the 17 numbered sections in order, matched the documented clone URL to both configured `origin` URLs, validated the canonical fixture again, and found final newlines with no trailing whitespace. Filename-only API-key scans found no match in the working tree, tracked files, staged content, or reachable history. The unrelated private-project name was also absent. `git diff --check` returned `0`; Git emitted only its existing Windows line-ending notices.
+
+Final status contained the intended addon, independent example, canonical fixture, portable-addon tests, validator/checker extensions, and three synchronized evidence documents. The ignored live result remains at `examples/minimal_project/results/portable-run-001.json`; the ignored installation copy is absent. Protected investigator, original demo, historical result, dependency, and Experiment 5 budget files were unchanged.
+
+## 2026-08-29 — Experiment 6 probe-memory clarification
+
+### User correction and approved plan
+
+The user identified an evidence-interpretation limitation:
+
+> Because the probe accumulates raw samples during capture, static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak.
+
+The approved follow-up required that exact statement in every generic capture, mandatory generic validation, a patch-version increment, a fixture update without changed measurements, comparable-capture guidance for memory budgets, synchronized documentation and skill requirements, and verification without rerunning Godot.
+
+### Implementation
+
+The addon version changed from `1.0.0` to `1.0.1` in both runtime and plugin metadata. `PerformanceBudgetProbe` now includes the exact storage-overhead statement in `known_limitations`. Generic validation requires the statement, while synthetic validation is unchanged. The generic evidence packet also preserves the limitation so both human and JSON budget output disclose it.
+
+The canonical fixture's addon metadata and limitation list were updated without changing any sample, summary, timestamp, or measured value. Fixed tests now prove that generated-source text contains the caveat, valid fixtures include it, omission fails generic validation, and the generic evidence packet carries it. README, the addon README, the documentation-skill requirements, and Experiment 6's changelog entry now distinguish a comparable memory regression signal from proof of a project leak.
+
+### Verification and operational issue
+
+The targeted portable-addon suite passed 10 tests. The complete suite then reported:
+
+```text
+Ran 67 tests in 1.937s
+
+OK
+```
+
+The canonical fixture validated with exit `0`, its two v2 budgets passed with exit `0`, and canonical generic evidence and budget JSON remained byte-identical across repeated invocations. All 49 historical synthetic results validated with exit `0`. The unchanged Experiment 5 policy returned its expected exit `1`, with only `cpu-spike-workload-p95` and `node-leak-retained-nodes` failing. Python byte-compilation succeeded.
+
+The first documentation-skill validation attempt encountered two operational issues: `New-Item` did not accept the attempted `-LiteralPath` parameter, and sandboxed network access prevented temporary PyYAML retrieval. No repository file was affected. The corrected command used `-Path`, received approval for the download, installed PyYAML 6.0.3 only into a uniquely named system-temporary directory, printed `Skill is valid!`, and removed the directory in `finally` after verifying that its resolved path remained under the system temporary root.
+
+No Godot run, API request, credential access, permanent dependency, commit, or push occurred. Final link, Markdown, secret-pattern, whitespace, and Git-state checks follow this entry.
+
+The final documentation audit resolved all 26 relative README links, confirmed all 17 numbered sections, and found valid final newlines with no trailing whitespace. Filename-only API-key scans found no candidate in the working tree, tracked files, staged content, or reachable Git history. `git diff --check` returned `0` with only the repository's existing Windows line-ending notices. The temporary skill-validation directory count was zero, and Git status showed the ongoing intended Experiment 6 work plus this correction; no unrelated file was reverted or overwritten.

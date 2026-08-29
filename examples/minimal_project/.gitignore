@@ -1,0 +1,5 @@
+/.godot/
+/addons/performance_budget_guardian/
+/results/*.json
+/results/*.tmp.*
+

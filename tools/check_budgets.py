@@ -18,8 +18,10 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = (REPOSITORY_ROOT / "tools" / "validate_results.py").resolve()
 VALIDATOR_TIMEOUT_SECONDS = 30.0
 ID_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9._-]{0,63}$")
+PROFILE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 TOP_LEVEL_FIELDS = {"schema_version", "budgets"}
-REQUIRED_RULE_FIELDS = {"id", "scenario", "metric", "maximum", "unit", "description"}
+COMMON_RULE_FIELDS = {"id", "metric", "maximum", "unit", "description"}
+REQUIRED_RULE_FIELDS = COMMON_RULE_FIELDS | {"scenario"}
 METRIC_SPECS = {
     "median_p95_workload_time": {
         "scenarios": {"healthy", "cpu_spike"},
@@ -42,6 +44,15 @@ METRIC_SPECS = {
         "source_type": "validated_result",
     },
 }
+GENERIC_METRIC_SPECS = {
+    "median_p95_process_time": {"unit": "ms", "source_type": "validated_aggregate"},
+    "median_p95_physics_process_time": {"unit": "ms", "source_type": "validated_aggregate"},
+    "median_measurement_duration": {"unit": "ms", "source_type": "validated_aggregate"},
+    "median_peak_memory_static_bytes": {"unit": "bytes", "source_type": "validated_aggregate"},
+    "median_peak_object_count": {"unit": "objects", "source_type": "validated_aggregate"},
+    "median_peak_node_count": {"unit": "nodes", "source_type": "validated_aggregate"},
+    "median_peak_orphan_node_count": {"unit": "nodes", "source_type": "validated_aggregate"},
+}
 
 
 class BudgetConfigurationError(ValueError):
@@ -54,6 +65,8 @@ class BudgetEvidenceError(ValueError):
 
 @dataclass(frozen=True)
 class BudgetRule:
+    schema_version: int
+    target_key: str
     budget_id: str
     scenario: str
     metric: str
@@ -83,21 +96,23 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
         if unknown:
             detail.append(f"unknown fields {unknown}")
         raise BudgetConfigurationError("top-level configuration has " + " and ".join(detail))
-    if isinstance(data["schema_version"], bool) or data["schema_version"] != 1:
-        raise BudgetConfigurationError("schema_version must be the integer 1")
+    schema_version = data["schema_version"]
+    if isinstance(schema_version, bool) or schema_version not in {1, 2}:
+        raise BudgetConfigurationError("schema_version must be the integer 1 or 2")
     budgets = data["budgets"]
     if not isinstance(budgets, list) or not budgets:
         raise BudgetConfigurationError("budgets must be a nonempty array")
 
     parsed: list[BudgetRule] = []
     identifiers: set[str] = set()
+    required_rule_fields = COMMON_RULE_FIELDS | ({"scenario"} if schema_version == 1 else {"profile"})
     for index, raw_rule in enumerate(budgets, 1):
         source = f"budget rule {index}"
         if not isinstance(raw_rule, dict):
             raise BudgetConfigurationError(f"{source} must be an object")
         fields = set(raw_rule)
-        missing = sorted(REQUIRED_RULE_FIELDS - fields)
-        unknown = sorted(fields - REQUIRED_RULE_FIELDS)
+        missing = sorted(required_rule_fields - fields)
+        unknown = sorted(fields - required_rule_fields)
         if missing:
             raise BudgetConfigurationError(f"{source} is missing fields {missing}")
         if unknown:
@@ -110,18 +125,18 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
             raise BudgetConfigurationError(f"duplicate budget id {budget_id!r}")
         identifiers.add(budget_id)
 
-        scenario = raw_rule["scenario"]
-        if not isinstance(scenario, str) or scenario not in {
-            "healthy",
-            "node_leak",
-            "cpu_spike",
-        }:
+        target_key = "scenario" if schema_version == 1 else "profile"
+        scenario = raw_rule[target_key]
+        if schema_version == 1 and scenario not in {"healthy", "node_leak", "cpu_spike"}:
             raise BudgetConfigurationError(f"{source} has an unsupported scenario")
+        if schema_version == 2 and (not isinstance(scenario, str) or not PROFILE_PATTERN.fullmatch(scenario)):
+            raise BudgetConfigurationError(f"{source} has an unsafe or invalid profile")
         metric = raw_rule["metric"]
-        if not isinstance(metric, str) or metric not in METRIC_SPECS:
+        metric_specs = METRIC_SPECS if schema_version == 1 else GENERIC_METRIC_SPECS
+        if not isinstance(metric, str) or metric not in metric_specs:
             raise BudgetConfigurationError(f"{source} has an unsupported metric")
-        specification = METRIC_SPECS[metric]
-        if scenario not in specification["scenarios"]:
+        specification = metric_specs[metric]
+        if schema_version == 1 and scenario not in specification["scenarios"]:
             raise BudgetConfigurationError(
                 f"{source} metric {metric!r} is unsupported for scenario {scenario!r}"
             )
@@ -149,6 +164,8 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
             )
         parsed.append(
             BudgetRule(
+                schema_version=schema_version,
+                target_key=target_key,
                 budget_id=budget_id,
                 scenario=scenario,
                 metric=metric,
@@ -282,12 +299,12 @@ def evaluate_budgets(
     validation, evidence, limitations = _validated_packet_parts(packet)
     results: list[dict[str, Any]] = []
     for rule in sorted(rules, key=lambda candidate: candidate.budget_id):
-        specification = METRIC_SPECS[rule.metric]
+        specification = METRIC_SPECS[rule.metric] if rule.schema_version == 1 else GENERIC_METRIC_SPECS[rule.metric]
         matches = [
             item
             for item in evidence
             if item.get("metric") == rule.metric
-            and item.get("scenario") == rule.scenario
+            and item.get(rule.target_key) == rule.scenario
             and item.get("source_type") == specification["source_type"]
             and item.get("unit") == rule.unit
         ]
@@ -307,11 +324,9 @@ def evaluate_budgets(
             f"Measured {_display_number(measured)} {rule.unit} {relation} maximum "
             f"{_display_number(rule.maximum)} {rule.unit}."
         )
-        results.append(
-            {
+        result = {
                 "budget_id": rule.budget_id,
                 "description": rule.description,
-                "scenario": rule.scenario,
                 "metric": rule.metric,
                 "measured_value": measured,
                 "maximum_value": rule.maximum,
@@ -320,12 +335,14 @@ def evaluate_budgets(
                 "status": "passed" if passed else "failed",
                 "explanation": explanation,
             }
-        )
+        result[rule.target_key] = rule.scenario
+        results.append(result)
 
     passed_count = sum(result["status"] == "passed" for result in results)
     failed_count = len(results) - passed_count
     return {
         "schema_version": 1,
+        "budget_schema_version": rules[0].schema_version,
         "status": "passed" if failed_count == 0 else "failed",
         "validator": {
             "status": "passed",

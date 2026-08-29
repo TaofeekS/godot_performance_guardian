@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 import math
 import statistics
@@ -46,6 +47,29 @@ TIMING_SERIES = (
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONTROLLER_RELATIVE_PATH = "demo_project/scripts/benchmark_controller.gd"
 CONTROLLER_PATH = REPOSITORY_ROOT / CONTROLLER_RELATIVE_PATH
+GENERIC_RESULT_TYPE = "performance_budget_guardian_capture"
+GENERIC_MEMORY_STORAGE_LIMITATION = (
+    "Because the probe accumulates raw samples during capture, static-memory growth includes probe storage overhead "
+    "and cannot by itself prove a project memory leak."
+)
+GENERIC_SAMPLE_KEYS = {
+    "sample_index",
+    "measured_frame",
+    "elapsed_measurement_usec",
+    "process_time_ms",
+    "physics_process_time_ms",
+    "memory_static_bytes",
+    "object_count",
+    "node_count",
+    "orphan_node_count",
+}
+GENERIC_TIMING_SERIES = ("process_time_ms", "physics_process_time_ms")
+GENERIC_COUNT_SERIES = (
+    "memory_static_bytes",
+    "object_count",
+    "node_count",
+    "orphan_node_count",
+)
 
 
 class Validation:
@@ -115,6 +139,186 @@ def compare_summary(
                 source,
                 f"calculated {key}={actual[key]!r}, expected {expected_value!r} from raw samples",
             )
+
+
+def is_safe_identifier(value: Any) -> bool:
+    if not isinstance(value, str) or not 1 <= len(value) <= 64 or not value[0].isalnum():
+        return False
+    return all(character.isascii() and (character.isalnum() or character in "._-") for character in value)
+
+
+def is_safe_revision(value: Any) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, str) or not value or len(value) > 128 or value.startswith("/") or "\\" in value:
+        return False
+    if any(part in {"", ".", ".."} for part in value.split("/")):
+        return False
+    return all(character.isascii() and (character.isalnum() or character in "._-/") for character in value)
+
+
+def is_safe_resource_path(value: Any) -> bool:
+    if not isinstance(value, str) or not value.startswith("res://") or "\\" in value:
+        return False
+    relative = value.removeprefix("res://")
+    return bool(relative) and all(part not in {"", ".", ".."} for part in relative.split("/"))
+
+
+def validate_generic_result(data: Any, path: Path, validation: Validation) -> None:
+    source = path.name
+    if not isinstance(data, dict):
+        validation.fail(source, "top-level JSON value must be an object")
+        return
+    required = {
+        "result_type": str,
+        "schema_version": int,
+        "profile": str,
+        "project_name": str,
+        "run_id": str,
+        "godot_version": (str, int, float),
+        "warmup_frames": int,
+        "measured_frames": int,
+        "sampling_interval_frames": int,
+        "percentile_definition": str,
+        "started_at_utc": str,
+        "ended_at_utc": str,
+        "headless": bool,
+    }
+    for key, expected_type in required.items():
+        value = data.get(key)
+        if (expected_type is not bool and isinstance(value, bool)) or not isinstance(value, expected_type):
+            validation.fail(source, f"{key!r} has an invalid or missing type")
+    if data.get("result_type") != GENERIC_RESULT_TYPE or data.get("schema_version") != 1:
+        validation.fail(source, "generic capture identity or schema version is unsupported")
+    if not is_safe_identifier(data.get("profile")):
+        validation.fail(source, "profile is unsafe or invalid")
+    if not is_safe_identifier(data.get("run_id")):
+        validation.fail(source, "run_id is unsafe or invalid")
+    if not isinstance(data.get("project_name"), str) or not data.get("project_name", "").strip():
+        validation.fail(source, "project_name must be nonempty")
+    if not is_safe_revision(data.get("source_revision")):
+        validation.fail(source, "source_revision is unsafe")
+    if data.get("headless") is not True:
+        validation.fail(source, "generic verification capture was not headless")
+    if data.get("percentile_definition") != EXPECTED_PERCENTILE_DEFINITION:
+        validation.fail(source, "percentile_definition is missing or unexpected")
+
+    warmup = data.get("warmup_frames")
+    measured = data.get("measured_frames")
+    interval = data.get("sampling_interval_frames")
+    if not isinstance(warmup, int) or isinstance(warmup, bool) or not 0 <= warmup <= 1_000_000:
+        validation.fail(source, "warmup_frames must be from 0 to 1000000")
+    if not isinstance(measured, int) or isinstance(measured, bool) or not 1 <= measured <= 1_000_000:
+        validation.fail(source, "measured_frames must be from 1 to 1000000")
+    if not isinstance(interval, int) or isinstance(interval, bool) or interval < 1 or (
+        isinstance(measured, int) and interval > measured
+    ):
+        validation.fail(source, "sampling_interval_frames is invalid")
+
+    addon = require_mapping(data, "addon", source, validation)
+    if addon.get("name") != "Performance Budget Guardian" or addon.get("version") != "1.0.1":
+        validation.fail(source, "addon identity or version is unsupported")
+    configuration = require_mapping(data, "measurement_configuration", source, validation)
+    if not isinstance(configuration.get("auto_start"), bool) or not isinstance(configuration.get("auto_quit"), bool):
+        validation.fail(source, "measurement configuration booleans are invalid")
+    if not is_safe_resource_path(configuration.get("output_path")):
+        validation.fail(source, "measurement output path is unsafe")
+    environment = require_mapping(data, "environment", source, validation)
+    for key in ("debug_build", "os_name", "os_version", "display_driver"):
+        if key not in environment:
+            validation.fail(source, f"environment is missing {key!r}")
+
+    for key in ("started_at_utc", "ended_at_utc"):
+        value = data.get(key)
+        if isinstance(value, str):
+            try:
+                datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                validation.fail(source, f"{key} is not an ISO UTC timestamp")
+
+    availability = require_mapping(data, "metric_availability", source, validation)
+    memory_declaration = availability.get("memory_static_bytes")
+    if not isinstance(memory_declaration, dict) or not isinstance(memory_declaration.get("available"), bool):
+        validation.fail(source, "memory_static_bytes availability must be declared")
+        memory_available = False
+    else:
+        memory_available = memory_declaration["available"]
+        if memory_declaration.get("debug_only") is not True or not memory_declaration.get("reason"):
+            validation.fail(source, "memory availability must include its debug-only reason")
+
+    samples = data.get("samples")
+    if not isinstance(samples, list):
+        validation.fail(source, "samples must be an array")
+        return
+    if isinstance(measured, int) and isinstance(interval, int) and measured > 0 and interval > 0:
+        expected_frames = list(range(interval, measured + 1, interval))
+        if not expected_frames or expected_frames[-1] != measured:
+            expected_frames.append(measured)
+        if len(samples) != len(expected_frames):
+            validation.fail(source, f"expected {len(expected_frames)} samples, found {len(samples)}")
+    else:
+        expected_frames = []
+    for index, sample in enumerate(samples, 1):
+        if not isinstance(sample, dict):
+            validation.fail(source, f"sample {index} is not an object")
+            continue
+        missing = GENERIC_SAMPLE_KEYS - sample.keys()
+        if missing:
+            validation.fail(source, f"sample {index} is missing {sorted(missing)}")
+        if sample.get("sample_index") != index:
+            validation.fail(source, f"sample index sequence breaks at {index}")
+        if index <= len(expected_frames) and sample.get("measured_frame") != expected_frames[index - 1]:
+            validation.fail(source, f"measured-frame sequence breaks at sample {index}")
+        for key in GENERIC_SAMPLE_KEYS - {"memory_static_bytes"}:
+            if key in sample and (not is_number(sample[key]) or sample[key] < 0):
+                validation.fail(source, f"sample {index} field {key!r} must be nonnegative numeric")
+        memory_value = sample.get("memory_static_bytes")
+        if memory_available and (not is_number(memory_value) or memory_value < 0):
+            validation.fail(source, f"sample {index} must contain available memory")
+        if not memory_available and memory_value is not None:
+            validation.fail(source, f"sample {index} memory must be null when unavailable")
+
+    elapsed = [sample.get("elapsed_measurement_usec") for sample in samples if isinstance(sample, dict)]
+    if len(elapsed) == len(samples) and all(is_number(value) for value in elapsed):
+        if any(right < left for left, right in zip(elapsed, elapsed[1:])):
+            validation.fail(source, "elapsed_measurement_usec is not monotonic")
+
+    summary = require_mapping(data, "summary", source, validation)
+    timing_summary = require_mapping(summary, "timing", source, validation)
+    count_summary = require_mapping(summary, "counts", source, validation)
+    for key in GENERIC_TIMING_SERIES:
+        values = [sample[key] for sample in samples if isinstance(sample, dict) and is_number(sample.get(key))]
+        if len(values) == len(samples) and values:
+            actual = timing_summary.get(key)
+            if not isinstance(actual, dict):
+                validation.fail(source, f"summary.timing.{key} must be an object")
+            else:
+                compare_summary(actual, timing_stats(values), source, validation)
+    for key in GENERIC_COUNT_SERIES:
+        values = [sample[key] for sample in samples if isinstance(sample, dict) and is_number(sample.get(key))]
+        expected = series_stats(values) if values else {"initial": None, "final": None, "peak": None, "delta": None}
+        actual = count_summary.get(key)
+        if not isinstance(actual, dict):
+            validation.fail(source, f"summary.counts.{key} must be an object")
+        else:
+            compare_summary(actual, expected, source, validation)
+    for duration_key in ("measurement_duration_ms", "capture_duration_ms"):
+        if not is_number(summary.get(duration_key)) or summary[duration_key] <= 0:
+            validation.fail(source, f"summary.{duration_key} must be positive")
+    if is_number(summary.get("measurement_duration_ms")) and is_number(summary.get("capture_duration_ms")):
+        if summary["capture_duration_ms"] < summary["measurement_duration_ms"]:
+            validation.fail(source, "capture duration is shorter than measurement duration")
+
+    limitations = data.get("known_limitations")
+    if not isinstance(limitations, list) or not limitations or not all(isinstance(item, str) and item for item in limitations):
+        validation.fail(source, "known_limitations must be a nonempty string array")
+    else:
+        if GENERIC_MEMORY_STORAGE_LIMITATION not in limitations:
+            validation.fail(source, "known_limitations is missing the required probe-storage memory limitation")
+        if data.get("source_revision") is None and not any(
+            "exact source revision is unknown" in item for item in limitations
+        ):
+            validation.fail(source, "missing source revision requires an explicit limitation")
 
 
 def validate_result(data: Any, path: Path, validation: Validation) -> None:
@@ -547,6 +751,95 @@ def evidence_packet(
     }
 
 
+def generic_evidence_packet(
+    arguments: list[str],
+    paths: list[Path],
+    loaded: list[tuple[Path, dict[str, Any]]],
+    validation: Validation,
+) -> dict[str, Any]:
+    evidence: list[dict[str, Any]] = []
+    if not validation.errors:
+        source = _normalized_results_directory(arguments)
+        evidence.append(
+            _item(
+                "G1",
+                "All candidate generic capture files passed the configured validator checks.",
+                "validated_file_count",
+                len(loaded),
+                "files",
+                "all",
+                "validated_result",
+                source,
+            )
+        )
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for _path, result in loaded:
+            grouped.setdefault(result["profile"], []).append(result)
+        evidence_index = 2
+        specifications = (
+            ("median_p95_process_time", "ms", "timing", "process_time_ms", "p95"),
+            ("median_p95_physics_process_time", "ms", "timing", "physics_process_time_ms", "p95"),
+            ("median_measurement_duration", "ms", None, "measurement_duration_ms", None),
+            ("median_peak_memory_static_bytes", "bytes", "counts", "memory_static_bytes", "peak"),
+            ("median_peak_object_count", "objects", "counts", "object_count", "peak"),
+            ("median_peak_node_count", "nodes", "counts", "node_count", "peak"),
+            ("median_peak_orphan_node_count", "nodes", "counts", "orphan_node_count", "peak"),
+        )
+        for profile in sorted(grouped):
+            results = grouped[profile]
+            for metric, unit, section, series, statistic in specifications:
+                values: list[float] = []
+                for result in results:
+                    summary = result["summary"]
+                    value = summary[series] if section is None else summary[section][series][statistic]
+                    if is_number(value):
+                        values.append(float(value))
+                if len(values) != len(results):
+                    continue
+                value = statistics.median(values)
+                item = _item(
+                    f"G{evidence_index}",
+                    f"{profile} median {metric.replace('_', ' ')} across validated captures.",
+                    metric,
+                    value,
+                    unit,
+                    "generic",
+                    "validated_aggregate",
+                    source,
+                    profile=profile,
+                    run_count=len(results),
+                )
+                evidence.append(item)
+                evidence_index += 1
+
+    limitations = [
+        {"id": "GL1", "statement": "Validator success proves only that configured generic schema and summary checks passed."},
+        {"id": "GL2", "statement": "Global engine monitors are not owned solely by the named project profile."},
+        {"id": "GL3", "statement": "Process timing includes engine scheduling and probe overhead; no project workload timer is claimed."},
+        {"id": "GL4", "statement": "Headless capture does not establish rendering or GPU performance."},
+        {"id": "GL5", "statement": "Timing limits require calibration on stable project hardware and are not universal recommendations."},
+        {"id": "GL6", "statement": GENERIC_MEMORY_STORAGE_LIMITATION},
+    ]
+    if any(result.get("source_revision") is None for _path, result in loaded):
+        limitations.append({"id": "GL7", "statement": "At least one capture did not supply a source revision, so its exact source revision is unknown."})
+    return {
+        "packet_type": "godot_performance_evidence",
+        "schema_version": 1,
+        "validation": {
+            "status": "failed" if validation.errors else "passed",
+            "candidate_file_count": len(paths),
+            "validated_file_count": len(loaded) if not validation.errors else 0,
+            "errors": validation.errors,
+            "timed_out": False,
+            "error_type": None,
+            "exit_code": 1 if validation.errors else 0,
+        },
+        "results_directory": _normalized_results_directory(arguments),
+        "evidence": [] if validation.errors else evidence,
+        "limitations": limitations,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -582,23 +875,40 @@ def main() -> int:
         except (OSError, json.JSONDecodeError) as error:
             validation.fail(str(path), f"could not read valid JSON: {error}")
             continue
-        validate_result(data, path, validation)
         if isinstance(data, dict):
             loaded.append((path, data))
+
+    result_kinds = {
+        "generic" if data.get("result_type") == GENERIC_RESULT_TYPE else (
+            "synthetic" if "result_type" not in data else "unknown"
+        )
+        for _, data in loaded
+    }
+    if len(result_kinds) > 1:
+        validation.fail("result set", "mixed synthetic and generic result types are not supported")
+    if "unknown" in result_kinds:
+        validation.fail("result set", "unsupported result_type")
+    result_kind = next(iter(result_kinds), "synthetic")
+    for path, data in loaded:
+        if result_kind == "generic":
+            validate_generic_result(data, path, validation)
+        elif result_kind == "synthetic":
+            validate_result(data, path, validation)
 
     run_ids = [data.get("run_id") for _, data in loaded if isinstance(data.get("run_id"), str)]
     if len(run_ids) != len(set(run_ids)):
         validation.fail("result set", "run IDs are not unique")
 
     grouped: dict[str, list[dict[str, Any]]] = {scenario: [] for scenario in SCENARIOS}
-    for _, data in loaded:
-        if data.get("scenario") in grouped:
-            grouped[data["scenario"]].append(data)
-    for scenario, results in grouped.items():
-        if len(results) < 3:
-            validation.fail("result set", f"scenario {scenario!r} has {len(results)} runs; at least 3 required")
+    if result_kind == "synthetic":
+        for _, data in loaded:
+            if data.get("scenario") in grouped:
+                grouped[data["scenario"]].append(data)
+        for scenario, results in grouped.items():
+            if len(results) < 3:
+                validation.fail("result set", f"scenario {scenario!r} has {len(results)} runs; at least 3 required")
 
-    if len(grouped["healthy"]) >= 3 and len(grouped["cpu_spike"]) >= 3:
+    if result_kind == "synthetic" and len(grouped["healthy"]) >= 3 and len(grouped["cpu_spike"]) >= 3:
         healthy_p95 = statistics.median(
             result["summary"]["timing"]["workload_time_usec"]["p95"]
             for result in grouped["healthy"]
@@ -644,7 +954,11 @@ def main() -> int:
             validation.fail(str(directory), f"temporary result files remain: {leftovers}")
 
     if args.evidence_json:
-        packet = evidence_packet(args.paths, paths, loaded, grouped, validation)
+        packet = (
+            generic_evidence_packet(args.paths, paths, loaded, validation)
+            if result_kind == "generic"
+            else evidence_packet(args.paths, paths, loaded, grouped, validation)
+        )
         print(json.dumps(packet, sort_keys=True, separators=(",", ":")))
         return packet["validation"]["exit_code"]
 
@@ -656,7 +970,8 @@ def main() -> int:
         print(f"Validation failed with {len(validation.errors)} error(s).", file=sys.stderr)
         return 1
 
-    print(f"Validated {len(loaded)} result files successfully.")
+    label = " generic capture" if result_kind == "generic" else ""
+    print(f"Validated {len(loaded)}{label} result files successfully.")
     return 0
 
 

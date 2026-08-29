@@ -267,6 +267,52 @@ Retain the versioned budget checker as the deterministic policy layer between va
 
 The next planned experiment is the ten-fixture evaluation set. It should exercise each supported metric and error class with versioned fixed inputs before expanding the budget schema or integrating the checker into an editor dock.
 
+## 2026-08-29 — Experiment 6: Portable Godot 4.5 performance capture
+
+**Status:** Retained; portability verified in one independent Godot 4.5.1 project
+
+### Hypothesis and reason
+
+The existing benchmark could validate and budget synthetic results, but measurement remained tied to its controller and three scenario names. The experiment tested whether the reusable monitor, summary, and atomic-output behavior could become a copyable addon without assigning synthetic workload or cleanup meaning to an unrelated project.
+
+### Change
+
+Added the `PerformanceBudgetProbe` runtime node and lightweight editor registration. The probe accepts project-defined profiles, configurable frame counts and output, optional source revision, automatic capture, and headless exit. It records only generic engine metrics, writes schema-identified JSON atomically under `res://`, and refuses collisions.
+
+The validator now dispatches explicit synthetic and generic schemas through separate assertions. Synthetic behavior remains unchanged; generic evidence is keyed by profile and never claims actor ownership, retained nodes, cleanup, or workload time. Budget schema v2 adds profile-based rules for seven generic aggregate metrics while preserving v1 scenario policy.
+
+An independent primitive-only project receives a copied addon during verification. One sanitized live capture is retained as `examples/fixtures/main_scene-godot-4.5.1.json`; the installation copy and runtime result remain ignored.
+
+### Evaluation method
+
+Fixed Python fixtures covered schema dispatch, unsafe values, sample ordering, recalculated summaries, source revisions, generic evidence, v2 budgets, mixed-type rejection, and all earlier tests. Godot then parsed the copied addon, ran GDScript helper and collision tests, and performed exactly one 120-warmup/600-measured-frame capture of `main_scene`. The live result, canonical fixture, 49 historical results, both policies, and repeated canonical JSON were checked through the same validator/checker entrypoints.
+
+### Observed result
+
+The live capture contained 600 samples covering frames 1 through 600. Its process-time p95 was `0.529 ms`, peak global node count was `3`, measurement duration was `4140.02 ms`, and total capture duration was `4949.63 ms`. No source revision was supplied, and the result states that the exact revision is unknown.
+
+The calibrated v2 limits were `1.1 ms` and `3 nodes`; both passed. Generic validation and budget checking returned `0`. Reusing the explicit run ID returned `3` before measurement and left the original capture byte-identical.
+
+All 49 historical synthetic files still validated with exit `0`. The unchanged Experiment 5 policy still returned `1` with only its CPU-spike and node-leak demonstration failures. Repeated generic evidence and budget JSON were byte-identical.
+
+The final complete standard-library suite passed all 66 tests in 2.232 seconds, including validation and budget enforcement against the tracked canonical live fixture.
+
+The addon was copied into the included independent Godot 4.5.1 project, produced valid performance measurements and successfully enforced a project-specific budget.
+
+Two implementation lessons were retained. Godot plugin manifest scripts are addon-relative, so `res://.../plugin.gd` incorrectly doubled the path and was replaced with `plugin.gd`. A relative custom log path also triggered a Windows Godot logging crash before project verification; subsequent runs used normal process output and explicit exit codes.
+
+### Decision and next step
+
+Retain the explicit generic schema and profile-budget path. The proof establishes portability only for the included project on Godot `4.5.1.stable.official.f62fdbde1`, not universal addon or timing compatibility.
+
+The next experiment should expand the tracked evaluation set toward ten fixtures, covering additional profiles, unavailable memory, non-unit sampling intervals, malformed captures, and expected budget failures before an editor dock is added.
+
+### Experiment 6 clarification: probe memory overhead
+
+The portable probe retains each raw sample in memory until it serializes the result. Consequently, observed static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak. Addon version `1.0.1` makes this limitation explicit in every capture, and generic validation requires it. Memory budgets remain useful for comparable regression checks, provided both captures use identical measured-frame counts and sampling intervals. This clarification changes evidence interpretation, not the recorded Experiment 6 measurements or portability result.
+
+The same evaluation entrypoints confirmed the correction: all 67 Python tests passed, the updated canonical generic fixture validated, its two calibrated v2 budgets passed, all 49 historical synthetic results still validated, and the Experiment 5 demonstration policy retained exactly its two intentional failures. No new Godot capture was made, so the original timing measurements remain unchanged.
+
 
 
 ## Removed-experiment status

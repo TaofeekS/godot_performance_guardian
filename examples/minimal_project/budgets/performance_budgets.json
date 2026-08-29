@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "budgets": [
+    {
+      "id": "main-scene-process-p95",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "maximum": 1.1,
+      "unit": "ms",
+      "description": "Calibrated to twice the verified 0.529 ms p95 and rounded upward to 0.1 ms."
+    },
+    {
+      "id": "main-scene-peak-nodes",
+      "profile": "main_scene",
+      "metric": "median_peak_node_count",
+      "maximum": 3,
+      "unit": "nodes",
+      "description": "Matches the verified independent example's peak global node count."
+    }
+  ]
+}

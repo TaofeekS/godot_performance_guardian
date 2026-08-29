@@ -2,16 +2,16 @@
 
 ## 1. Project overview
 
-Godot Performance Budget Guardian is a synthetic Godot 4.5 benchmark that detects CPU-time and node-growth regressions in repeatable scenarios, preserves raw per-frame evidence, and validates calculated results so developers can investigate changes instead of relying on a visual impression of performance.
+Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benchmark with a copyable runtime capture addon. It preserves raw per-frame evidence, validates calculated results, and applies project-specific budgets so developers can investigate changes instead of relying on a visual impression of performance.
 
 ## 2. Current status
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; a versioned, user-editable budget checker; and a locally tested, read-only investigator with schema-driven evidence citations, a post-generation grounding gate, and a deterministic fallback. |
-| Partially implemented | Configurable policy covers four validated aggregate metrics. The benchmark's integrity assertions and controller noise tolerances remain embedded in code, and there is no stored golden baseline. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; headless atomic JSON capture in an independent Godot 4.5.1 project; schema-specific deterministic validation; v1 scenario and v2 profile budgets; and a locally tested read-only investigator for synthetic evidence. |
+| Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
 | Unverified | A post-Experiment-3 live report was rejected by the grounding gate. Experiment 4's deterministic fallback is locally verified but has not yet been exercised by another live request. |
-| Planned | Ten evaluation fixtures, broader budget coverage, a reusable Godot editor dock/plugin, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
+| Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
 
@@ -29,9 +29,10 @@ The current baseline:
 - Collects raw timing, memory, object, node, and scenario-owned measurements.
 - Compares a multi-run result set against embedded data-integrity, cleanup, growth, and relative CPU assertions.
 - Applies optional versioned project policy from `budgets/example_budgets.json` after deterministic validation, with a separate pass/fail exit status.
+- Allows an unrelated project to copy `addons/performance_budget_guardian/`, add a probe node, capture generic engine metrics, validate them, and apply profile-based v2 budgets.
 - Offers an optional investigator that can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
 
-It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the complete editor plugin or automated repair product.
+It is a benchmark, portable capture/evaluation layer, and initial read-only reasoning layer, not yet the planned editor dock or automated repair product.
 
 ## 5. Repository structure
 
@@ -41,6 +42,12 @@ It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the
 |-- AGENT_TRAJECTORY.md
 |-- IMPROVEMENT_CHANGELOG.md
 |-- requirements-agent.txt
+|-- addons/
+|   `-- performance_budget_guardian/
+|       |-- plugin.cfg
+|       |-- plugin.gd
+|       |-- performance_probe.gd
+|       `-- README.md
 |-- budgets/
 |   `-- example_budgets.json
 |-- agent/
@@ -48,7 +55,16 @@ It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the
 |   `-- investigator.py
 |-- tests/
 |   |-- test_check_budgets.py
-|   `-- test_investigator.py
+|   |-- test_investigator.py
+|   `-- test_portable_addon.py
+|-- examples/
+|   |-- fixtures/main_scene-godot-4.5.1.json
+|   `-- minimal_project/
+|       |-- budgets/performance_budgets.json
+|       |-- project.godot
+|       |-- main.tscn
+|       |-- main.gd
+|       `-- test_probe.gd
 |-- .agents/
 |   `-- skills/
 |       `-- godot-performance-guardian-docs/
@@ -74,10 +90,14 @@ It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the
 - [`demo_project/run_benchmarks.ps1`](demo_project/run_benchmarks.ps1) launches three isolated runs of each scenario and calls the validator.
 - [`tools/validate_results.py`](tools/validate_results.py) validates schemas, calculations, cleanup evidence, leak growth, and relative CPU cost using only the Python standard library.
 - [`tools/check_budgets.py`](tools/check_budgets.py) evaluates validated semantic evidence against a versioned project policy without AI or third-party packages.
+- [`addons/performance_budget_guardian/performance_probe.gd`](addons/performance_budget_guardian/performance_probe.gd) is the reusable runtime capture node.
+- [`examples/minimal_project/project.godot`](examples/minimal_project/project.godot) is the independent consumer project; it intentionally requires copying the addon into its ignored `addons/` directory.
+- [`examples/fixtures/main_scene-godot-4.5.1.json`](examples/fixtures/main_scene-godot-4.5.1.json) is the sanitized canonical live capture.
 - [`budgets/example_budgets.json`](budgets/example_budgets.json) demonstrates two passing limits and two intentionally failing regression limits.
 - [`agent/investigator.py`](agent/investigator.py) defines the read-only OpenAI Agents SDK investigator and its sole restricted validator tool.
 - [`tests/test_investigator.py`](tests/test_investigator.py) verifies the tool boundary, path containment, subprocess failures, configuration, and no-key behavior without an API request.
 - [`tests/test_check_budgets.py`](tests/test_check_budgets.py) uses fixed evidence fixtures to verify configuration, semantic matching, deterministic output, and exit behavior.
+- [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, v2 budgets, and canonical fixture.
 - [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator dependency to the installed SDK version.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record, beginning with the accepted current-state baseline.
@@ -95,7 +115,7 @@ Godot-generated `.uid` files are present beside the GDScript sources. The `.godo
 | Operating system | Windows 10.0.26200 is the only verified platform. Linux and macOS are unverified, and the supplied batch harness is PowerShell-specific. |
 | Debug build | Not required for scenario execution. `Performance.MEMORY_STATIC` is accepted only when a debug build reports a positive value; otherwise memory samples are `null` and explicitly marked unavailable. |
 | External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation and budget policy. The optional investigator pins `openai-agents==0.22.0`. |
-| Network or API key | Benchmarking, deterministic validation, and configurable budget checking need neither. A live investigator run requires network access and `OPENAI_API_KEY`; local investigator tests do not. |
+| Network or API key | Benchmarking, addon capture, deterministic validation, and budget checking need neither. A live investigator run requires network access and `OPENAI_API_KEY`; local investigator tests do not. |
 
 ## 7. Quick start
 
@@ -169,6 +189,48 @@ The example intentionally returns exit code `1`: its healthy limits pass, while 
 
 Generated files are in `demo_project/results/`. They are local evidence and are ignored by Git.
 
+### Portable addon example
+
+Copy the canonical addon into the independent consumer project, then run its preconfigured probe:
+
+```powershell
+$GodotExe = "C:\path\to\Godot_v4.5.1-stable_win64.exe"
+
+New-Item -ItemType Directory -Force .\examples\minimal_project\addons | Out-Null
+Copy-Item -Recurse `
+  .\addons\performance_budget_guardian `
+  .\examples\minimal_project\addons\performance_budget_guardian
+
+& $GodotExe `
+  --headless `
+  --path .\examples\minimal_project `
+  -- `
+  --pbg-profile=main_scene `
+  --pbg-run-id=portable-run-001 `
+  --pbg-output=res://results `
+  --pbg-auto-quit
+```
+
+The probe also accepts `--pbg-warmup-frames=<n>`, `--pbg-measured-frames=<n>`, `--pbg-sampling-interval=<n>`, and `--pbg-source-revision=<revision>`. Exported properties provide the same settings for editor use. Unknown addon arguments, unsafe profile/run IDs, invalid numbers, and paths outside `res://` are rejected. An existing explicit run ID is preserved and returns exit `3`; supply a new ID rather than deleting or overwriting evidence.
+
+Validate and enforce the example's profile policy:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\validate_results.py `
+  .\examples\minimal_project\results\portable-run-001.json
+
+.\.venv\Scripts\python.exe .\tools\check_budgets.py `
+  .\examples\minimal_project\results\portable-run-001.json `
+  .\examples\minimal_project\budgets\performance_budgets.json
+```
+
+To use the addon elsewhere, copy the same directory to the target project's `res://addons/performance_budget_guardian/`, enable **Performance Budget Guardian** under Project Settings > Plugins, and add a `PerformanceBudgetProbe` node. To remove it, remove probe nodes, disable the plugin, and delete only that addon directory. The included example installation copy is ignored and can be removed with:
+
+```powershell
+Remove-Item -Recurse `
+  .\examples\minimal_project\addons\performance_budget_guardian
+```
+
 To install and run the optional read-only investigator in the repository virtual environment:
 
 ```powershell
@@ -212,6 +274,8 @@ The installed OpenAI Python client already retries HTTP 429 twice. The investiga
 
 The workload is deterministic, but elapsed timings and engine-wide memory/object readings are still affected by the host system.
 
+The portable probe uses the same nearest-rank summaries and atomic output pattern but has a deliberately narrower meaning. It waits for configurable warmup and measurement frames, samples at the configured interval plus the final frame, and records only process time, physics time, static memory availability, and global object/node/orphan counts. It does not label probe overhead as workload time and does not claim scenario-owned cleanup evidence.
+
 ## 9. Scenarios
 
 ### Healthy
@@ -225,6 +289,10 @@ Creates a temporary node every measured frame and intentionally retains one ever
 ### CPU spike
 
 Runs the healthy actor lifecycle plus a fixed `240 x 240` nested numerical calculation every frame. Scenario-owned node counts must remain stable and no nodes may be retained. Its median per-run p95 `workload_time_usec` must be at least twice the healthy median; process time and total duration are supporting evidence.
+
+### Generic project profiles
+
+Addon captures use safe project-defined names such as `main_scene`, `battle_scene`, or `inventory_screen`; they are not synthetic scenarios. Generic validation checks metadata, sample ordering, units, and recalculated summaries without applying the demo's actor, leak, cleanup, or CPU-ratio assertions. Input directories may not mix generic and synthetic result types.
 
 ## 10. Performance budgets
 
@@ -240,6 +308,22 @@ Each schema-version-1 rule has exactly `id`, `scenario`, `metric`, `maximum`, `u
 | `post_cleanup_retained_nodes` | `healthy`, `node_leak`, `cpu_spike` | `nodes` |
 
 The included example has four rules. Its healthy process and cleanup rules are expected to pass the current evidence. Its CPU-spike workload and node-leak cleanup rules deliberately set limits that the regression scenarios exceed, demonstrating deterministic failure output. The absolute timing limits are examples for this machine, not universal Godot recommendations.
+
+Budget schema v2 replaces `scenario` with `profile` and accepts only generic capture evidence. [`examples/minimal_project/budgets/performance_budgets.json`](examples/minimal_project/budgets/performance_budgets.json) contains the verified `main_scene` policy.
+
+| Generic metric | Unit |
+| --- | --- |
+| `median_p95_process_time` | `ms` |
+| `median_p95_physics_process_time` | `ms` |
+| `median_measurement_duration` | `ms` |
+| `median_peak_memory_static_bytes` | `bytes` |
+| `median_peak_object_count` | `objects` |
+| `median_peak_node_count` | `nodes` |
+| `median_peak_orphan_node_count` | `nodes` |
+
+The live example measured `0.529 ms` process p95 and three peak global nodes. Its timing maximum is `1.1 ms`, following the documented twice-observed, upward-rounded calibration rule; its node maximum is `3`. Both passed, but one machine and one run do not establish broadly reusable limits.
+
+Because the probe accumulates raw samples during capture, static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak. A `median_peak_memory_static_bytes` budget can flag a regression between comparable captures, but the captures should use identical measured-frame counts and sampling intervals.
 
 Configurable policy is separate from benchmark validity. The following safety and integrity limits remain embedded in two places and are not overridden by a budget file:
 
@@ -308,6 +392,38 @@ Every run writes one JSON document atomically through a temporary sibling file. 
 
 The full document also includes engine and execution-environment metadata, physics time, orphan-node counts, baseline and post-cleanup snapshots, mean/p50/p95/max timing, initial/final/peak/delta count summaries, measurement duration, and a workload checksum.
 
+Generic captures are explicitly distinguished. This abbreviated example comes from the tracked live fixture:
+
+```json
+{
+  "result_type": "performance_budget_guardian_capture",
+  "schema_version": 1,
+  "addon": {"name": "Performance Budget Guardian", "version": "1.0.1"},
+  "profile": "main_scene",
+  "project_name": "Portable Performance Probe Example",
+  "run_id": "portable-run-001",
+  "source_revision": null,
+  "headless": true,
+  "warmup_frames": 120,
+  "measured_frames": 600,
+  "sampling_interval_frames": 1,
+  "samples": [
+    {
+      "sample_index": 1,
+      "measured_frame": 1,
+      "process_time_ms": 0.0,
+      "node_count": 3
+    }
+  ],
+  "summary": {
+    "measurement_duration_ms": 4140.02,
+    "capture_duration_ms": 4949.63
+  }
+}
+```
+
+Its complete form includes UTC timestamps, sanitized configuration, memory availability, every global count, all 600 samples, timing/count summaries, environment metadata, and limitations. Because no revision was supplied, it explicitly states that the exact source revision is unknown.
+
 Individual Godot result files are unchanged and contain no `budget_results` or structured `errors` property. The separate checker emits a deterministic result document in `--json` mode containing its schema version, overall status, validator metadata, per-rule measured and maximum values, matched opaque evidence IDs, summary counts, and preserved validator limitations. Human mode reports the same evaluation. Invalid arguments and operational errors go to stderr; policy failures remain valid output and return exit code `1`.
 
 ## 12. Evaluation
@@ -358,6 +474,8 @@ At Experiment 4 verification time, the result directory contained 31 validated f
 
 Experiment 5 added configurable policy without changing those stored results or validator calculations. Local verification ran 57 standard-library tests. The unchanged validator passed the current 40-file directory. The example policy produced exactly two passes (`healthy-process-p95`, `healthy-retained-nodes`) and two intentional failures (`cpu-spike-workload-p95`, `node-leak-retained-nodes`), returned exit code `1`, and produced byte-identical canonical JSON in two invocations. This 40-file aggregate mixes historical configurations and is integration evidence, not a replacement for Baseline 0.
 
+Experiment 6 verification finished with 66 passing tests and exercised Godot `4.5.1.stable.official.f62fdbde1`. The addon copy parsed and its helper tests returned `0`; one live `main_scene` capture produced 600 samples and validated with exit `0`. Its two calibrated v2 budgets passed with exit `0`. An explicit collision returned `3` and left the capture byte-identical. All 49 historical synthetic results still validated with exit `0`, while the unchanged Experiment 5 policy returned its expected `1`. Generic evidence and budget JSON were byte-identical across repeated invocations.
+
 ## 13. Reproducibility notes
 
 - Use unchanged scenarios for baseline and final comparisons.
@@ -375,12 +493,14 @@ Experiment 5 added configurable policy without changing those stored results or 
 - Only the exact installed Godot 4.5.1 official build has been verified.
 - The benchmark implementation is GDScript-focused.
 - `MEMORY_STATIC` is debug-sensitive and can be unavailable.
+- Portable-probe static-memory growth includes the probe's accumulating raw-sample storage and cannot by itself prove a project memory leak.
 - Evidence focuses on CPU work and object/node growth, not rendering or GPU performance.
-- Configurable policy currently supports four aggregate evidence metrics; the validator's integrity assertions and controller noise tolerances remain embedded in code.
+- Configurable policy supports four synthetic metrics and seven generic engine metrics; the validator's synthetic integrity assertions and controller tolerances remain embedded in code.
 - There is no committed golden baseline or baseline/iteration/final result organization.
 - There is no reusable editor dock or repair workflow. The investigator receives only validator-produced evidence, including narrowly allowlisted controller facts, and cannot establish root cause by itself.
 - The first live report predates deterministic grounding and was partly speculative; the next live report was rejected by the gate. The deterministic fallback has not yet been exercised live.
-- The current 40-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
+- The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
+- Portable capture is verified only for the included independent project on Godot 4.5.1. One tracked capture and its calibrated policy do not prove universal project, platform, or timing compatibility.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
 - Individual result JSON does not contain a consolidated budget verdict or structured error object.
 
@@ -389,9 +509,9 @@ Experiment 5 added configurable policy without changing those stored results or 
 | Stage | Status | Intended outcome |
 | --- | --- | --- |
 | 1. Deterministic baseline | Completed | Three synthetic scenarios, raw samples, summaries, repeated runs, and objective validation. |
-| 2. Configurable budgets | Completed (v1) | Apply a versioned four-metric project policy to validated aggregate evidence with deterministic human/JSON output and CI exit codes. Broader metric coverage remains future work. |
-| 3. Ten evaluation fixtures | Planned | Add a broader, objective regression fixture set. |
-| 4. Reusable Godot editor dock | Planned | Run and inspect budgets from a reusable editor plugin. |
+| 2. Configurable budgets | Completed (v1/v2) | Apply scenario or profile policies to validated evidence with deterministic human/JSON output and CI exit codes. |
+| 3. Ten evaluation fixtures | Partial | One sanitized live generic fixture is tracked; nine broader objective fixtures remain planned. |
+| 4. Reusable Godot editor dock | Partial | A copyable runtime probe and editor-registered node exist; an interactive dock is still planned. |
 | 5. Agent-assisted investigation | Partial | A read-only command-line investigator now uses semantic evidence matching, blocks ungrounded reports, and generates a locally verified deterministic fallback; live fallback behavior remains unverified. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
@@ -399,8 +519,9 @@ Experiment 5 added configurable policy without changing those stored results or 
 ## 16. Hackathon evidence
 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
-- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator boundary, failure diagnosis, deterministic grounding, schema-driven fallback, and configurable-budget experiments.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, and portable-capture experiments.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
+- The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 
 The trajectory explains how an agent performed work. The improvement changelog explains how the product changes across evidence-backed experiments, including unsuccessful or removed approaches.

@@ -43,6 +43,7 @@ The README may add a short section for the repository-local documentation skill,
 - Treat direct `workload_time_usec` as the primary CPU comparison and Godot process time plus duration as supporting evidence.
 - Explain scenario-owned counts separately from noisy engine-global counts.
 - Explain that `MEMORY_STATIC` can be unavailable and must then be represented as `null`, not a valid zero.
+- Explain that the portable probe retains raw samples during capture, so static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak. Memory-budget comparisons must use matching measured-frame counts and sampling intervals.
 - Explain atomic temporary-file writing and refusal to overwrite an existing final result.
 - Do not call generated ignored JSON files a committed baseline or organized hackathon evidence package.
 

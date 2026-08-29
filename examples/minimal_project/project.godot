@@ -1,0 +1,22 @@
+; Independent consumer project for the portable addon proof.
+config_version=5
+
+[application]
+
+config/name="Portable Performance Probe Example"
+run/main_scene="res://main.tscn"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/performance_budget_guardian/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+
