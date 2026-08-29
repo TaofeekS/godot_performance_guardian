@@ -496,3 +496,11 @@ The complete post-change suite passed 129 tests. The reusable workflow itself is
 Retain the reusable workflow, external-workspace boundary, capture helper, and MIT license. Addon installation and CI activation remain explicit separate steps, and the deterministic tools remain authoritative.
 
 Next, merge the workflow and call it from an actual consumer repository at an immutable Guardian commit SHA. Inspect the hosted artifact and timing behavior before describing GitHub-hosted portability as verified.
+
+### Experiment 11 clarification — invalid hosted workflow definitions
+
+The first pushes containing Experiments 10 and 11 produced failed GitHub Actions records even though no `push` trigger was intended. Public run metadata showed three `push` failures with zero scheduled jobs. GitHub identified two definition errors: the repository workflow used the step-only `runner` context in job-level environment configuration, and the reusable workflow contained an unquoted colon in an input description.
+
+The repository workflow now uses Windows' built-in `%RUNNER_TEMP%` inside command steps and retains `${{ runner.temp }}` only in the artifact step. The reusable description is quoted. Regression tests preserve pull-request/manual versus `workflow_call` triggers, reject accidental push triggers, prevent unsupported job-level context use, and detect the unquoted-description pattern.
+
+Local evaluation passed all 130 tests, byte compilation, dependency consistency, and whitespace checks. This corrects the workflow-definition layer without changing capture, validation, budgets, investigation, or the Experiment 11 local Godot measurements. GitHub acceptance and a real hosted consumer call remain separate checks; the latter is still unverified.

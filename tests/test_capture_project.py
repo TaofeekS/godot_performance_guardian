@@ -167,6 +167,12 @@ class ReusableWorkflowTests(unittest.TestCase):
         self.assertIn("incomplete-capture", workflow)
         self.assertIn("if: always()", workflow)
         self.assertIn("retention-days: 14", workflow)
+        self.assertNotRegex(workflow, r"(?m)^  push:\s*$")
+        self.assertIn(
+            'description: "Optional AI mode: never, on-failure, or always."',
+            workflow,
+        )
+        self.assertNotRegex(workflow, r"(?m)^\s+description: [^\"'].*: .*$")
         self.assertNotRegex(workflow, r"sk-[A-Za-z0-9_-]{12,}")
 
     def test_external_workspace_rejects_synthetic_evidence(self) -> None:

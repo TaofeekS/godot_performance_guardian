@@ -51,7 +51,7 @@ on:
         default: 3
         type: number
       investigate:
-        description: Optional AI mode: never, on-failure, or always.
+        description: "Optional AI mode: never, on-failure, or always."
         required: false
         default: never
         type: string

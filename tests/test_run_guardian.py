@@ -466,6 +466,7 @@ class WorkflowContractTests(unittest.TestCase):
     def test_workflow_triggers_and_supported_actions(self) -> None:
         self.assertIn("pull_request:", self.workflow)
         self.assertIn("workflow_dispatch:", self.workflow)
+        self.assertNotRegex(self.workflow, r"(?m)^  push:\s*$")
         self.assertIn("- main", self.workflow)
         self.assertIn("runs-on: windows-latest", self.workflow)
         self.assertIn("actions/checkout@v7", self.workflow)
@@ -491,6 +492,11 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertNotRegex(self.workflow, r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}")
         self.assertIn("if: always()", self.workflow)
         self.assertIn("%GUARDIAN_EXIT%", self.workflow)
+
+    def test_workflow_uses_runner_temp_only_in_supported_contexts(self) -> None:
+        self.assertNotIn("GUARDIAN_REPORT: ${{ runner.temp }}", self.workflow)
+        self.assertIn("%RUNNER_TEMP%\\performance-guardian.json", self.workflow)
+        self.assertIn("path: ${{ runner.temp }}\\performance-guardian.json", self.workflow)
 
     def test_runner_source_has_no_openai_import_or_shell_execution(self) -> None:
         source = (guardian.REPOSITORY_ROOT / "tools/run_guardian.py").read_text(

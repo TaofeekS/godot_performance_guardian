@@ -1517,3 +1517,24 @@ The optional 49-file historical integration validated successfully. Its Experime
 The first official documentation-skill validator attempt failed because PyYAML is intentionally absent from project dependencies. A sandboxed temporary installation then failed because network access was restricted and its verified temporary directory was removed. With explicit permission, cached PyYAML `6.0.3` was installed only into a new system-temporary directory; the official validator printed `Skill is valid!`, and cleanup confirmed removal. No manifest or persistent Python environment changed.
 
 README retained 17 numbered sections, every checked relative link resolved, and all changed documents ended with final newlines. The configured public fetch/push remote remained correct. `git diff --check` returned `0` with only line-ending notices. Filename-only credential scans found no matches in the working tree, tracked files, staged state, or reachable history, and no private absolute path was found. The temporary consumer directory—including both failed diagnostic attempts and the successful fresh evidence—was removed after measurements and metadata were recorded here. Final status contains only the focused Experiment 11 implementation, tests, license, workflow, skill, and documentation changes; no commit or push was performed.
+
+## 2026-08-29 — Hosted workflow-definition correction
+
+### Request and diagnosis
+
+The user reported that the workflow tried to run on every push and failed, then approved the plan beginning:
+
+> PLEASE IMPLEMENT THIS PLAN:
+> # Fix Invalid GitHub Actions Workflows
+
+The selected trigger policy remained pull requests plus manual dispatch for the repository gate, and `workflow_call` only for the reusable workflow. The user explicitly requested the correction, regression tests, Experiment 11 clarification, commit, push, and post-push public metadata inspection.
+
+Read-only GitHub API inspection found failed run IDs `33270743889`, `33273002357`, and `33273001829`. Each was labeled as a `push` event and had zero jobs, showing that GitHub rejected the definition before trigger scheduling. The public run page identified the original workflow error as an unavailable `runner` context at job-level `env`. It identified the reusable workflow error as YAML syntax on line 54, where a plain description contained a second colon followed by a space.
+
+### Correction and local verification
+
+The repository workflow no longer defines `GUARDIAN_REPORT` from `${{ runner.temp }}` at job scope. Both command steps use `%RUNNER_TEMP%\performance-guardian.json`; the artifact step retains its supported step-level `${{ runner.temp }}` path. The reusable workflow quotes the colon-bearing investigation description. No push trigger was added.
+
+Regression tests now require pull-request/manual and reusable-call boundaries, reject an explicit push trigger, prohibit the unsupported job-level expression, require the two supported temporary-path forms, and detect unquoted colon-bearing descriptions. The focused seven workflow tests passed. The complete suite then passed 130 tests in 1.007 seconds; `pip check`, byte compilation, and `git diff --check` also passed. No Godot process, benchmark, or OpenAI request ran.
+
+The repository documentation skill and trajectory skill were used for this correction. `IMPROVEMENT_CHANGELOG.md` records it as an Experiment 11 clarification rather than a new experiment. GitHub acceptance, commit identifiers, push outcome, and remaining hosted uncertainty are recorded after delivery below.
