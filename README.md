@@ -10,7 +10,7 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 | --- | --- |
 | Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in an independent Godot 4.5.1 consumer workspace; schema-specific deterministic validation; v1 scenario and v2 profile budgets; a unified standard-library gate; a reusable consumer workflow contract; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | Neither GitHub-hosted workflow has run yet, including the reusable workflow from a separate consumer repository. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | GitHub accepts both workflow definitions as active, but neither hosted job has run yet, including the reusable workflow from a separate consumer repository. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -310,7 +310,7 @@ The key is read only from the process environment. Do not place it in source fil
 
 The `Performance Guardian` workflow runs on pull requests targeting `main` and on manual dispatch. Both paths install only `requirements-agent.txt`, run `pip check` and the complete test suite, then evaluate the tracked generic fixture and its v2 policy through `run_guardian.py`. Pull requests always use `--investigate never`, so they need no credential and make no API request.
 
-Manual dispatch exposes `never`, `on-failure`, and `always`. To enable the optional modes, configure an Actions repository secret named `OPENAI_API_KEY`; an optional repository variable named `OPENAI_MODEL` overrides the default `gpt-4.1-mini`. The secret is scoped only to the manual gate step. The workflow writes canonical JSON beneath the runner's temporary directory, preserves the Python exit status, and uploads `performance-guardian-report` with `if: always()`, including deterministic failures. This workflow definition and its command contract are locally tested; an actual GitHub-hosted run remains unverified.
+Manual dispatch exposes `never`, `on-failure`, and `always`. To enable the optional modes, configure an Actions repository secret named `OPENAI_API_KEY`; an optional repository variable named `OPENAI_MODEL` overrides the default `gpt-4.1-mini`. The secret is scoped only to the manual gate step. The workflow writes canonical JSON beneath the runner's temporary directory, preserves the Python exit status, and uploads `performance-guardian-report` with `if: always()`, including deterministic failures. GitHub now recognizes the corrected definition as active, but an actual hosted job remains unverified.
 
 ### Turnkey CI for another Godot project
 
@@ -356,7 +356,7 @@ Mode `never` does not install the Agents SDK, inspect the key, or launch the inv
 
 The capture helper creates collision-safe run IDs, uses the caller SHA as opaque revision metadata, applies a 300-second timeout per process, and stores only workspace-relative paths. The validator, checker, unified runner, and investigator accept `--workspace-root <consumer-root>`; every results, scene, project, and budget input remains relative to that resolved root. Symlink escapes are rejected, and external workspaces may contain generic captures only—not Guardian's synthetic controller evidence.
 
-The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit. The reusable contract and an independent local three-run consumer proof are verified; an actual hosted caller remains unverified until this workflow is merged and invoked from another repository.
+The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit. GitHub recognizes the reusable definition as active, and the contract plus independent local three-run consumer proof are verified; an actual hosted caller remains unverified until invoked from another repository.
 
 ### Investigator troubleshooting
 

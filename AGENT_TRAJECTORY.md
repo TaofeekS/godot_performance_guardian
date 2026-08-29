@@ -1538,3 +1538,11 @@ The repository workflow no longer defines `GUARDIAN_REPORT` from `${{ runner.tem
 Regression tests now require pull-request/manual and reusable-call boundaries, reject an explicit push trigger, prohibit the unsupported job-level expression, require the two supported temporary-path forms, and detect unquoted colon-bearing descriptions. The focused seven workflow tests passed. The complete suite then passed 130 tests in 1.007 seconds; `pip check`, byte compilation, and `git diff --check` also passed. No Godot process, benchmark, or OpenAI request ran.
 
 The repository documentation skill and trajectory skill were used for this correction. `IMPROVEMENT_CHANGELOG.md` records it as an Experiment 11 clarification rather than a new experiment. GitHub acceptance, commit identifiers, push outcome, and remaining hosted uncertainty are recorded after delivery below.
+
+### Commit, push, and public verification
+
+The first sandboxed staging attempt failed because `.git/index.lock` could not be created under restricted permissions. No partial index change occurred. After explicit approval, the six verified files were staged and committed as `a672eda` with message `Fix invalid GitHub Actions workflow definitions`. The commit was pushed successfully from `8e7e7bf` to `a672eda` on `origin/main`.
+
+Public GitHub API inspection after the push reported workflow IDs `345505769` (`Performance Guardian`) and `345528362` (`Reusable Performance Guardian`) with state `active`. No run existed for head commit `a672eda`; that is the expected trigger result because the repository workflow is pull-request/manual only and the reusable workflow is call-only. The latest run list still ended at the three historical zero-job failures on the prior commits.
+
+This verifies that GitHub accepted both corrected definitions. It does not verify execution of either hosted job or a call from another consumer repository. README and the Experiment 11 clarification were synchronized with that distinction in a follow-up documentation commit.
