@@ -1,0 +1,75 @@
+{
+  "packet_type": "godot_performance_evidence",
+  "schema_version": 2,
+  "evidence_kind": "comparison",
+  "validation": {
+    "status": "passed",
+    "exit_code": 0,
+    "candidate_file_count": 3,
+    "validated_file_count": 3,
+    "baseline_file_count": 3,
+    "policy_status": "failed",
+    "errors": [],
+    "timed_out": false,
+    "error_type": null
+  },
+  "results_directory": "tests/fixtures/comparison/candidate",
+  "baseline_results_directory": "tests/fixtures/comparison/baseline",
+  "evidence": [
+    {
+      "id": "opaque-process",
+      "claim": "Process p95 passed its absolute limit and failed its relative limit.",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "source_type": "validated_comparison",
+      "unit": "ms",
+      "value": {
+        "baseline": 0.5,
+        "candidate": 0.61,
+        "delta": 0.11,
+        "increase_percent": 22.0,
+        "maximum": 1.1,
+        "maximum_increase_percent": 20,
+        "absolute_status": "passed",
+        "relative_status": "failed",
+        "status": "failed"
+      },
+      "baseline_evidence_id": "base-process",
+      "candidate_evidence_id": "candidate-process",
+      "source": "tests/fixtures/comparison/candidate",
+      "baseline_source": "tests/fixtures/comparison/baseline"
+    },
+    {
+      "id": "opaque-nodes",
+      "claim": "Peak node count passed both limits.",
+      "profile": "main_scene",
+      "metric": "median_peak_node_count",
+      "source_type": "validated_comparison",
+      "unit": "nodes",
+      "value": {
+        "baseline": 3,
+        "candidate": 3,
+        "delta": 0,
+        "increase_percent": 0,
+        "maximum": 3,
+        "maximum_increase_percent": 0,
+        "absolute_status": "passed",
+        "relative_status": "passed",
+        "status": "passed"
+      },
+      "baseline_evidence_id": "base-nodes",
+      "candidate_evidence_id": "candidate-nodes",
+      "source": "tests/fixtures/comparison/candidate",
+      "baseline_source": "tests/fixtures/comparison/baseline"
+    }
+  ],
+  "limitations": [
+    {
+      "id": "comparison-limit",
+      "statement": "Sequential captures reduce host variation but do not prove identical execution conditions."
+    }
+  ],
+  "errors": [],
+  "timeout": false,
+  "error_category": null
+}

@@ -8,9 +8,9 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario and v2 profile budgets; a unified standard-library gate; a reusable consumer workflow contract; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a unified standard-library gate; a reusable consumer workflow; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | The corrected hidden-directory artifact upload awaits a hosted consumer rerun, and optional hosted AI behavior has not been exercised through the reusable workflow. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | Hosted pull-request baseline comparison and optional hosted AI have not yet been exercised through the reusable workflow. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -30,7 +30,8 @@ The current baseline:
 - Compares a multi-run result set against embedded data-integrity, cleanup, growth, and relative CPU assertions.
 - Applies optional versioned project policy from `budgets/example_budgets.json` after deterministic validation, with a separate pass/fail exit status.
 - Runs validation and budget policy through one deterministic `run_guardian.py` command suitable for local use or CI, with optional post-decision AI explanation.
-- Provides a reusable Windows workflow that installs Godot, captures a consumer scene three times, validates the fresh generic evidence, enforces that consumer's v2 policy, and always uploads the evidence bundle.
+- Provides a reusable Windows workflow that installs Godot, captures a consumer scene three times, validates fresh generic evidence, enforces a v2 or v3 policy, and always uploads the evidence bundle.
+- Optionally compares three protected-base captures with three pull-request candidate captures under a base-controlled schema-v3 policy on the same runner.
 - Allows an unrelated project to copy `addons/performance_budget_guardian/`, add a probe node, capture generic engine metrics, validate them, and apply profile-based v2 budgets.
 - Offers an optional investigator that can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
 
@@ -60,9 +61,13 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   `-- investigator.py
 |-- tests/
 |   |-- fixtures/
+|   |   |-- comparison/{baseline,candidate,regression}/main_scene.json
+|   |   |-- comparison/performance_budgets.json
 |   |   |-- generic_results/main_scene.json
 |   |   |-- investigator/evidence_packet.json
-|   |   `-- investigator/generic_evidence_packet.json
+|   |   |-- investigator/generic_evidence_packet.json
+|   |   `-- investigator/comparison_evidence_packet.json
+|   |-- test_comparison.py
 |   |-- test_check_budgets.py
 |   |-- test_investigator.py
 |   |-- test_portable_addon.py
@@ -72,6 +77,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   |-- fixtures/main_scene-godot-4.5.1.json
 |   `-- minimal_project/
 |       |-- budgets/performance_budgets.json
+|       |-- budgets/comparison_budgets.json
 |       |-- project.godot
 |       |-- main.tscn
 |       |-- main.gd
@@ -93,6 +99,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 `-- tools/
     |-- capture_project.py
     |-- check_budgets.py
+    |-- comparison_evidence.py
     |-- run_guardian.py
     |-- validate_results.py
     `-- workspace_paths.py
@@ -104,7 +111,8 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`demo_project/run_benchmarks.ps1`](demo_project/run_benchmarks.ps1) launches three isolated runs of each scenario and calls the validator.
 - [`tools/validate_results.py`](tools/validate_results.py) validates schemas, calculations, cleanup evidence, leak growth, and relative CPU cost using only the Python standard library.
 - [`tools/check_budgets.py`](tools/check_budgets.py) evaluates validated semantic evidence against a versioned project policy without AI or third-party packages.
-- [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs the validator once, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
+- [`tools/comparison_evidence.py`](tools/comparison_evidence.py) emits schema-v2 comparison evidence for the optional investigator without exposing revision values.
+- [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs one validator call for absolute mode or exactly two for paired mode, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
 - [`tools/capture_project.py`](tools/capture_project.py) preflights a consumer project and runs isolated, collision-safe Godot captures with sanitized logs and a canonical manifest.
 - [`tools/workspace_paths.py`](tools/workspace_paths.py) centralizes symlink-aware containment for explicit consumer workspaces.
 - [`.github/workflows/performance-guardian.yml`](.github/workflows/performance-guardian.yml) runs the tracked fixture and policy on pull requests to `main` and through manual dispatch.
@@ -119,6 +127,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, and v2 budgets against tracked test fixtures.
 - [`tests/test_run_guardian.py`](tests/test_run_guardian.py) verifies orchestration, containment, exit preservation, output stability, optional-investigation safety, and the workflow contract without an API request.
 - [`tests/test_capture_project.py`](tests/test_capture_project.py) verifies isolated capture commands, collisions, stop-on-failure, sanitized manifests/logs, and the reusable workflow contract.
+- [`tests/test_comparison.py`](tests/test_comparison.py) verifies schema v3, paired semantic matching, zero baselines, deterministic comparison evidence, and exits.
 - [`tests/fixtures/generic_results/main_scene.json`](tests/fixtures/generic_results/main_scene.json), [`tests/fixtures/investigator/evidence_packet.json`](tests/fixtures/investigator/evidence_packet.json), and [`tests/fixtures/investigator/generic_evidence_packet.json`](tests/fixtures/investigator/generic_evidence_packet.json) are small deterministic fixtures used by the default test suite.
 - [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator and OpenAI SDK versions used by the clean test environment.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
@@ -302,7 +311,7 @@ Investigate portable generic captures with the same command and a profile-result
 .\.venv\Scripts\python.exe -m agent.investigator tests\fixtures\generic_results
 ```
 
-The packet declares `evidence_kind` as `synthetic`, `generic`, or `failed`. Synthetic evidence uses `scenario`; generic evidence uses `profile`. The reserved generic profile `all` is validation-count metadata and is never reported as a project profile. Generic reports cite the packet's opaque IDs, such as `[G2]`, rather than depending on a fixed number.
+The validator packet declares `evidence_kind` as `synthetic`, `generic`, or `failed`; paired policy evaluation produces packet schema v2 with `evidence_kind: comparison`. Synthetic evidence uses `scenario`; generic and comparison evidence use `profile`. The reserved generic profile `all` is validation-count metadata and is never reported as a project profile. Reports cite opaque packet IDs rather than depending on fixed numbering. Comparison packets contain semantic baseline/candidate values and policy status but never reveal or compare source-revision values.
 
 The key is read only from the process environment. Do not place it in source files, command logs, `.env` files intended for commit, or documentation. The argument must be a repository-relative directory containing result JSON files. Absolute paths, missing directories, paths outside the repository, and directories without JSON results are rejected before any API request.
 
@@ -314,7 +323,7 @@ Manual dispatch exposes `never`, `on-failure`, and `always`. To enable the optio
 
 ### Turnkey CI for another Godot project
 
-Installing the addon does not automatically enable CI. A consumer repository must commit `addons/performance_budget_guardian/`, add an automatically starting `PerformanceBudgetProbe` to the measured scene, commit a schema-v2 profile budget, ignore `.performance-guardian/`, and add a small caller workflow. Pin the Guardian reusable workflow to an immutable commit SHA:
+Installing the addon does not automatically enable CI. A consumer repository must commit `addons/performance_budget_guardian/`, add an automatically starting `PerformanceBudgetProbe` to the measured scene, commit a schema-v2 or schema-v3 profile budget, ignore `.performance-guardian/`, and add a small caller workflow. Pin the Guardian reusable workflow to an immutable commit SHA:
 
 ```yaml
 name: Game performance
@@ -342,6 +351,7 @@ The three required inputs are `project-path`, `profile`, and `budget-file`. Opti
 | `measured-frames` | `600` | Measured frames per run. |
 | `sampling-interval` | `1` | Frames between samples; the final frame is always sampled. |
 | `capture-runs` | `3` | Isolated Godot processes. |
+| `compare-with-base` | `false` | On a pull request, capture and compare the protected base under its schema-v3 policy. |
 | `investigate` | `never` | `never`, `on-failure`, or `always`. |
 | `openai-model` | `gpt-4.1-mini` | Optional investigator override. |
 
@@ -358,7 +368,37 @@ The capture helper creates collision-safe run IDs, uses the caller SHA as opaque
 
 The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Because the evidence root is dot-prefixed, the narrowly scoped upload explicitly enables hidden files; it does not upload the full workspace or Guardian tooling checkout. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit.
 
-A separate hosted consumer `never` run completed all three 600-sample captures, validated all three files, and passed both configured budgets at `0.093 ms <= 2 ms` process p95 and `12 <= 100` peak nodes, returning authoritative exit `0`. Its downloaded ZIP contained only the non-hidden manifest and gate report because the artifact action's hidden-file input was still disabled. The workflow now enables that input only for the existing evidence paths; preservation of the three raw captures and three Godot logs awaits a consumer rerun at the corrected immutable commit.
+A separate hosted consumer `never` run completed all three 600-sample captures, validated all three files, and passed both configured budgets at `0.093 ms <= 2 ms` process p95 and `12 <= 100` peak nodes, returning authoritative exit `0`. The later corrected artifact contained nine entries: three capture JSON files, three sanitized Godot logs, the internal capture manifest, the runner manifest, and canonical Guardian report. A filename-only inspection found no private path or credential pattern. Hosted absolute-only capture and evidence retention are therefore verified; hosted paired comparison remains unverified.
+
+For pull-request regression comparison, use the safe two-step migration:
+
+1. Merge a schema-v3 policy such as [`examples/minimal_project/budgets/comparison_budgets.json`](examples/minimal_project/budgets/comparison_budgets.json) while `compare-with-base: false`.
+2. In a later pull request, set `compare-with-base: true` in the caller.
+
+The workflow then reads the v3 policy exclusively from `github.event.pull_request.base.sha`, checks out that protected revision in an isolated directory, captures three baseline runs followed by three candidate runs with identical settings, and passes both directories to the deterministic gate. A non-pull-request comparison request fails with exit `2`. The paired mode doubles the configured Godot processes. Sequential same-runner execution reduces host variation; it does not prove identical thermal, scheduling, or system-load conditions.
+
+Example caller after the v3 policy is present on `main`:
+
+```yaml
+name: Game performance comparison
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  performance:
+    uses: TaofeekS/godot_performance_guardian/.github/workflows/reusable-performance-guardian.yml@<guardian-commit-sha>
+    with:
+      project-path: .
+      profile: main_scene
+      budget-file: budgets/comparison_budgets.json
+      compare-with-base: true
+      investigate: never
+```
 
 ### Investigator troubleshooting
 
@@ -430,6 +470,19 @@ Each schema-version-1 rule has exactly `id`, `scenario`, `metric`, `maximum`, `u
 The included example has four rules. Its healthy process and cleanup rules are expected to pass the current evidence. Its CPU-spike workload and node-leak cleanup rules deliberately set limits that the regression scenarios exceed, demonstrating deterministic failure output. The absolute timing limits are examples for this machine, not universal Godot recommendations.
 
 Budget schema v2 replaces `scenario` with `profile` and accepts only generic capture evidence. [`examples/minimal_project/budgets/performance_budgets.json`](examples/minimal_project/budgets/performance_budgets.json) contains the verified `main_scene` policy.
+
+Budget schema v3 preserves the v2 generic metrics and adds required `maximum_increase_percent` to every rule. Without `--baseline-results`, v3 applies the absolute `maximum` and records comparison as `not_requested`. With a baseline, the checker validates baseline and candidate independently, matches both aggregates by profile, metric, source type, and unit, and requires both the absolute and relative limits to pass. Supplying a baseline with v1 or v2 is configuration error exit `2`.
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\run_guardian.py `
+  --json `
+  --investigate never `
+  --baseline-results .\tests\fixtures\comparison\baseline `
+  .\tests\fixtures\comparison\candidate `
+  .\tests\fixtures\comparison\performance_budgets.json
+```
+
+Relative increase is `((candidate - baseline) / baseline) × 100`. Equality passes and a negative percentage is an improvement. Baseline and candidate both zero produce `0%`; a positive candidate from a zero baseline produces `null` and fails the relative rule. [`examples/minimal_project/budgets/comparison_budgets.json`](examples/minimal_project/budgets/comparison_budgets.json) demonstrates project-specific limits of 20% for process p95 and 0% for peak nodes; these are not universal Godot recommendations.
 
 | Generic metric | Unit |
 | --- | --- |
@@ -646,6 +699,8 @@ Experiment 9 replaced free-form model reports with the typed contribution above 
 
 Experiment 10 added the unified deterministic gate and Windows workflow without changing validator calculations, budget semantics, fixtures, or investigator grounding. Local verification passed all 120 tests. The tracked fixture validated and its two budgets passed (`0.5 ms <= 1.1 ms`, `3 nodes <= 3`); validator, budget, and unified canonical JSON were each identical across two invocations. All 49 optional historical results still validated, and the Experiment 5 policy retained exactly its two intentional failures. One authorized live unified `gpt-4.1-mini` run in `always` mode returned a directly accepted locally rendered report with three evidence-linked recommendations, no fallback, and authoritative exit `0`. The GitHub-hosted workflow itself remains unverified until it runs on GitHub.
 
+Experiment 12 added opt-in protected-base comparison. The tracked unchanged pair passes, while the tracked regression fixture proves an absolute pass (`0.61 ms <= 1.1 ms`) can still fail the relative process rule (`22% > 20%`). A temporary independent consumer workspace then ran three baseline plus three unchanged-candidate Godot `4.5.1` captures. All six files contained 600 samples and validated; baseline/candidate median process p95 was `0.531 ms`/`0.526 ms` (`-0.942%`), peak nodes stayed `3`/`3`, and the unchanged v3 policy returned authoritative exit `0`. The complete suite passed 146 tests. One authorized live comparison attempt exposed and led to a local fix for a duplicated candidate CLI argument before model interpretation; it was not retried, so live comparison interpretation and hosted paired execution remain unverified.
+
 ## 13. Reproducibility notes
 
 - Use unchanged scenarios for baseline and final comparisons.
@@ -666,10 +721,11 @@ Experiment 10 added the unified deterministic gate and Windows workflow without 
 - Portable-probe static-memory growth includes the probe's accumulating raw-sample storage and cannot by itself prove a project memory leak.
 - Evidence focuses on CPU work and object/node growth, not rendering or GPU performance.
 - Configurable policy supports four synthetic metrics and seven generic engine metrics; the validator's synthetic integrity assertions and controller tolerances remain embedded in code.
+- Paired comparison doubles capture work. Same-runner sequential execution reduces variation but does not guarantee identical thermal, scheduling, or system-load conditions.
 - There is no committed golden baseline or baseline/iteration/final result organization.
 - There is no reusable editor dock or repair workflow. The investigator receives only validator-produced synthetic or generic evidence and cannot establish root cause by itself.
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
-- The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow completed one hosted deterministic consumer run, but the corrected retention of raw captures and logs remains unverified pending another artifact inspection.
+- The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow's absolute-only hosted capture and nine-entry artifact are verified, while hosted paired comparison remains unverified.
 - The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Portable capture is verified only for the included independent project on Godot 4.5.1. One tracked capture and its calibrated policy do not prove universal project, platform, or timing compatibility.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
@@ -680,10 +736,10 @@ Experiment 10 added the unified deterministic gate and Windows workflow without 
 | Stage | Status | Intended outcome |
 | --- | --- | --- |
 | 1. Deterministic baseline | Completed | Three synthetic scenarios, raw samples, summaries, repeated runs, and objective validation. |
-| 2. Configurable budgets | Completed (v1/v2) | Apply scenario or profile policies through deterministic human/JSON tools and a unified Windows CI gate with exit codes `0`/`1`/`2`. |
+| 2. Configurable budgets | Completed (v1/v2/v3) | Apply scenario, profile, or protected-base comparison policies through deterministic human/JSON tools and a unified Windows CI gate with exit codes `0`/`1`/`2`. |
 | 3. Ten evaluation fixtures | Partial | One sanitized live generic fixture is tracked; nine broader objective fixtures remain planned. |
 | 4. Reusable Godot editor dock | Partial | A copyable runtime probe and editor-registered node exist; an interactive dock is still planned. |
-| 5. Agent-assisted investigation | Partial | A read-only command-line investigator handles synthetic scenarios and generic profiles, filters typed model contributions, and recovers failures with deterministic fallback; limited live Mini responses have passed, but broad reliability is unverified. |
+| 5. Agent-assisted investigation | Partial | A read-only command-line investigator handles synthetic scenarios, generic profiles, and paired comparisons, filters typed model contributions, and recovers failures with deterministic fallback; limited live Mini responses have passed, but hosted comparison interpretation is unverified. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
 
@@ -694,7 +750,7 @@ Experiment 10 added the unified deterministic gate and Windows workflow without 
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - The [`Performance Guardian` workflow](.github/workflows/performance-guardian.yml) is the first automated deterministic gate; its tracked fixture output is uploaded as a JSON artifact, while broader categorized evidence packages remain planned.
-- The [`reusable consumer workflow`](.github/workflows/reusable-performance-guardian.yml) adds fresh three-run capture, validation, policy enforcement, sanitized logs, a manifest, and canonical gate output for another Godot repository. Its local proof and one hosted deterministic capture/gate run passed. That run exposed omitted dot-directory evidence in the downloaded artifact; the narrowly scoped hidden-file correction awaits hosted artifact verification.
+- The [`reusable consumer workflow`](.github/workflows/reusable-performance-guardian.yml) adds fresh capture, validation, policy enforcement, sanitized logs, manifests, and canonical gate output for another Godot repository. Its local proof and hosted absolute-only run passed; the corrected hosted ZIP preserved three captures, three logs, both manifests/reports, and authoritative exit `0`. Experiment 12's protected-base paired mode is locally verified but awaits a hosted consumer pull request.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 
 The trajectory explains how an agent performed work. The improvement changelog explains how the product changes across evidence-backed experiments, including unsuccessful or removed approaches.

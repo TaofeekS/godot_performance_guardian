@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       budget-file:
-        description: Repository-relative v2 performance budget JSON file.
+        description: Repository-relative v2 or v3 performance budget JSON file.
         required: true
         type: string
       scene-path:
@@ -50,6 +50,11 @@ on:
         required: false
         default: 3
         type: number
+      compare-with-base:
+        description: Compare a pull-request candidate with its protected base revision using schema v3.
+        required: false
+        default: false
+        type: boolean
       investigate:
         description: "Optional AI mode: never, on-failure, or always."
         required: false
@@ -77,6 +82,16 @@ jobs:
     steps:
       - name: Check out consumer repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs['compare-with-base'] && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check out protected base revision
+        if: inputs.compare-with-base
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .performance-guardian-base-source
 
       - name: Check out matching Guardian tooling
         uses: actions/checkout@v7
@@ -106,6 +121,10 @@ jobs:
             Write-Error "investigate must be never, on-failure, or always"
             exit 2
           }
+          if ('${{ inputs.compare-with-base }}' -eq 'true' -and '${{ github.event_name }}' -ne 'pull_request') {
+            Write-Error "compare-with-base requires a pull_request event"
+            exit 2
+          }
 
       - name: Install optional investigator dependencies
         if: inputs.investigate != 'never'
@@ -114,19 +133,20 @@ jobs:
           python -m pip install --disable-pip-version-check -r "$env:GUARDIAN_TOOLS\requirements-agent.txt"
           python -m pip check
 
-      - name: Capture isolated runs
-        id: capture
+      - name: Capture protected baseline runs
+        id: baseline-capture
+        if: inputs.compare-with-base
         continue-on-error: true
         shell: pwsh
         env:
-          PROJECT_PATH: ${{ inputs['project-path'] }}
+          PROJECT_PATH: .performance-guardian-base-source/${{ inputs['project-path'] }}
           PROFILE: ${{ inputs.profile }}
           SCENE_PATH: ${{ inputs['scene-path'] }}
           WARMUP_FRAMES: ${{ inputs['warmup-frames'] }}
           MEASURED_FRAMES: ${{ inputs['measured-frames'] }}
           SAMPLING_INTERVAL: ${{ inputs['sampling-interval'] }}
           CAPTURE_RUNS: ${{ inputs['capture-runs'] }}
-          SOURCE_REVISION: ${{ github.sha }}
+          SOURCE_REVISION: ${{ github.event.pull_request.base.sha }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:GODOT) -or -not (Test-Path -LiteralPath $env:GODOT -PathType Leaf)) {
             Write-Error "The setup-godot action did not provide a valid GODOT executable."
@@ -139,7 +159,7 @@ jobs:
             "--project-path", "$env:PROJECT_PATH",
             "--profile", "$env:PROFILE",
             "--output-base", ".performance-guardian",
-            "--run-prefix", "$env:RUN_PREFIX",
+            "--run-prefix", "$env:RUN_PREFIX-base",
             "--runs", "$env:CAPTURE_RUNS",
             "--warmup-frames", "$env:WARMUP_FRAMES",
             "--measured-frames", "$env:MEASURED_FRAMES",
@@ -149,7 +169,45 @@ jobs:
           if ($env:SCENE_PATH) { $arguments += @("--scene-path", "$env:SCENE_PATH") }
           $manifest = python @arguments
           $captureExit = $LASTEXITCODE
-          $manifest | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\capture-manifest.json"
+          $manifest | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\baseline-capture-manifest.json"
+          exit $captureExit
+
+      - name: Capture candidate runs
+        id: capture
+        continue-on-error: true
+        shell: pwsh
+        env:
+          PROJECT_PATH: ${{ inputs['project-path'] }}
+          PROFILE: ${{ inputs.profile }}
+          SCENE_PATH: ${{ inputs['scene-path'] }}
+          WARMUP_FRAMES: ${{ inputs['warmup-frames'] }}
+          MEASURED_FRAMES: ${{ inputs['measured-frames'] }}
+          SAMPLING_INTERVAL: ${{ inputs['sampling-interval'] }}
+          CAPTURE_RUNS: ${{ inputs['capture-runs'] }}
+          SOURCE_REVISION: ${{ inputs['compare-with-base'] && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GODOT) -or -not (Test-Path -LiteralPath $env:GODOT -PathType Leaf)) {
+            Write-Error "The setup-godot action did not provide a valid GODOT executable."
+            exit 2
+          }
+          $arguments = @(
+            "$env:GUARDIAN_TOOLS\tools\capture_project.py",
+            "--workspace-root", "$env:GITHUB_WORKSPACE",
+            "--godot-executable", "$env:GODOT",
+            "--project-path", "$env:PROJECT_PATH",
+            "--profile", "$env:PROFILE",
+            "--output-base", ".performance-guardian",
+            "--run-prefix", "$env:RUN_PREFIX-candidate",
+            "--runs", "$env:CAPTURE_RUNS",
+            "--warmup-frames", "$env:WARMUP_FRAMES",
+            "--measured-frames", "$env:MEASURED_FRAMES",
+            "--sampling-interval", "$env:SAMPLING_INTERVAL",
+            "--source-revision", "$env:SOURCE_REVISION"
+          )
+          if ($env:SCENE_PATH) { $arguments += @("--scene-path", "$env:SCENE_PATH") }
+          $manifest = python @arguments
+          $captureExit = $LASTEXITCODE
+          $manifest | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\candidate-capture-manifest.json"
           exit $captureExit
 
       - name: Run authoritative performance gate
@@ -157,23 +215,36 @@ jobs:
         shell: pwsh
         env:
           CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+          BASELINE_CAPTURE_OUTCOME: ${{ steps.baseline-capture.outcome }}
           PROJECT_PATH: ${{ inputs['project-path'] }}
           PROFILE: ${{ inputs.profile }}
           BUDGET_FILE: ${{ inputs['budget-file'] }}
           INVESTIGATE: ${{ inputs.investigate }}
           OPENAI_API_KEY: ${{ secrets['openai-api-key'] }}
           OPENAI_MODEL: ${{ inputs['openai-model'] }}
+          COMPARE_WITH_BASE: ${{ inputs['compare-with-base'] }}
         run: |
-          $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX/captures"
+          $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-candidate/captures"
           if ($env:CAPTURE_OUTCOME -ne "success") {
-            $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX/incomplete-capture"
+            $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-candidate/incomplete-capture"
           }
-          $report = python "$env:GUARDIAN_TOOLS\tools\run_guardian.py" `
-            --workspace-root "$env:GITHUB_WORKSPACE" `
-            --json `
-            --investigate "$env:INVESTIGATE" `
-            "$results" `
-            "$env:BUDGET_FILE"
+          $budget = "$env:BUDGET_FILE"
+          $baselineArguments = @()
+          if ($env:COMPARE_WITH_BASE -eq "true") {
+            $baseline = ".performance-guardian-base-source/$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-base/captures"
+            if ($env:BASELINE_CAPTURE_OUTCOME -ne "success") {
+              $baseline = ".performance-guardian-base-source/$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-base/incomplete-capture"
+            }
+            $budget = ".performance-guardian-base-source/$env:BUDGET_FILE"
+            $baselineArguments = @("--baseline-results", "$baseline")
+          }
+          $arguments = @(
+            "$env:GUARDIAN_TOOLS\tools\run_guardian.py",
+            "--workspace-root", "$env:GITHUB_WORKSPACE",
+            "--json",
+            "--investigate", "$env:INVESTIGATE"
+          ) + $baselineArguments + @("$results", "$budget")
+          $report = python @arguments
           $gateExit = $LASTEXITCODE
           $report | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\guardian-report.json"
           exit $gateExit
@@ -186,7 +257,9 @@ jobs:
           include-hidden-files: true
           path: |
             ${{ inputs['project-path'] }}/.performance-guardian
-            ${{ runner.temp }}/capture-manifest.json
+            .performance-guardian-base-source/${{ inputs['project-path'] }}/.performance-guardian
+            ${{ runner.temp }}/baseline-capture-manifest.json
+            ${{ runner.temp }}/candidate-capture-manifest.json
             ${{ runner.temp }}/guardian-report.json
           if-no-files-found: warn
           retention-days: 14

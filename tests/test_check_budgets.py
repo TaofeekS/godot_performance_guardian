@@ -90,7 +90,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_rejects_invalid_top_level_configuration(self) -> None:
         cases = {
             "not an object": [],
-            "unsupported schema": {"schema_version": 3, "budgets": [{}]},
+            "unsupported schema": {"schema_version": 4, "budgets": [{}]},
             "boolean schema": {"schema_version": True, "budgets": [{}]},
             "missing field": {"schema_version": 1},
             "unknown field": {"schema_version": 1, "budgets": [{}], "extra": 1},

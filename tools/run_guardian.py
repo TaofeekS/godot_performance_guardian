@@ -137,6 +137,7 @@ def run_deterministic_pipeline(
     *,
     mode: str,
     workspace_root: str | Path | None = None,
+    baseline_results: str | None = None,
     validator_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
     """Run configuration, validator, then existing budget evaluation in order."""
@@ -154,6 +155,18 @@ def run_deterministic_pipeline(
             workspace_root=resolved_root,
         )
         rules = check_budgets.load_budget_configuration(budget_path)
+        schema_version = getattr(rules[0], "schema_version", 1)
+        relative_baseline = None
+        if baseline_results is not None:
+            _baseline_path, relative_baseline = resolve_repository_input(
+                baseline_results,
+                kind="results directory",
+                workspace_root=resolved_root,
+            )
+            if schema_version != 3:
+                raise GuardianConfigurationError(
+                    "--baseline-results requires budget schema version 3"
+                )
     except (
         WorkspacePathError,
         GuardianConfigurationError,
@@ -162,12 +175,25 @@ def run_deterministic_pipeline(
         return _error_report(mode, str(error), configuration_error=True)
 
     try:
+        baseline_packet = (
+            check_budgets.run_validator_packet(
+                relative_baseline,
+                workspace_root=resolved_root,
+                subprocess_runner=validator_runner,
+            )
+            if relative_baseline is not None
+            else None
+        )
         packet = check_budgets.run_validator_packet(
             relative_results,
             workspace_root=resolved_root,
             subprocess_runner=validator_runner,
         )
-        budget_report = check_budgets.evaluate_budgets(rules, packet)
+        budget_report = (
+            check_budgets.comparison_budget_report(rules, packet, baseline_packet)
+            if schema_version == 3
+            else check_budgets.evaluate_budgets(rules, packet)
+        )
     except check_budgets.BudgetEvidenceError as error:
         return _error_report(mode, str(error), configuration_error=False)
 
@@ -180,16 +206,25 @@ def run_deterministic_pipeline(
         if mode == "on-failure" and not failed
         else "not_needed"
     )
-    return {
-        "schema_version": 1,
+    report = {
+        "schema_version": 2 if schema_version == 3 else 1,
         "deterministic_status": "budget_failed" if failed else "passed",
         "validator": dict(budget_report["validator"]),
-        "budget": {
-            "status": budget_report["status"],
-            "summary": dict(budget_report["summary"]),
-            "results": list(budget_report["results"]),
-            "limitations": list(budget_report["limitations"]),
-        },
+        "budget": (
+            {
+                "status": budget_report["absolute"]["status"],
+                "summary": dict(budget_report["absolute"]["summary"]),
+                "results": list(budget_report["absolute"]["results"]),
+                "limitations": list(budget_report["absolute"]["limitations"]),
+            }
+            if schema_version == 3
+            else {
+                "status": budget_report["status"],
+                "summary": dict(budget_report["summary"]),
+                "results": list(budget_report["results"]),
+                "limitations": list(budget_report["limitations"]),
+            }
+        ),
         "investigation": _empty_investigation(mode, investigation_outcome),
         "authoritative_exit_code": exit_code,
         "authoritative_exit_reason": (
@@ -198,6 +233,9 @@ def run_deterministic_pipeline(
             else "Validation passed, but one or more configured budgets failed."
         ),
     }
+    if schema_version == 3:
+        report["comparison"] = dict(budget_report["comparison"])
+    return report
 
 
 def _safe_report(value: str, disclosure: str) -> str | None:
@@ -247,6 +285,8 @@ def run_optional_investigation(
     workspace_root: Path = REPOSITORY_ROOT,
     environment: Mapping[str, str] = os.environ,
     subprocess_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    baseline_results: str | None = None,
+    budget_file: str | None = None,
 ) -> None:
     """Mutate only the optional investigation portion of a deterministic report."""
 
@@ -262,14 +302,23 @@ def run_optional_investigation(
         )
         return
 
+    investigation = _empty_investigation(report["investigation"]["mode"], "api_error")
     command = [
         sys.executable,
         str(INVESTIGATOR_PATH),
     ]
     if workspace_root.resolve() != REPOSITORY_ROOT.resolve():
         command.extend(["--workspace-root", str(workspace_root.resolve())])
+    if baseline_results is not None:
+        if budget_file is None:
+            investigation["error_category"] = "configuration_error"
+            report["investigation"] = investigation
+            return
+        command.extend([
+            "--baseline-results", baseline_results,
+            "--budget-file", budget_file,
+        ])
     command.append(report["validator"]["results_directory"])
-    investigation = _empty_investigation(report["investigation"]["mode"], "api_error")
     investigation["api_request_attempted"] = True
     try:
         completed = subprocess_runner(
@@ -349,6 +398,16 @@ def human_report(report: dict[str, Any]) -> str:
     else:
         lines.append(f"{budget['status'].upper()}: budgets were not authoritatively evaluated.")
 
+    comparison = report.get("comparison")
+    if isinstance(comparison, dict):
+        lines.append(f"Comparison: {comparison['status']}.")
+        for result in comparison.get("results", []):
+            lines.append(
+                f"- {result['budget_id']}: {result['status']} "
+                f"(baseline [{result['baseline_evidence_id']}], "
+                f"candidate [{result['candidate_evidence_id']}])"
+            )
+
     lines.extend(["", "Optional investigator explanation"])
     outcome = investigation["outcome"]
     if investigation["report"] is not None:
@@ -381,6 +440,7 @@ def _argument_parser() -> argparse.ArgumentParser:
         "--workspace-root",
         help="explicit workspace root for repository-relative generic captures",
     )
+    parser.add_argument("--baseline-results")
     parser.add_argument("results_directory")
     parser.add_argument("budget_file")
     return parser
@@ -393,15 +453,28 @@ def main(argv: list[str] | None = None) -> int:
         args.budget_file,
         mode=args.investigate,
         workspace_root=args.workspace_root,
+        baseline_results=args.baseline_results,
     )
     try:
         workspace_root = resolve_workspace_root(args.workspace_root, REPOSITORY_ROOT)
     except WorkspacePathError:
         workspace_root = REPOSITORY_ROOT
     if workspace_root.resolve() == REPOSITORY_ROOT.resolve():
-        run_optional_investigation(report)
+        if args.baseline_results is None:
+            run_optional_investigation(report)
+        else:
+            run_optional_investigation(
+                report,
+                baseline_results=args.baseline_results,
+                budget_file=args.budget_file,
+            )
     else:
-        run_optional_investigation(report, workspace_root=workspace_root)
+        run_optional_investigation(
+            report,
+            workspace_root=workspace_root,
+            baseline_results=args.baseline_results,
+            budget_file=args.budget_file,
+        )
     output = canonical_json(report) if args.json_output else human_report(report)
     print(output, end="")
     return report["authoritative_exit_code"]

@@ -1,0 +1,23 @@
+{
+  "schema_version": 3,
+  "budgets": [
+    {
+      "id": "main-scene-process-p95",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "maximum": 1.1,
+      "maximum_increase_percent": 20,
+      "unit": "ms",
+      "description": "Project-calibrated process p95 must stay within its absolute and relative limits."
+    },
+    {
+      "id": "main-scene-peak-nodes",
+      "profile": "main_scene",
+      "metric": "median_peak_node_count",
+      "maximum": 3,
+      "maximum_increase_percent": 0,
+      "unit": "nodes",
+      "description": "Project-calibrated peak node count must not increase from the protected baseline."
+    }
+  ]
+}

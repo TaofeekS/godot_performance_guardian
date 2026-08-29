@@ -526,3 +526,31 @@ Inspection of the downloaded artifact found only `_temp/capture-manifest.json` a
 The upload step now sets `include-hidden-files: true` while retaining an explicit path list limited to the consumer evidence directory and the two runner-temporary reports. Regression coverage requires the hidden-file input and exact paths and rejects the tooling checkout, workspace-wide upload, and API secret from that step. All 130 tests passed, byte compilation succeeded, and dependencies remained consistent. The change is retained; a new hosted `never` artifact must contain three capture JSON files, three logs, the manifest, and the gate report before raw hosted evidence preservation is called verified.
 
 Commit `0cd6a573d21b5ddd1ffd624be2782d0e9979e3ab` was pushed to `origin/main`. GitHub reported the reusable workflow active, and its remote workflow blob matched the locally verified file. This verifies delivery and definition acceptance; the contents of a new consumer artifact remain the next required check.
+
+### Experiment 11 clarification — hosted evidence bundle verified
+
+The next consumer rerun produced `performance-guardian-main_scene-33277282941-1.zip`. Read-only inspection found all nine expected entries: three 600-sample capture JSON files, three Godot logs, the internal capture manifest, the runner manifest, and the canonical Guardian report. The report recorded three validated files, passing process and node budgets, `investigate: never`, and authoritative exit `0`. No private path or credential-shaped pattern was detected. This closes Experiment 11's pending hidden-directory artifact claim; optional hosted AI and paired comparison remain separate questions.
+
+## 2026-08-29 — Experiment 12: Baseline-aware pull-request regression gate
+
+**Status:** Retained; local deterministic and six-capture consumer evaluation passed, hosted paired execution unverified
+
+### Hypothesis and reason
+
+Absolute limits can miss a meaningful slowdown that remains below a generous ceiling. A protected-base paired gate should catch that regression without allowing a pull request to weaken its own policy, while preserving existing absolute-only commands.
+
+### Change
+
+Budget schema v3 adds `maximum_increase_percent` to each generic profile rule. The checker and unified runner accept optional `--baseline-results`, validate baseline and candidate independently, match semantic aggregates rather than evidence IDs, and require absolute plus relative limits. Comparison evidence uses packet schema v2 and omits revision values. The reusable workflow adds opt-in `compare-with-base`; on pull requests it reads policy from `github.event.pull_request.base.sha`, captures baseline then candidate with identical settings, preserves both evidence sets, and keeps optional AI downstream of deterministic policy.
+
+### Evaluation method and observed result
+
+Tracked fixtures cover an unchanged pair and a deliberate process regression. The regression candidate passed its absolute process limit at `0.61 ms <= 1.1 ms` but failed the relative rule because its increase was `22% > 20%`. Peak nodes remained unchanged. The complete local suite passed 146 tests.
+
+A temporary independent consumer workspace used Godot `4.5.1.stable.official.f62fdbde1` for three baseline plus three unchanged-candidate runs. Every capture contained 600 samples. Baseline median process p95 was `0.531 ms`; candidate was `0.526 ms`, a `-0.942%` improvement. Peak nodes remained `3` to `3`. Both the 20% process rule and 0% node-growth rule passed, and the unified gate returned authoritative exit `0` without AI.
+
+Exactly one authorized live comparison request was attempted after local checks. It reached deterministic fallback with `C06_VALIDATION_FAILED` because the investigator subprocess command appended the candidate directory twice. The model therefore received no authoritative comparison evidence and this was an operational integration failure, not a model-grounding result. The duplicate argument was removed, a regression test now requires each contained input exactly once, and local packet generation plus fallback grounding passed. The request was not retried, preserving the one-request limit; live comparison interpretation remains unverified.
+
+### Decision and next step
+
+Retain schema v3 and opt-in protected-base comparison. Merge the v3 policy first with comparison disabled, then enable comparison in a later pull request so the protected base controls policy. Sequential same-runner capture reduces environmental variation but does not prove identical thermal, scheduling, or system-load conditions. The next step is one real hosted consumer pull request and artifact inspection; hosted comparison-aware AI also remains unverified.

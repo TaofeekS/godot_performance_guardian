@@ -45,10 +45,13 @@ The README may add a short section for the repository-local documentation skill,
 - Explain that `MEMORY_STATIC` can be unavailable and must then be represented as `null`, not a valid zero.
 - Explain that the portable probe retains raw samples during capture, so static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak. Memory-budget comparisons must use matching measured-frame counts and sampling intervals.
 - Explain atomic temporary-file writing and refusal to overwrite an existing final result.
-- Preserve the consumer-workflow contract: installing the addon is distinct from enabling CI; the caller commits the addon, an automatically starting probe, and a v2 budget; the workflow defaults to three isolated captures and no AI; and deterministic exits remain authoritative.
+- Preserve the consumer-workflow contract: installing the addon is distinct from enabling CI; the caller commits the addon, an automatically starting probe, and a v2 or v3 budget; the workflow defaults to three isolated captures, comparison is opt-in, AI defaults off, and deterministic exits remain authoritative.
+- Document schema-v3 paired comparison accurately: a protected-base policy controls both absolute and per-rule relative limits; `--baseline-results` requires v3; zero-baseline percentage behavior is explicit; and v1/v2 commands remain compatible.
+- Preserve the safe migration order: merge a schema-v3 policy while `compare-with-base` is false, then enable comparison in a later pull request so the protected base already contains that policy.
+- State that comparison requires a pull-request event, captures base then candidate sequentially on the same runner with identical settings, and doubles the configured capture count. Describe same-runner sequencing as noise reduction, not proof of identical thermal, scheduling, or system-load conditions.
 - Verify `.github/workflows/reusable-performance-guardian.yml` before documenting its inputs, defaults, artifacts, secret scope, or action versions. Preserve the immutable `chickensoft-games/setup-godot@f166999204a4f2722c6fe042fbaa3b3ea0d9c789` pin unless implementation evidence changes it.
 - Explain that `--workspace-root` permits an explicit consumer root while all project, scene, results, and budget inputs remain relative to it, with resolved symlink containment and generic-only external validation.
-- Distinguish the verified local independent-consumer three-run proof from the unverified GitHub-hosted reusable-workflow execution.
+- Distinguish the verified local independent-consumer three-run and paired six-run proofs from hosted evidence. The verified hosted nine-entry ZIP proves three captures, three logs, both manifests/reports, and authoritative exit `0`; hosted paired comparison remains unverified until a consumer pull request calls it.
 - Do not call generated ignored JSON files a committed baseline or organized hackathon evidence package.
 
 ## Verification checklist

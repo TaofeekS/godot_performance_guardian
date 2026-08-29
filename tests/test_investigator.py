@@ -28,6 +28,10 @@ GENERIC_EVIDENCE_PACKET_PATH = (
     investigator.REPOSITORY_ROOT
     / "tests/fixtures/investigator/generic_evidence_packet.json"
 )
+COMPARISON_EVIDENCE_PACKET_PATH = (
+    investigator.REPOSITORY_ROOT
+    / "tests/fixtures/investigator/comparison_evidence_packet.json"
+)
 
 
 def load_evidence_packet() -> dict[str, object]:
@@ -36,6 +40,71 @@ def load_evidence_packet() -> dict[str, object]:
 
 def load_generic_evidence_packet() -> dict[str, object]:
     return json.loads(GENERIC_EVIDENCE_PACKET_PATH.read_text(encoding="utf-8"))
+
+
+def load_comparison_evidence_packet() -> dict[str, object]:
+    return json.loads(COMPARISON_EVIDENCE_PACKET_PATH.read_text(encoding="utf-8"))
+
+
+class ComparisonEvidenceTests(unittest.TestCase):
+    def test_comparison_runner_uses_each_contained_input_once(self) -> None:
+        packet = load_comparison_evidence_packet()
+        runner = Mock(
+            return_value=subprocess.CompletedProcess(
+                args=[], returncode=0, stdout=json.dumps(packet), stderr=""
+            )
+        )
+        result = investigator.run_validator(
+            "tests/fixtures/comparison/candidate",
+            baseline_results="tests/fixtures/comparison/baseline",
+            budget_file="tests/fixtures/comparison/performance_budgets.json",
+            subprocess_runner=runner,
+        )
+        self.assertEqual(result["evidence_kind"], "comparison")
+        command = runner.call_args.args[0]
+        self.assertEqual(Path(command[1]), investigator.COMPARISON_PATH)
+        self.assertEqual(command.count("tests/fixtures/comparison/candidate"), 1)
+        self.assertEqual(command.count("tests/fixtures/comparison/baseline"), 1)
+        self.assertEqual(command.count("tests/fixtures/comparison/performance_budgets.json"), 1)
+        self.assertNotIn("shell", runner.call_args.kwargs)
+
+    def test_comparison_dispatch_fallback_and_grounding(self) -> None:
+        packet = load_comparison_evidence_packet()
+        self.assertEqual(investigator._packet_evidence_kind(packet), "comparison")
+        report = investigator.render_deterministic_fallback(packet)
+        self.assertEqual(investigator.validate_grounded_report(report, packet), [])
+        self.assertIn("opaque-process", report)
+        self.assertIn("main_scene", report)
+        self.assertNotIn("base-process", report)
+
+    def test_opaque_id_renumbering_and_fallback_are_deterministic(self) -> None:
+        packet = load_comparison_evidence_packet()
+        packet["evidence"][0]["id"] = "renumbered-a"
+        packet["evidence"][1]["id"] = "renumbered-b"
+        first = investigator.render_deterministic_fallback(packet)
+        second = investigator.render_deterministic_fallback(copy.deepcopy(packet))
+        self.assertEqual(first.encode(), second.encode())
+        self.assertEqual(investigator.validate_grounded_report(first, packet), [])
+
+    def test_missing_duplicate_and_revision_value_fail_safely(self) -> None:
+        missing = load_comparison_evidence_packet()
+        missing["evidence"] = []
+        with self.assertRaises(investigator.EvidenceSchemaError):
+            investigator._comparison_semantic_evidence(missing)
+        duplicate = load_comparison_evidence_packet()
+        duplicate["evidence"].append(copy.deepcopy(duplicate["evidence"][0]))
+        duplicate["evidence"][-1]["id"] = "different-id"
+        with self.assertRaises(investigator.EvidenceSchemaError):
+            investigator._comparison_semantic_evidence(duplicate)
+        report = investigator.render_deterministic_fallback(load_comparison_evidence_packet())
+        unsafe = report.replace(
+            investigator.REQUIRED_UNCERTAINTY,
+            "Revision deadbeef was equal. " + investigator.REQUIRED_UNCERTAINTY,
+        )
+        self.assertIn(
+            "G24_REVISION_VALUE_OR_EQUALITY",
+            investigator.validate_grounded_report(unsafe, load_comparison_evidence_packet()),
+        )
 
 
 class ResultsDirectoryTests(unittest.TestCase):

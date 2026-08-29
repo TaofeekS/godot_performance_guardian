@@ -1625,3 +1625,62 @@ No Godot process, benchmark, OpenAI request, fixture or budget change, or consum
 The five focused files were staged after the complete diff and staged whitespace check passed. Commit `0cd6a573d21b5ddd1ffd624be2782d0e9979e3ab` was created with message `Preserve raw performance evidence artifacts` and pushed from `2a2c0e3` to `origin/main`.
 
 GitHub's public REST metadata reported the reusable workflow as `active`. The workflow at commit `0cd6a57` had blob SHA `fba8347337dfa640bf363c9d2c621ea5857bc377`, exactly matching the verified local file. This establishes that the correction is delivered and recognized; it does not prove the next ZIP contains the raw files. The consumer must pin the new full commit, rerun `never`, and inspect the artifact for the three captures, three logs, manifest, and gate report. No consumer repository was changed or dispatched during implementation.
+
+## 2026-08-29 — Experiment 12 baseline-aware pull-request regression gate
+
+### Request and approved plan
+
+The user first closed the prior hosted-artifact troubleshooting with:
+
+> okay i think we can move forward now
+>
+> okay let work on experiment 12
+
+The approved implementation request began verbatim:
+
+> PLEASE IMPLEMENT THIS PLAN:
+> # Experiment 12: Baseline-Aware Pull-Request Regression Gate
+>
+> Add opt-in paired comparison for consumer pull requests. The reusable workflow will capture the protected base revision and PR candidate on the same runner, validate both result sets, apply base-controlled absolute and relative budgets, preserve both evidence sets, and optionally provide a grounded comparison-aware investigation.
+>
+> Existing v1/v2 policies and non-comparison commands remain compatible. Comparison uses budget schema v3 and defaults off.
+
+The detailed contract required exact v3 fields, two structured validator calls, explicit zero-baseline behavior, schema-v2 comparison output, protected-base policy authority, six default captures, comparison-aware grounded investigation, tracked fixtures, a real external Godot evaluation, documentation synchronization, commit, push, and an immutable delivered SHA.
+
+### Inspection and implementation
+
+The repository documentation skill, its complete requirements reference, and the agent-trajectory skill were read before changes. Inspection covered `check_budgets.py`, `run_guardian.py`, `validate_results.py`, `capture_project.py`, `investigator.py`, the reusable workflow, tests, tracked fixtures, both READMEs, the changelog, Git history, and the configured remote.
+
+`check_budgets.py` gained strict schema-v3 parsing and semantic paired evaluation. It preserves v1/v2 paths, treats equality as pass and negative deltas as improvements, defines zero/zero as 0%, and treats a positive candidate over a zero baseline as an undefined percentage and relative failure. `run_guardian.py` adds contained `--baseline-results`, schema-v2 comparison output, and comparison inputs for optional investigation without changing deterministic authority.
+
+`comparison_evidence.py` builds packet schema v2 from the same validator aggregates and v3 policy results. `investigator.py` accepts `evidence_kind: comparison`, validates semantic rule items, suppresses revision values, renders deterministic facts and limitations, grounds typed contributions, and retains its one-tool/one-SDK-call boundary. The workflow adds opt-in PR-only comparison, isolated base checkout at `github.event.pull_request.base.sha`, protected-base policy loading, sequential baseline/candidate captures, distinct manifests, and narrow unconditional artifacts.
+
+Tracked unchanged, regression, policy, and investigator packet fixtures were added. The regression fixture proves the important policy distinction: candidate process p95 `0.61 ms` passes the `1.1 ms` absolute maximum but its 22% increase fails the 20% relative maximum.
+
+### Failures and responses
+
+The first external consumer setup stopped before Godot launch because PowerShell `Copy-Item -LiteralPath` treated the addon's `*` wildcard literally. The capture helper then correctly rejected the missing committed addon. The failed uniquely prefixed directory was resolved beneath the system temporary root before recursive cleanup. The retry used wildcard-aware `-Path`; no policy or measurement setting changed.
+
+An initial local regression run exposed three compatibility issues: mocked rules lacked the new schema attribute, an existing test expected the old optional-investigation call signature, and the comparison grounding gate interpreted a validator limitation containing “prove” as a model causal claim. The implementation defaulted mocked legacy rules to schema v1, preserved the old no-baseline call form, and excludes verbatim validator limitations from causal scanning. The focused tests and then the complete suite passed.
+
+### Real paired evaluation
+
+The corrected temporary workspace copied the independent minimal project and addon into separate `baseline` and `candidate` projects. `capture_project.py` ran three isolated Godot `4.5.1` processes per side with seed/configuration inherited from the project, 120 warmup frames, 600 measured frames, sampling interval 1, distinct collision-safe prefixes, and supplied opaque revision metadata.
+
+All six captures completed. The v3 unified gate validated three baseline and three candidate files, reported revision availability without emitting values, and returned authoritative exit `0`. Baseline/candidate median process p95 was `0.531 ms`/`0.526 ms` (`-0.9416195857%`); peak nodes remained `3`/`3`. Both absolute and relative rules passed unchanged. No OpenAI request was made during this measurement.
+
+### Documentation and remaining delivery
+
+The documentation skill synchronized README, addon guidance, and its repository-specific requirements. The previously supplied nine-entry hosted ZIP closed Experiment 11's raw-artifact claim: it contained three 600-sample captures, three logs, the internal and runner manifests, and the canonical exit-0 report, with no detected private path or credential pattern. `IMPROVEMENT_CHANGELOG.md` records Experiment 12 separately from this execution history.
+
+The first evidence-inspection cleanup command validated both real directories and confirmed byte-identical comparison packets with no exposed revision value or private path, but its PowerShell pipeline incorrectly passed a filename string to `Get-Content`. It stopped before deletion. A corrected explicit-path loop confirmed six captures, 600 samples each, and supplied revision metadata, then removed the verified TEMP-contained workspace.
+
+The environment check reported only `OPENAI_API_KEY_PRESENT=True`; the value was never read, printed, or stored. Exactly one authorized live comparison request ran. It returned deterministic fallback with `C06_VALIDATION_FAILED` because local diagnosis found that the investigator's comparison subprocess command appended the candidate positional argument twice. No second API request was made. The command construction was fixed, a regression test now requires baseline, candidate, and policy exactly once, and local comparison packet generation returned `comparison`, `passed`, with a fallback that passed grounding. Live comparison interpretation remains unverified rather than being misclassified as model failure.
+
+Final full-suite, byte compilation, validator, policy, canonical-output, optional historical, workflow, link, skill, secret, whitespace, commit, push, and public GitHub checks follow this entry.
+
+### Final local verification before delivery
+
+`pip check` reported no broken requirements. The complete suite passed 146 tests in 6.479 seconds and byte compilation succeeded. Repeated generic validator and v2 budget JSON were byte-identical. The tracked unchanged v3 pair returned exit `0`; the tracked regression returned exit `1` with only the relative process rule failing while both absolute limits passed. All 49 optional historical results validated, and Experiment 5 retained exactly its two intentional failures.
+
+PyYAML `6.0.3` was installed only into a uniquely named system-temporary directory. The official documentation-skill validator printed `Skill is valid!`, both workflow files parsed, and the temporary dependency directory was removed. README links and numbered sections passed, the configured fetch/push remote remained the public `origin`, and `git diff --check` reported no whitespace error. The credential scan identified only the intentional mock secret fixture in `tests/test_investigator.py`; excluding that test-only sentinel, no working-tree, tracked, or reachable-history filename or commit matched the credential patterns.

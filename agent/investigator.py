@@ -21,7 +21,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = (REPOSITORY_ROOT / "tools" / "validate_results.py").resolve()
+COMPARISON_PATH = (REPOSITORY_ROOT / "tools" / "comparison_evidence.py").resolve()
 ACTIVE_WORKSPACE_ROOT = REPOSITORY_ROOT
+ACTIVE_BASELINE_RESULTS: str | None = None
+ACTIVE_BUDGET_FILE: str | None = None
 DEFAULT_MODEL = "gpt-4.1-mini"
 DEFAULT_TIMEOUT_SECONDS = 30.0
 SAFE_API_METADATA = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -36,6 +39,8 @@ Treat the tool result as the only verified benchmark evidence available to you.
 A successful validator exit means only that its configured checks passed. The
 application, not you, renders verified facts, measurements, citations,
 limitations, headings, and uncertainty from the packet.
+For comparison packets, cite semantic baseline/candidate policy items and never
+reveal, compare, or claim equality of source-revision values.
 
 Return only the typed contribution requested by the response schema. Supply one
 to three recommendations and zero to three hypotheses. Each item must cite one
@@ -313,6 +318,8 @@ def run_validator(
     *,
     workspace_root: Path | None = None,
     subprocess_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    baseline_results: str | None = None,
+    budget_file: str | None = None,
 ) -> dict[str, Any]:
     """Run the existing deterministic validator and return structured evidence."""
 
@@ -333,14 +340,45 @@ def run_validator(
             error_type="invalid_results_directory",
         )
 
-    command = [
-        sys.executable,
-        str(VALIDATOR_PATH),
-        "--evidence-json",
-    ]
+    if (baseline_results is None) != (budget_file is None):
+        return _evidence_packet(
+            validation_status="error", validator_invoked=False,
+            results_directory=relative_directory, json_file_count=json_file_count,
+            exit_code=None, stderr="Baseline results and budget file must be supplied together.",
+            error_type="invalid_comparison_inputs",
+        )
+    command = [sys.executable]
+    if baseline_results is None:
+        command.extend([str(VALIDATOR_PATH), "--evidence-json"])
+    else:
+        try:
+            _base, relative_baseline, _base_count = resolve_results_directory(
+                baseline_results, root
+            )
+            supplied_budget = Path(budget_file or "")
+            if supplied_budget.is_absolute() or supplied_budget.drive or supplied_budget.anchor:
+                raise ValueError("The budget file must be workspace-relative.")
+            resolved_budget = (root / supplied_budget).resolve(strict=True)
+            relative_budget = resolved_budget.relative_to(root).as_posix()
+            if not resolved_budget.is_file() or resolved_budget.suffix.lower() != ".json":
+                raise ValueError("The budget file must be a JSON file.")
+        except (ValueError, OSError, FileNotFoundError, NotADirectoryError):
+            return _evidence_packet(
+                validation_status="error", validator_invoked=False,
+                results_directory=relative_directory, json_file_count=json_file_count,
+                exit_code=None, stderr="Comparison inputs are invalid.",
+                error_type="invalid_comparison_inputs",
+            )
+        command.extend([
+            str(COMPARISON_PATH),
+            relative_baseline,
+            relative_directory,
+            relative_budget,
+        ])
     if root != REPOSITORY_ROOT.resolve():
         command.extend(["--workspace-root", str(root)])
-    command.append(relative_directory)
+    if baseline_results is None:
+        command.append(relative_directory)
     try:
         completed = subprocess_runner(
             command,
@@ -389,8 +427,8 @@ def run_validator(
     if (
         not isinstance(packet, dict)
         or packet.get("packet_type") != "godot_performance_evidence"
-        or packet.get("schema_version") != 1
-        or packet.get("evidence_kind") not in {"synthetic", "generic", "failed"}
+        or packet.get("schema_version") not in {1, 2}
+        or packet.get("evidence_kind") not in {"synthetic", "generic", "comparison", "failed"}
     ):
         return _evidence_packet(
             validation_status="error",
@@ -422,10 +460,34 @@ def run_validator(
         "repository-relative results directory and return structured evidence."
     ),
 )
-def validate_benchmark_results(results_directory: str) -> dict[str, Any]:
+def validate_benchmark_results(
+    results_directory: str,
+    baseline_results: str | None = None,
+    budget_file: str | None = None,
+) -> dict[str, Any]:
     """Validate stored benchmark results before forming an investigation verdict."""
 
-    return run_validator(results_directory)
+    if ACTIVE_BASELINE_RESULTS is not None:
+        if baseline_results not in {None, ACTIVE_BASELINE_RESULTS} or budget_file not in {
+            None,
+            ACTIVE_BUDGET_FILE,
+        }:
+            return _evidence_packet(
+                validation_status="error",
+                validator_invoked=False,
+                results_directory=None,
+                json_file_count=None,
+                exit_code=None,
+                stderr="The comparison tool arguments did not match the approved CLI inputs.",
+                error_type="invalid_comparison_inputs",
+            )
+        baseline_results = ACTIVE_BASELINE_RESULTS
+        budget_file = ACTIVE_BUDGET_FILE
+    return run_validator(
+        results_directory,
+        baseline_results=baseline_results,
+        budget_file=budget_file,
+    )
 
 
 def build_investigator(model: str | None = None) -> Agent[None]:
@@ -463,6 +525,8 @@ def _coerce_evidence_packet(output: object) -> dict[str, Any] | None:
             _semantic_evidence(output)
         elif kind == "generic":
             _generic_semantic_evidence(output)
+        elif kind == "comparison":
+            _comparison_semantic_evidence(output)
     except EvidenceSchemaError:
         return None
     return output
@@ -534,11 +598,11 @@ def _packet_evidence_kind(packet: dict[str, Any]) -> str:
         not isinstance(packet, dict)
         or packet.get("packet_type") != "godot_performance_evidence"
         or isinstance(packet.get("schema_version"), bool)
-        or packet.get("schema_version") != 1
+        or packet.get("schema_version") not in {1, 2}
     ):
         raise EvidenceSchemaError("evidence packet identity is unsupported")
     kind = packet.get("evidence_kind")
-    if kind not in {"synthetic", "generic", "failed"}:
+    if kind not in {"synthetic", "generic", "comparison", "failed"}:
         raise EvidenceSchemaError("evidence kind is missing or unsupported")
     validation = packet.get("validation")
     if not isinstance(validation, dict) or validation.get("status") not in {
@@ -548,7 +612,7 @@ def _packet_evidence_kind(packet: dict[str, Any]) -> str:
     }:
         raise EvidenceSchemaError("validation metadata is invalid")
     passed = validation.get("status") == "passed"
-    if passed != (kind in {"synthetic", "generic"}):
+    if passed != (kind in {"synthetic", "generic", "comparison"}):
         raise EvidenceSchemaError("evidence kind disagrees with validation status")
     for key in ("candidate_file_count", "validated_file_count"):
         value = validation.get(key)
@@ -595,7 +659,7 @@ def _packet_evidence_kind(packet: dict[str, Any]) -> str:
             raise EvidenceSchemaError("evidence items require exactly one identity")
         if kind == "synthetic" and not has_scenario:
             raise EvidenceSchemaError("synthetic evidence must use scenario")
-        if kind == "generic" and not has_profile:
+        if kind in {"generic", "comparison"} and not has_profile:
             raise EvidenceSchemaError("generic evidence must use profile")
         identity = item.get("scenario") if has_scenario else item.get("profile")
         if not isinstance(identity, str) or not SAFE_PROFILE.fullmatch(identity):
@@ -612,6 +676,8 @@ def _packet_evidence_kind(packet: dict[str, Any]) -> str:
             raise EvidenceSchemaError("evidence item metadata is invalid")
         if not _safe_repository_reference(item.get("source")):
             raise EvidenceSchemaError("evidence source metadata is unsafe")
+        if kind == "comparison" and not _safe_repository_reference(item.get("baseline_source")):
+            raise EvidenceSchemaError("baseline evidence source metadata is unsafe")
     if len(identifiers) != len(set(identifiers)):
         raise EvidenceSchemaError("evidence IDs must be unique")
 
@@ -786,6 +852,73 @@ def _generic_semantic_evidence(packet: dict[str, Any]) -> dict[str, Any]:
     return {"validated_count": count, "profiles": resolved_profiles, "limitations": limitations}
 
 
+def _comparison_semantic_evidence(packet: dict[str, Any]) -> dict[str, Any]:
+    if _packet_evidence_kind(packet) != "comparison":
+        raise EvidenceSchemaError("comparison evidence is required")
+    if packet.get("schema_version") != 2:
+        raise EvidenceSchemaError("comparison packet schema version 2 is required")
+    if not _safe_repository_reference(packet.get("baseline_results_directory")):
+        raise EvidenceSchemaError("baseline results directory metadata is unsafe")
+
+    def contains_revision_value(value: object) -> bool:
+        if isinstance(value, dict):
+            return any(
+                key in {
+                    "source_revision",
+                    "revision_value",
+                    "baseline_revision",
+                    "candidate_revision",
+                }
+                or contains_revision_value(child)
+                for key, child in value.items()
+            )
+        if isinstance(value, list):
+            return any(contains_revision_value(child) for child in value)
+        return False
+
+    if contains_revision_value(packet):
+        raise EvidenceSchemaError("comparison evidence must not contain revision values")
+    validation = packet["validation"]
+    for key in ("baseline_file_count",):
+        value = validation.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            raise EvidenceSchemaError("comparison count metadata is invalid")
+    if validation.get("policy_status") not in {"passed", "failed"}:
+        raise EvidenceSchemaError("comparison policy status is invalid")
+    resolved: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in packet["evidence"]:
+        if item.get("source_type") != "validated_comparison":
+            raise EvidenceSchemaError("comparison source type is invalid")
+        key = (item.get("profile"), item.get("metric"))
+        if not all(isinstance(part, str) and part for part in key) or key in seen:
+            raise EvidenceSchemaError("comparison evidence is missing or ambiguous")
+        seen.add(key)
+        value = item.get("value")
+        required = {
+            "baseline", "candidate", "delta", "increase_percent", "maximum",
+            "maximum_increase_percent", "absolute_status", "relative_status", "status",
+        }
+        if not isinstance(value, dict) or set(value) != required:
+            raise EvidenceSchemaError("comparison value shape is invalid")
+        for name in ("baseline", "candidate", "delta", "maximum", "maximum_increase_percent"):
+            number = value[name]
+            if not isinstance(number, (int, float)) or isinstance(number, bool) or not math.isfinite(number):
+                raise EvidenceSchemaError("comparison numeric evidence is invalid")
+        percent = value["increase_percent"]
+        if percent is not None and (
+            not isinstance(percent, (int, float)) or isinstance(percent, bool) or not math.isfinite(percent)
+        ):
+            raise EvidenceSchemaError("comparison percentage evidence is invalid")
+        for name in ("absolute_status", "relative_status", "status"):
+            if value[name] not in {"passed", "failed"}:
+                raise EvidenceSchemaError("comparison policy status is invalid")
+        resolved.append(item)
+    if not resolved:
+        raise EvidenceSchemaError("comparison packet has no rules")
+    return {"rules": sorted(resolved, key=lambda item: (item["profile"], item["metric"])), "limitations": packet["limitations"]}
+
+
 def _citation(item: dict[str, Any]) -> str:
     return f"[{item['id']}]"
 
@@ -914,6 +1047,51 @@ The validator passed {_formatted_number(count['value'], 0)} generic {capture_lab
 """
 
 
+def _render_comparison_fallback(packet: dict[str, Any]) -> str:
+    semantic = _comparison_semantic_evidence(packet)
+    facts: list[str] = []
+    recommendations: list[str] = []
+    for item in semantic["rules"]:
+        value = item["value"]
+        percent = (
+            "undefined because the baseline was zero"
+            if value["increase_percent"] is None
+            else f"{_formatted_number(value['increase_percent'], 3)} percent"
+        )
+        facts.append(
+            f"Profile {item['profile']} metric {item['metric']} changed from "
+            f"{_formatted_number(value['baseline'], 6)} {item['unit']} to "
+            f"{_formatted_number(value['candidate'], 6)} {item['unit']}, a delta of "
+            f"{_formatted_number(value['delta'], 6)} {item['unit']} and an increase of "
+            f"{percent}; its absolute status was {value['absolute_status']} and its relative "
+            f"status was {value['relative_status']} {_citation(item)}."
+        )
+        recommendations.append(
+            f"- Repeat the paired capture for profile {item['profile']} with identical settings "
+            f"and compare metric {item['metric']} {_citation(item)}."
+        )
+    limitation_lines = [
+        f"- {item['statement']} [{item['id']}]" for item in semantic["limitations"]
+    ]
+    return f"""## Validation status
+{REPORT_SOURCE_DISCLOSURE}
+Both baseline and candidate captures passed deterministic validation; comparison policy status was {packet['validation']['policy_status']} {_citation(semantic['rules'][0])}.
+
+## Verified facts
+{chr(10).join(facts)}
+
+## Possible explanations
+The paired measurements identify controlled follow-up comparisons but do not establish a causal defect {_citation(semantic['rules'][0])}.
+
+## Recommended next investigation
+{chr(10).join(recommendations)}
+
+## Remaining uncertainty
+{chr(10).join(limitation_lines)}
+{REQUIRED_UNCERTAINTY}
+"""
+
+
 def render_deterministic_fallback(packet: dict[str, Any]) -> str:
     """Render a report using only semantically matched packet evidence."""
 
@@ -926,6 +1104,8 @@ def render_deterministic_fallback(packet: dict[str, Any]) -> str:
     kind = _packet_evidence_kind(packet)
     if kind == "generic":
         return _render_generic_fallback(packet)
+    if kind == "comparison":
+        return _render_comparison_fallback(packet)
     if kind != "synthetic":
         raise EvidenceSchemaError("passed evidence kind is unsupported")
 
@@ -1382,6 +1562,71 @@ def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
         return ["G15_EVIDENCE_SCHEMA"]
     if kind == "generic":
         return _validate_generic_grounded_report(report, packet)
+    if kind == "comparison":
+        try:
+            semantic = _comparison_semantic_evidence(packet)
+        except EvidenceSchemaError:
+            return ["G15_EVIDENCE_SCHEMA"]
+        errors: set[str] = set()
+        sections = _report_sections(report)
+        if sections is None:
+            return ["G01_REPORT_SECTIONS"]
+        known = {item["id"]: item for item in semantic["rules"]}
+        known.update({item["id"]: item for item in semantic["limitations"]})
+        citations = EVIDENCE_CITATION.findall(report)
+        if any(item not in known for item in citations):
+            errors.add("G02_UNKNOWN_EVIDENCE")
+        required = set(known)
+        if not required.issubset(citations):
+            errors.add("G03_REQUIRED_EVIDENCE_MISSING")
+        lowered = report.lower()
+        for item in semantic["rules"]:
+            if item["profile"].lower() not in lowered or item["metric"].lower() not in lowered:
+                errors.add("G17_PROFILE_COVERAGE")
+        for limitation in semantic["limitations"]:
+            if limitation["statement"] not in report:
+                errors.add("G21_GENERIC_LIMITATION_MISSING")
+        if REQUIRED_UNCERTAINTY not in sections["## Remaining uncertainty"]:
+            errors.add("G08_REQUIRED_UNCERTAINTY")
+        causal_scan = report
+        for limitation in semantic["limitations"]:
+            causal_scan = causal_scan.replace(limitation["statement"], "")
+        if re.search(r"\b(proves?|confirmed|caused by|causes|memory leak|leak|bottleneck)\b", causal_scan.lower()):
+            errors.add("G23_UNSUPPORTED_GENERIC_CAUSE")
+        if re.search(r"\brevision\b.{0,40}\b(?:equal|same|value|[0-9a-f]{7,40})\b", lowered):
+            errors.add("G24_REVISION_VALUE_OR_EQUALITY")
+        for line in report.splitlines():
+            if line.startswith("##"):
+                continue
+            line_citations = EVIDENCE_CITATION.findall(line)
+            numeric_text = EVIDENCE_CITATION.sub("", line)
+            numbers = re.findall(
+                r"(?<![A-Za-z_0-9])[-+]?\d[\d,]*(?:\.\d+)?",
+                numeric_text,
+            )
+            if numbers and not line_citations:
+                errors.add("G06_UNCITED_NUMBER")
+            cited_items = [known[citation] for citation in line_citations if citation in known]
+            if numbers and cited_items and any(
+                not _supported_number(number, cited_items) for number in numbers
+            ):
+                errors.add("G07_UNSUPPORTED_NUMBER")
+        for line in sections["## Recommended next investigation"].splitlines():
+            content = line.strip().lstrip("-* ")
+            if not content:
+                continue
+            if not EVIDENCE_CITATION.search(content):
+                errors.add("G11_UNCITED_RECOMMENDATION")
+            if re.search(r"\b(modify|edit|delete|overwrite|repair|fix|write)\b", content.lower()):
+                errors.add("G12_MUTATING_RECOMMENDATION")
+            if not re.search(
+                r"\b(inspect|compare|measure|profile|validate|review|run|re-run|capture|repeat)\b",
+                content.lower(),
+            ):
+                errors.add("G13_UNTESTABLE_RECOMMENDATION")
+        if re.search(r"(?i)(?:^|[\s(\"'])\b[A-Z]:[\\/]|sk-(?:proj-)?[A-Za-z0-9_-]{20,}", report):
+            errors.add("G25_SENSITIVE_OUTPUT")
+        return sorted(errors)
     return _validate_synthetic_grounded_report(report, packet)
 
 
@@ -1393,6 +1638,8 @@ def _argument_parser() -> argparse.ArgumentParser:
         "--workspace-root",
         help="explicit workspace root for repository-relative generic captures",
     )
+    parser.add_argument("--baseline-results")
+    parser.add_argument("--budget-file")
     parser.add_argument(
         "results_directory",
         help="Repository-relative directory containing benchmark result JSON files",
@@ -1426,8 +1673,10 @@ def _emit_deterministic_fallback(packet: dict[str, Any], rule_ids: list[str]) ->
 
 
 def main(argv: list[str] | None = None) -> int:
-    global ACTIVE_WORKSPACE_ROOT
+    global ACTIVE_WORKSPACE_ROOT, ACTIVE_BASELINE_RESULTS, ACTIVE_BUDGET_FILE
     args = _argument_parser().parse_args(argv)
+    ACTIVE_BASELINE_RESULTS = None
+    ACTIVE_BUDGET_FILE = None
 
     try:
         ACTIVE_WORKSPACE_ROOT = resolve_workspace_root(args.workspace_root)
@@ -1435,6 +1684,23 @@ def main(argv: list[str] | None = None) -> int:
             args.results_directory,
             ACTIVE_WORKSPACE_ROOT,
         )
+        relative_baseline = None
+        relative_budget = None
+        if args.baseline_results is not None or args.budget_file is not None:
+            if args.baseline_results is None or args.budget_file is None:
+                raise ValueError("Baseline results and budget file must be supplied together.")
+            _base, relative_baseline, _base_count = resolve_results_directory(
+                args.baseline_results, ACTIVE_WORKSPACE_ROOT
+            )
+            supplied_budget = Path(args.budget_file)
+            if supplied_budget.is_absolute() or supplied_budget.drive or supplied_budget.anchor:
+                raise ValueError("The budget file must be workspace-relative.")
+            resolved_budget = (ACTIVE_WORKSPACE_ROOT / supplied_budget).resolve(strict=True)
+            relative_budget = resolved_budget.relative_to(ACTIVE_WORKSPACE_ROOT).as_posix()
+            if not resolved_budget.is_file() or resolved_budget.suffix.lower() != ".json":
+                raise ValueError("The budget file must be a JSON file.")
+            ACTIVE_BASELINE_RESULTS = relative_baseline
+            ACTIVE_BUDGET_FILE = relative_budget
     except (ValueError, FileNotFoundError, NotADirectoryError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2
@@ -1447,6 +1713,11 @@ def main(argv: list[str] | None = None) -> int:
         "Investigate the stored Godot benchmark results in the repository-relative "
         f"directory {relative_directory!r}. Validate them before forming any verdict."
     )
+    if relative_baseline is not None:
+        prompt += (
+            f" Compare it with baseline directory {relative_baseline!r} under "
+            f"budget file {relative_budget!r}."
+        )
     hooks = EvidenceCaptureHooks()
     try:
         result = Runner.run_sync(build_investigator(), prompt, hooks=hooks)

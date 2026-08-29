@@ -34,6 +34,7 @@ ID_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9._-]{0,63}$")
 PROFILE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 TOP_LEVEL_FIELDS = {"schema_version", "budgets"}
 COMMON_RULE_FIELDS = {"id", "metric", "maximum", "unit", "description"}
+RELATIVE_RULE_FIELD = "maximum_increase_percent"
 REQUIRED_RULE_FIELDS = COMMON_RULE_FIELDS | {"scenario"}
 METRIC_SPECS = {
     "median_p95_workload_time": {
@@ -84,6 +85,7 @@ class BudgetRule:
     scenario: str
     metric: str
     maximum: int | float
+    maximum_increase_percent: int | float | None
     unit: str
     description: str
 
@@ -110,8 +112,8 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
             detail.append(f"unknown fields {unknown}")
         raise BudgetConfigurationError("top-level configuration has " + " and ".join(detail))
     schema_version = data["schema_version"]
-    if isinstance(schema_version, bool) or schema_version not in {1, 2}:
-        raise BudgetConfigurationError("schema_version must be the integer 1 or 2")
+    if isinstance(schema_version, bool) or schema_version not in {1, 2, 3}:
+        raise BudgetConfigurationError("schema_version must be the integer 1, 2, or 3")
     budgets = data["budgets"]
     if not isinstance(budgets, list) or not budgets:
         raise BudgetConfigurationError("budgets must be a nonempty array")
@@ -119,6 +121,8 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
     parsed: list[BudgetRule] = []
     identifiers: set[str] = set()
     required_rule_fields = COMMON_RULE_FIELDS | ({"scenario"} if schema_version == 1 else {"profile"})
+    if schema_version == 3:
+        required_rule_fields.add(RELATIVE_RULE_FIELD)
     for index, raw_rule in enumerate(budgets, 1):
         source = f"budget rule {index}"
         if not isinstance(raw_rule, dict):
@@ -142,7 +146,7 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
         scenario = raw_rule[target_key]
         if schema_version == 1 and scenario not in {"healthy", "node_leak", "cpu_spike"}:
             raise BudgetConfigurationError(f"{source} has an unsupported scenario")
-        if schema_version == 2 and (not isinstance(scenario, str) or not PROFILE_PATTERN.fullmatch(scenario)):
+        if schema_version in {2, 3} and (not isinstance(scenario, str) or not PROFILE_PATTERN.fullmatch(scenario)):
             raise BudgetConfigurationError(f"{source} has an unsafe or invalid profile")
         metric = raw_rule["metric"]
         metric_specs = METRIC_SPECS if schema_version == 1 else GENERIC_METRIC_SPECS
@@ -163,6 +167,18 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
             raise BudgetConfigurationError(f"{source} maximum must be a finite number")
         if maximum < 0:
             raise BudgetConfigurationError(f"{source} maximum must not be negative")
+        maximum_increase_percent = raw_rule.get(RELATIVE_RULE_FIELD)
+        if schema_version == 3:
+            if not _is_finite_number(maximum_increase_percent):
+                raise BudgetConfigurationError(
+                    f"{source} maximum_increase_percent must be a finite number"
+                )
+            if maximum_increase_percent < 0:
+                raise BudgetConfigurationError(
+                    f"{source} maximum_increase_percent must not be negative"
+                )
+        else:
+            maximum_increase_percent = None
 
         description = raw_rule["description"]
         if (
@@ -183,6 +199,7 @@ def parse_budget_configuration(data: Any) -> list[BudgetRule]:
                 scenario=scenario,
                 metric=metric,
                 maximum=maximum,
+                maximum_increase_percent=maximum_increase_percent,
                 unit=unit,
                 description=description,
             )
@@ -377,6 +394,151 @@ def evaluate_budgets(
     }
 
 
+def evaluate_comparison_budgets(
+    rules: list[BudgetRule],
+    baseline_packet: dict[str, Any],
+    candidate_packet: dict[str, Any],
+) -> dict[str, Any]:
+    """Compare two independently validated generic result packets under v3 rules."""
+
+    if not rules or any(rule.schema_version != 3 for rule in rules):
+        raise BudgetConfigurationError("baseline comparison requires budget schema version 3")
+    baseline_validation, baseline_evidence, baseline_limitations = _validated_packet_parts(
+        baseline_packet
+    )
+    candidate_validation, candidate_evidence, candidate_limitations = _validated_packet_parts(
+        candidate_packet
+    )
+    if baseline_packet.get("evidence_kind") != "generic" or candidate_packet.get("evidence_kind") != "generic":
+        raise BudgetEvidenceError("baseline comparison requires generic capture evidence")
+
+    results: list[dict[str, Any]] = []
+    for rule in sorted(rules, key=lambda candidate: candidate.budget_id):
+        specification = GENERIC_METRIC_SPECS[rule.metric]
+
+        def match(evidence: list[dict[str, Any]], side: str) -> dict[str, Any]:
+            matches = [
+                item for item in evidence
+                if item.get("metric") == rule.metric
+                and item.get("profile") == rule.scenario
+                and item.get("source_type") == specification["source_type"]
+                and item.get("unit") == rule.unit
+            ]
+            if len(matches) != 1:
+                raise BudgetEvidenceError(
+                    f"budget {rule.budget_id!r} has missing or ambiguous {side} evidence"
+                )
+            value = matches[0].get("value")
+            if not _is_finite_number(value) or value < 0:
+                raise BudgetEvidenceError(
+                    f"budget {rule.budget_id!r} {side} evidence value is invalid"
+                )
+            return matches[0]
+
+        baseline_item = match(baseline_evidence, "baseline")
+        candidate_item = match(candidate_evidence, "candidate")
+        baseline_value = baseline_item["value"]
+        candidate_value = candidate_item["value"]
+        delta = round(candidate_value - baseline_value, 12)
+        if baseline_value == 0:
+            increase_percent: float | int | None = 0 if candidate_value == 0 else None
+        else:
+            increase_percent = round((delta / baseline_value) * 100.0, 12)
+        absolute_passed = candidate_value <= rule.maximum
+        relative_passed = (
+            increase_percent is not None
+            and increase_percent <= rule.maximum_increase_percent
+        )
+        results.append({
+            "budget_id": rule.budget_id,
+            "description": rule.description,
+            "profile": rule.scenario,
+            "metric": rule.metric,
+            "unit": rule.unit,
+            "baseline_value": baseline_value,
+            "candidate_value": candidate_value,
+            "delta": delta,
+            "increase_percent": increase_percent,
+            "baseline_evidence_id": baseline_item["id"],
+            "candidate_evidence_id": candidate_item["id"],
+            "absolute": {
+                "maximum": rule.maximum,
+                "status": "passed" if absolute_passed else "failed",
+            },
+            "relative": {
+                "maximum_increase_percent": rule.maximum_increase_percent,
+                "status": "passed" if relative_passed else "failed",
+            },
+            "status": "passed" if absolute_passed and relative_passed else "failed",
+        })
+
+    passed_count = sum(item["status"] == "passed" for item in results)
+    limitations: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in baseline_limitations + candidate_limitations + [{
+        "id": "CL1",
+        "statement": (
+            "Sequential captures on one runner reduce host variation but do not prove "
+            "identical thermal, scheduling, or system-load conditions."
+        ),
+    }]:
+        key = (item["id"], item["statement"])
+        if key not in seen:
+            limitations.append(item)
+            seen.add(key)
+    return {
+        "status": "passed" if passed_count == len(results) else "failed",
+        "baseline_validator": {
+            "status": "passed",
+            "candidate_file_count": baseline_validation["candidate_file_count"],
+            "validated_file_count": baseline_validation["validated_file_count"],
+            "results_directory": baseline_packet["results_directory"],
+        },
+        "candidate_validator": {
+            "status": "passed",
+            "candidate_file_count": candidate_validation["candidate_file_count"],
+            "validated_file_count": candidate_validation["validated_file_count"],
+            "results_directory": candidate_packet["results_directory"],
+        },
+        "summary": {
+            "total": len(results),
+            "passed": passed_count,
+            "failed": len(results) - passed_count,
+        },
+        "results": results,
+        "limitations": limitations,
+    }
+
+
+def comparison_budget_report(
+    rules: list[BudgetRule],
+    candidate_packet: dict[str, Any],
+    baseline_packet: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Return schema-v2 policy output for v3 absolute or paired evaluation."""
+
+    absolute = evaluate_budgets(rules, candidate_packet)
+    comparison = (
+        {"status": "not_requested", "summary": {}, "results": [], "limitations": []}
+        if baseline_packet is None
+        else evaluate_comparison_budgets(rules, baseline_packet, candidate_packet)
+    )
+    failed = absolute["status"] == "failed" or comparison["status"] == "failed"
+    return {
+        "schema_version": 2,
+        "budget_schema_version": 3,
+        "status": "failed" if failed else "passed",
+        "validator": absolute["validator"],
+        "absolute": {
+            "status": absolute["status"],
+            "summary": absolute["summary"],
+            "results": absolute["results"],
+            "limitations": absolute["limitations"],
+        },
+        "comparison": comparison,
+    }
+
+
 def canonical_json(report: dict[str, Any]) -> str:
     return json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
 
@@ -404,6 +566,40 @@ def human_report(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def human_comparison_report(report: dict[str, Any]) -> str:
+    absolute = report["absolute"]
+    comparison = report["comparison"]
+    lines = [
+        f"Validation: passed ({report['validator']['validated_file_count']} candidate files)",
+        f"Absolute budgets: {absolute['status'].upper()}",
+        f"Comparison: {comparison['status'].upper()}",
+    ]
+    for result in absolute["results"]:
+        lines.append(
+            f"{'PASS' if result['status'] == 'passed' else 'FAIL'} absolute: "
+            f"{result['budget_id']} - {result['explanation']} "
+            f"Evidence [{result['evidence_id']}]"
+        )
+    for result in comparison["results"]:
+        percent = (
+            "undefined from zero baseline"
+            if result["increase_percent"] is None
+            else f"{_display_number(result['increase_percent'])}%"
+        )
+        lines.append(
+            f"{'PASS' if result['status'] == 'passed' else 'FAIL'} comparison: "
+            f"{result['budget_id']} - baseline {_display_number(result['baseline_value'])} "
+            f"{result['unit']}, candidate {_display_number(result['candidate_value'])} "
+            f"{result['unit']}, increase {percent}; evidence "
+            f"[{result['baseline_evidence_id']}] and [{result['candidate_evidence_id']}]."
+        )
+    limitations = comparison["limitations"] or absolute["limitations"]
+    lines.append("Validator limitations:")
+    for limitation in limitations:
+        lines.append(f"- {limitation['id']}: {limitation['statement']}")
+    return "\n".join(lines) + "\n"
+
+
 def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -416,6 +612,10 @@ def _argument_parser() -> argparse.ArgumentParser:
         "--workspace-root",
         help="explicit workspace root for repository-relative generic captures",
     )
+    parser.add_argument(
+        "--baseline-results",
+        help="optional repository-relative baseline results directory; requires schema v3",
+    )
     parser.add_argument("results_directory", help="benchmark result directory")
     parser.add_argument("budget_file", help="versioned JSON budget configuration")
     return parser
@@ -426,6 +626,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.workspace_root is None:
             rules = load_budget_configuration(Path(args.budget_file))
+            if args.baseline_results is not None and rules[0].schema_version != 3:
+                raise BudgetConfigurationError(
+                    "--baseline-results requires budget schema version 3"
+                )
+            baseline_packet = (
+                run_validator_packet(args.baseline_results)
+                if args.baseline_results is not None
+                else None
+            )
             packet = run_validator_packet(args.results_directory)
         else:
             workspace_root = resolve_workspace_root(args.workspace_root, REPOSITORY_ROOT)
@@ -443,16 +652,39 @@ def main(argv: list[str] | None = None) -> int:
                 require_json=True,
             )
             rules = load_budget_configuration(budget_path)
+            if args.baseline_results is not None and rules[0].schema_version != 3:
+                raise BudgetConfigurationError(
+                    "--baseline-results requires budget schema version 3"
+                )
+            baseline_packet = None
+            if args.baseline_results is not None:
+                _baseline_path, relative_baseline = resolve_workspace_member(
+                    workspace_root,
+                    args.baseline_results,
+                    label="baseline results directory",
+                    expected="directory",
+                )
+                baseline_packet = run_validator_packet(
+                    relative_baseline,
+                    workspace_root=workspace_root,
+                )
             packet = run_validator_packet(
                 relative_results,
                 workspace_root=workspace_root,
             )
-        report = evaluate_budgets(rules, packet)
+        report = (
+            comparison_budget_report(rules, packet, baseline_packet)
+            if rules[0].schema_version == 3
+            else evaluate_budgets(rules, packet)
+        )
     except (WorkspacePathError, BudgetConfigurationError, BudgetEvidenceError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2
 
-    output = canonical_json(report) if args.json_output else human_report(report)
+    if report.get("schema_version") == 2:
+        output = canonical_json(report) if args.json_output else human_comparison_report(report)
+    else:
+        output = canonical_json(report) if args.json_output else human_report(report)
     print(output, end="")
     return 0 if report["status"] == "passed" else 1
 

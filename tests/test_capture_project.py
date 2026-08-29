@@ -153,7 +153,7 @@ class ReusableWorkflowTests(unittest.TestCase):
         for name in (
             "project-path", "profile", "budget-file", "scene-path", "godot-version",
             "use-dotnet", "warmup-frames", "measured-frames", "sampling-interval",
-            "capture-runs", "investigate", "openai-model", "openai-api-key",
+            "capture-runs", "compare-with-base", "investigate", "openai-model", "openai-api-key",
         ):
             self.assertIn(name, workflow)
         self.assertIn("windows-latest", workflow)
@@ -172,7 +172,8 @@ class ReusableWorkflowTests(unittest.TestCase):
         self.assertIn("if: always()", upload_step)
         self.assertIn("include-hidden-files: true", upload_step)
         self.assertIn("${{ inputs['project-path'] }}/.performance-guardian", upload_step)
-        self.assertIn("${{ runner.temp }}/capture-manifest.json", upload_step)
+        self.assertIn("${{ runner.temp }}/baseline-capture-manifest.json", upload_step)
+        self.assertIn("${{ runner.temp }}/candidate-capture-manifest.json", upload_step)
         self.assertIn("${{ runner.temp }}/guardian-report.json", upload_step)
         self.assertIn("retention-days: 14", upload_step)
         self.assertNotIn(".performance-guardian-tooling", upload_step)
@@ -185,6 +186,19 @@ class ReusableWorkflowTests(unittest.TestCase):
         )
         self.assertNotRegex(workflow, r"(?m)^\s+description: [^\"'].*: .*$")
         self.assertNotRegex(workflow, r"sk-[A-Za-z0-9_-]{12,}")
+
+    def test_comparison_is_opt_in_pr_only_and_base_controlled(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertRegex(workflow, r"compare-with-base:\s+description:[\s\S]+?default: false")
+        self.assertIn("github.event.pull_request.base.sha", workflow)
+        self.assertIn("github.event.pull_request.head.sha", workflow)
+        self.assertIn("compare-with-base requires a pull_request event", workflow)
+        self.assertIn("Check out protected base revision", workflow)
+        self.assertIn(".performance-guardian-base-source/$env:BUDGET_FILE", workflow)
+        self.assertIn('"--baseline-results", "$baseline"', workflow)
+        self.assertIn("$env:RUN_PREFIX-base", workflow)
+        self.assertIn("$env:RUN_PREFIX-candidate", workflow)
+        self.assertNotIn("secrets: inherit", workflow)
 
     def test_external_workspace_rejects_synthetic_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
