@@ -420,3 +420,45 @@ Keep `gpt-4.1-mini` as the default and retain the typed contribution plus determ
 ## Removed-experiment status
 
 No experiment has been removed or reverted. Documentation-only changes remain in `AGENT_TRAJECTORY.md` rather than being presented as product experiments.
+
+## 2026-08-29 — Experiment 10: CI performance gate with optional AI investigation
+
+**Status:** Retained; deterministic local gate verified, GitHub-hosted execution unverified
+
+### Hypothesis and reason
+
+A single standard-library command can make validation and configurable budgets safe for CI while keeping optional AI interpretation strictly downstream of the authoritative decision. This was tried because the validator, budget checker, and investigator already worked independently, but callers had to compose their ordering, exit handling, and credential behavior themselves.
+
+### Change
+
+`tools/run_guardian.py` now validates repository-contained inputs, loads budget configuration first, invokes the existing structured validator once through the budget checker, and applies the existing budget evaluator without recalculating metrics. It preserves deterministic exits: `0` for passing policy, `1` for validated budget failures, and `2` for configuration, evidence, validation, or operational errors.
+
+Optional modes are `never`, `on-failure`, and `always`. The investigator runs in one fixed subprocess only when the policy requires it and an environment key is present. Accepted typed reports and deterministic fallback are recognized by their established disclosures; malformed output is suppressed. Missing credentials, API failures, and investigation outcomes cannot change the authoritative deterministic exit.
+
+A Windows GitHub Actions workflow now runs the complete suite and tracked fixture/policy gate on pull requests to `main`; pull requests never invoke AI. Manual dispatch exposes the three modes, scopes the API secret to the manual step, preserves the Python exit, and uploads canonical JSON even when the gate fails.
+
+### Evaluation method
+
+Twenty-six focused tests cover configuration-before-subprocess ordering, exits `0`/`1`/`2`, path and simulated symlink containment, every investigation mode, one-process limits, missing-key and API-error safety, accepted/fallback classification, rejected-output suppression, canonical JSON, import safety, and workflow structure. The complete repository suite, byte compilation, tracked generic validator and v2 policy, repeated canonical output, and optional 49-file synthetic integration were then rerun without Godot.
+
+After all local checks passed, exactly one process-scoped `gpt-4.1-mini` invocation ran through the unified command in `always` mode against the same tracked generic fixture.
+
+### Observed result
+
+```text
+Ran 120 tests in 0.629s
+
+OK
+```
+
+The tracked fixture validated with exit `0`. Its budgets passed process p95 `0.5 ms <= 1.1 ms` and peak nodes `3 <= 3`; the unified runner returned authoritative exit `0`. Validator, budget, and unified canonical JSON were each identical across two invocations.
+
+All 49 optional historical synthetic files validated. The Experiment 5 demonstration policy returned its expected `1`, with only `cpu-spike-workload-p95` and `node-leak-retained-nodes` failing.
+
+The one live unified Mini request returned a directly accepted locally rendered report with three evidence-linked recommendations and no fallback. The optional investigation outcome was `accepted`; deterministic validation and both budgets still supplied the authoritative exit `0`. This one response does not establish long-run model reliability.
+
+### Decision and next step
+
+Retain the unified command and workflow. The implementation preserves the governing boundary: **The deterministic tools decide; the agent explains.**
+
+The next step is to exercise the workflow through a pull request and a manual dispatch, inspect the uploaded artifacts, and then broaden the tracked profile/policy fixture set before treating hosted CI behavior as verified.

@@ -1,0 +1,76 @@
+name: Performance Guardian
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      investigate:
+        description: Optional AI investigation policy
+        required: true
+        default: never
+        type: choice
+        options:
+          - never
+          - on-failure
+          - always
+
+permissions:
+  contents: read
+
+jobs:
+  performance-guardian:
+    runs-on: windows-latest
+    env:
+      GUARDIAN_REPORT: ${{ runner.temp }}\performance-guardian.json
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-agent.txt
+
+      - name: Install pinned agent requirements
+        run: python -m pip install -r requirements-agent.txt
+
+      - name: Check dependency consistency
+        run: python -m pip check
+
+      - name: Run complete test suite
+        run: python -m unittest discover -s tests -v
+
+      - name: Run deterministic pull-request gate
+        if: github.event_name == 'pull_request'
+        shell: cmd
+        run: |
+          python tools\run_guardian.py --json --investigate never tests\fixtures\generic_results examples\minimal_project\budgets\performance_budgets.json > "%GUARDIAN_REPORT%"
+          set "GUARDIAN_EXIT=%ERRORLEVEL%"
+          type "%GUARDIAN_REPORT%"
+          exit /b %GUARDIAN_EXIT%
+
+      - name: Run manual gate
+        if: github.event_name == 'workflow_dispatch'
+        shell: cmd
+        env:
+          INVESTIGATION_MODE: ${{ inputs.investigate }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4.1-mini' }}
+        run: |
+          python tools\run_guardian.py --json --investigate %INVESTIGATION_MODE% tests\fixtures\generic_results examples\minimal_project\budgets\performance_budgets.json > "%GUARDIAN_REPORT%"
+          set "GUARDIAN_EXIT=%ERRORLEVEL%"
+          type "%GUARDIAN_REPORT%"
+          exit /b %GUARDIAN_EXIT%
+
+      - name: Upload deterministic guardian report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: performance-guardian-report
+          path: ${{ env.GUARDIAN_REPORT }}
+          if-no-files-found: error
+          retention-days: 14

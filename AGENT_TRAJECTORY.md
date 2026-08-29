@@ -1382,3 +1382,77 @@ The first official skill-validator attempt failed because the project environmen
 README retained all 17 numbered sections, all 29 relative links resolved, and README plus both evidence documents ended with final newlines. Tests still contain zero references to ignored `demo_project/results` data. Filename-only scans found zero key-shaped matches in working-tree, tracked, staged, or reachable-history content. `git diff --check` returned `0` with only informational LF-to-CRLF warnings.
 
 The final working tree contains five focused Experiment 9 files: the investigator, its tests, README, improvement changelog, and this trajectory. The branch remains `main` with the documented public `origin`; no commit or push was performed.
+
+## 2026-08-29 — Experiment 10 CI performance gate
+
+### Request and approved plan
+
+The user requested:
+
+> PLEASE IMPLEMENT THIS PLAN:
+> # Experiment 10: CI Performance Gate with Optional AI Investigation
+
+The approved summary required one standard-library runner that loads and validates budget configuration, invokes the existing validator once, applies the existing budget evaluator without recalculating metrics, preserves exits `0`/`1`/`2`, and optionally invokes the existing investigator afterward. The explicit governing rule was:
+
+> **The deterministic tools decide; the agent explains.**
+
+The plan also required a Windows GitHub Actions workflow, fixed tracked fixture/policy inputs, canonical human/JSON output, no OpenAI import in `never` mode, no investigation after deterministic failure, and exactly one live `gpt-4.1-mini` unified request only when a key entry was present after local verification. Godot, dependencies, fixtures, budgets, validator calculations, investigator grounding, commits, and pushes were out of scope.
+
+The repository-local `godot-performance-guardian-docs` and `agent-trajectory` skills were read and invoked for the documentation phase. The documentation requirements reference was read completely before edits.
+
+### Inspection
+
+Inspection established the tracked integration pair as `tests/fixtures/generic_results/main_scene.json` and `examples/minimal_project/budgets/performance_budgets.json`. The pre-change suite passed 94 tests. The tracked capture validated with exit `0`; its process p95 budget passed `0.5 ms <= 1.1 ms`, and its peak-node budget passed `3 <= 3`. No `.github/workflows/` directory existed.
+
+`tools/check_budgets.py` already exposed `load_budget_configuration()`, `run_validator_packet()`, and `evaluate_budgets()`. The investigator's accepted-report and fallback disclosures, typed contribution boundary, safe errors, and five report headings were verified at their source. `requirements-agent.txt` remained pinned to `openai-agents==0.22.0` and `openai==3.6.0`. The configured public `origin` fetch and push URL remained `https://github.com/TaofeekS/godot_performance_guardian.git`.
+
+### Implementation
+
+`tools/run_guardian.py` was added with repository-relative containment for the result directory and budget file, including traversal and resolved symlink escape rejection. It loads policy before subprocess execution, delegates validation and evaluation to the existing checker, and renders either four-section human output or sorted compact JSON with one final newline.
+
+The optional investigator is a fixed repository-resolved subprocess with a 120-second timeout, captured streams, no shell, and no application retry. Mode `never` neither checks the key nor launches the process. Mode `on-failure` runs once only for exit `1`; `always` runs once after exit `0` or `1`. Missing credentials, launch errors, timeouts, API/model failures, malformed reports, accepted reports, and deterministic fallback leave the deterministic exit unchanged. Only established accepted/fallback disclosures can populate the report; unrecognized or sensitive output is suppressed.
+
+`.github/workflows/performance-guardian.yml` was added for pull requests targeting `main` and manual dispatch. It uses Windows, Python 3.14, read-only contents permission, the planned v7 GitHub actions, pinned requirements, `pip check`, the complete tests, and the tracked fixture/policy. Pull requests force `never`. Only the manual step receives `OPENAI_API_KEY` and the optional `OPENAI_MODEL` variable. The canonical report is written beneath the runner temporary directory, the Python status is preserved, and artifact upload uses `if: always()`.
+
+`tests/test_run_guardian.py` added focused mocks and a real tracked-fixture boundary test. It covers ordering, all deterministic exits, containment, all investigation modes, one optional process, key absence, safe API/timeout/OS handling, accepted/fallback classification, rejected-output suppression, output stability, import safety, and workflow contracts without a live API call.
+
+### Test failure and response
+
+The first 25 focused runner tests passed. A subsequent added simulated-symlink test failed once with `NameError: name 'mock' is not defined` because the file imported `patch` directly rather than the `mock` module. The test was corrected to use the imported `patch.object`; the focused test then passed. No production behavior was changed in response.
+
+### Deterministic verification
+
+The substantive commands included:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m compileall -q agent tools tests
+.\.venv\Scripts\python.exe .\tools\validate_results.py .\tests\fixtures\generic_results
+.\.venv\Scripts\python.exe .\tools\check_budgets.py .\tests\fixtures\generic_results .\examples\minimal_project\budgets\performance_budgets.json
+.\.venv\Scripts\python.exe .\tools\run_guardian.py --investigate never .\tests\fixtures\generic_results .\examples\minimal_project\budgets\performance_budgets.json
+```
+
+`pip check` reported no broken requirements. The final pre-live suite passed all 120 tests in 0.629 seconds, byte compilation succeeded, and `git diff --check` returned `0`. The tracked validator, budget checker, and unified runner each returned `0`. Repeated structured validator, budget JSON, and unified JSON invocations produced identical output.
+
+The separate optional local integration used all 49 ignored historical result files. Validation returned `0`; the Experiment 5 demonstration policy returned its expected `1`, with only CPU-spike workload and node-leak retention failing. No automated test referenced those ignored files.
+
+### One live unified run
+
+The environment check reported only `OPENAI_API_KEY_PRESENT=True`; the value was never read, printed, or stored. Exactly one process-scoped `gpt-4.1-mini` request then ran through:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\run_guardian.py --investigate always .\tests\fixtures\generic_results .\examples\minimal_project\budgets\performance_budgets.json
+```
+
+It returned authoritative exit `0` with one validated file and both budgets passing. The investigator outcome was directly `accepted`, not fallback. Local rendering included three accepted evidence-linked recommendations (`inspect`, `profile`, and `validate`), every required generic limitation, and the exact root-cause uncertainty statement. The result is one nondeterministic live observation and does not establish long-run model reliability.
+
+### Documentation and remaining verification
+
+README was synchronized with the unified command, modes, output schema, exits, authority boundary, workflow, secret/model configuration, artifact behavior, troubleshooting, and actual local/live evidence. `IMPROVEMENT_CHANGELOG.md` records Experiment 10 as a product experiment, while this section records execution history. A GitHub-hosted workflow run remains unverified; no GitHub Actions job was triggered during implementation.
+
+No Godot process or synthetic benchmark ran. No dependency, validator calculation, budget policy, fixture, stored result, addon, investigator behavior, or Git remote changed. No API call beyond the single authorized unified Mini run occurred. No commit or push was performed. Final skill, link, heading, newline, secret-pattern, ignored-result-reference, whitespace, and Git-state audits follow this entry.
+
+The first skill-validator invocation failed with `ModuleNotFoundError: No module named 'yaml'`, as PyYAML is intentionally not a project dependency. A follow-up temporary-install command used `New-Item -LiteralPath`, which this PowerShell rejected; `pip --target` nevertheless created the uniquely named temporary directory, installed cached PyYAML `6.0.3`, and the official validator printed `Skill is valid!`. Cleanup verified the resolved directory was an immediate system-temporary child with the expected prefix, removed it, and confirmed `TEMP_REMOVED=True`. No project manifest or persistent environment changed.
+
+The final post-documentation suite passed all 120 tests in 0.592 seconds; `pip check`, byte compilation, and `git diff --check` also passed. README retained all 17 numbered sections, all 33 relative-link occurrences resolved, and README plus both evidence documents ended with final newlines. Tests contained zero references to the ignored `demo_project/results` path. Filename-only credential-pattern scans found zero matching working-tree, tracked, staged, or reachable-history files/commits. Final status contained the three documentation files plus the new workflow, unified runner, and runner tests. The branch remained `main` at `f177009`; no commit or push occurred.
