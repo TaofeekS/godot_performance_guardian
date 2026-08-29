@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 from pathlib import Path
@@ -30,10 +31,18 @@ repository-relative results directory supplied by the user.
 Treat the tool result as the only verified benchmark evidence available to you.
 A successful validator exit means only that the supplied result set passed the
 validator's configured assertions. It does not prove that the project has no
-performance problems. Never claim that a suspected cause is proven without
-both source-code and benchmark evidence. Keep possible causes explicitly
-hypothetical, do not invent measurements, and do not claim to have inspected
-files that the tool did not expose.
+performance problems. Cite every numerical claim and every verified factual
+claim with one or more evidence IDs in the form [E1]. Cover healthy, node_leak,
+and cpu_spike. You may connect scenario behavior to an observed result only
+when citing both validated-result evidence and allowlisted-source evidence.
+
+Do not introduce thermal throttling, scheduling delays, locking, contention,
+resource contention, system load, or another cause absent from the evidence.
+Other ideas must be explicitly labeled as hypotheses, not findings. Include
+this exact sentence: The available evidence does not establish the root cause.
+Recommendations must be read-only, testable, and linked to evidence IDs.
+Do not invent measurements or claim to have inspected files that the tool did
+not expose.
 
 Return a concise Markdown report using exactly these section headings:
 
@@ -47,6 +56,23 @@ If validation fails or the tool returns an error, explain that limitation and
 recommend resolving it before interpreting performance. Never propose edits as
 though they were already made. You cannot modify, delete, or overwrite files.
 """
+
+REPORT_HEADINGS = (
+    "## Validation status",
+    "## Verified facts",
+    "## Possible explanations",
+    "## Recommended next investigation",
+    "## Remaining uncertainty",
+)
+REQUIRED_UNCERTAINTY = "The available evidence does not establish the root cause."
+BANNED_SPECULATION = (
+    "thermal throttling",
+    "scheduling delay",
+    "locking",
+    "contention",
+    "resource contention",
+    "system load",
+)
 
 
 def resolve_results_directory(results_directory: str) -> tuple[Path, str, int]:
@@ -148,7 +174,7 @@ def format_rate_limit_error(error: RateLimitError) -> str:
     return prefix + guidance + "."
 
 
-def _evidence(
+def _evidence_packet(
     *,
     validation_status: str,
     validator_invoked: bool,
@@ -161,15 +187,26 @@ def _evidence(
     error_type: str | None = None,
 ) -> dict[str, Any]:
     return {
-        "validation_status": validation_status,
-        "validator_invoked": validator_invoked,
+        "packet_type": "godot_performance_evidence",
+        "schema_version": 1,
+        "validation": {
+            "status": validation_status,
+            "validator_invoked": validator_invoked,
+            "candidate_file_count": json_file_count or 0,
+            "validated_file_count": 0,
+            "exit_code": exit_code,
+            "errors": [stderr] if stderr else [],
+            "timed_out": timed_out,
+            "error_type": error_type,
+        },
         "results_directory": results_directory,
-        "json_file_count": json_file_count,
-        "exit_code": exit_code,
-        "stdout": stdout,
-        "stderr": stderr,
-        "timed_out": timed_out,
-        "error_type": error_type,
+        "evidence": [],
+        "limitations": [
+            {
+                "id": "L1",
+                "statement": "No benchmark claim is verified because deterministic validation did not complete successfully.",
+            }
+        ],
     }
 
 
@@ -186,7 +223,7 @@ def run_validator(
             results_directory
         )
     except (ValueError, FileNotFoundError, NotADirectoryError) as error:
-        return _evidence(
+        return _evidence_packet(
             validation_status="error",
             validator_invoked=False,
             results_directory=None,
@@ -196,7 +233,12 @@ def run_validator(
             error_type="invalid_results_directory",
         )
 
-    command = [sys.executable, str(VALIDATOR_PATH), relative_directory]
+    command = [
+        sys.executable,
+        str(VALIDATOR_PATH),
+        "--evidence-json",
+        relative_directory,
+    ]
     try:
         completed = subprocess_runner(
             command,
@@ -207,7 +249,7 @@ def run_validator(
             check=False,
         )
     except subprocess.TimeoutExpired as error:
-        return _evidence(
+        return _evidence_packet(
             validation_status="error",
             validator_invoked=True,
             results_directory=relative_directory,
@@ -219,7 +261,7 @@ def run_validator(
             error_type="timeout",
         )
     except OSError:
-        return _evidence(
+        return _evidence_packet(
             validation_status="error",
             validator_invoked=True,
             results_directory=relative_directory,
@@ -229,15 +271,41 @@ def run_validator(
             error_type="os_error",
         )
 
-    return _evidence(
-        validation_status="passed" if completed.returncode == 0 else "failed",
-        validator_invoked=True,
-        results_directory=relative_directory,
-        json_file_count=json_file_count,
-        exit_code=completed.returncode,
-        stdout=_sanitized_text(completed.stdout),
-        stderr=_sanitized_text(completed.stderr),
-    )
+    try:
+        packet = json.loads(completed.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return _evidence_packet(
+            validation_status="error",
+            validator_invoked=True,
+            results_directory=relative_directory,
+            json_file_count=json_file_count,
+            exit_code=completed.returncode,
+            stderr="The validator did not return a valid evidence packet.",
+            error_type="invalid_evidence_packet",
+        )
+
+    if not isinstance(packet, dict) or packet.get("packet_type") != "godot_performance_evidence":
+        return _evidence_packet(
+            validation_status="error",
+            validator_invoked=True,
+            results_directory=relative_directory,
+            json_file_count=json_file_count,
+            exit_code=completed.returncode,
+            stderr="The validator returned an unsupported evidence packet.",
+            error_type="invalid_evidence_packet",
+        )
+    packet_validation = packet.get("validation")
+    if not isinstance(packet_validation, dict) or packet_validation.get("exit_code") != completed.returncode:
+        return _evidence_packet(
+            validation_status="error",
+            validator_invoked=True,
+            results_directory=relative_directory,
+            json_file_count=json_file_count,
+            exit_code=completed.returncode,
+            stderr="The validator evidence packet disagreed with the process exit status.",
+            error_type="invalid_evidence_packet",
+        )
+    return packet
 
 
 @function_tool(
@@ -269,6 +337,153 @@ def build_investigator(model: str | None = None) -> Agent[None]:
         tool_use_behavior="run_llm_again",
         reset_tool_choice=True,
     )
+
+
+def extract_evidence_packet(run_result: Any) -> dict[str, Any] | None:
+    """Extract the packet actually returned by the sole tool call."""
+
+    packets: list[dict[str, Any]] = []
+    for item in getattr(run_result, "new_items", []):
+        output = getattr(item, "output", None)
+        if isinstance(output, str):
+            try:
+                output = json.loads(output)
+            except json.JSONDecodeError:
+                continue
+        if isinstance(output, dict) and output.get("packet_type") == "godot_performance_evidence":
+            packets.append(output)
+    return packets[0] if len(packets) == 1 else None
+
+
+def _report_sections(report: str) -> dict[str, str] | None:
+    positions = [report.find(heading) for heading in REPORT_HEADINGS]
+    if any(position < 0 for position in positions) or positions != sorted(positions):
+        return None
+    if len(re.findall(r"^## .+$", report, flags=re.MULTILINE)) != len(REPORT_HEADINGS):
+        return None
+    sections: dict[str, str] = {}
+    for index, heading in enumerate(REPORT_HEADINGS):
+        start = positions[index] + len(heading)
+        end = positions[index + 1] if index + 1 < len(positions) else len(report)
+        sections[heading] = report[start:end].strip()
+    return sections
+
+
+def _supported_number(token: str, cited_items: list[dict[str, Any]]) -> bool:
+    normalized = token.replace(",", "")
+    try:
+        observed = float(normalized)
+    except ValueError:
+        return False
+
+    candidates: list[float] = []
+    for item in cited_items:
+        values = [item.get("value"), item.get("run_count")]
+        value = item.get("value")
+        if isinstance(value, dict):
+            for key, count in value.items():
+                values.extend(re.findall(r"\d+(?:\.\d+)?", str(key)))
+                values.append(count)
+        for value in values:
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                candidates.append(float(value))
+            elif isinstance(value, str):
+                try:
+                    candidates.append(float(value))
+                except ValueError:
+                    pass
+    return any(
+        math.isclose(observed, candidate, rel_tol=0.0, abs_tol=max(1e-9, 0.05 * 10 ** -max(len(normalized.partition(".")[2]), 0)))
+        or observed in {round(candidate, digits) for digits in range(0, 7)}
+        for candidate in candidates
+    )
+
+
+def validate_grounded_report(report: str, packet: dict[str, Any]) -> list[str]:
+    """Return stable rule identifiers for any grounding-contract violations."""
+
+    errors: set[str] = set()
+    sections = _report_sections(report)
+    if sections is None:
+        return ["G01_REPORT_SECTIONS"]
+
+    evidence = packet.get("evidence") if isinstance(packet, dict) else None
+    evidence_items = evidence if isinstance(evidence, list) else []
+    by_id = {
+        item.get("id"): item
+        for item in evidence_items
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    citations = re.findall(r"\[(E\d+)\]", report)
+    if any(citation not in by_id for citation in citations):
+        errors.add("G02_UNKNOWN_EVIDENCE")
+
+    validation = packet.get("validation", {}) if isinstance(packet, dict) else {}
+    passed = isinstance(validation, dict) and validation.get("status") == "passed"
+    lowered = report.lower()
+    if passed:
+        required = {
+            "E1", "E2", "E3", "E4", "E6", "E7", "E10", "E11", "E13",
+            "E14", "E15", "E16", "E19", "E20", "E21", "E22",
+        }
+        if not required.issubset(set(citations)):
+            errors.add("G03_REQUIRED_EVIDENCE_MISSING")
+        for scenario in ("healthy", "node_leak", "cpu_spike"):
+            if scenario not in lowered:
+                errors.add("G04_SCENARIO_COVERAGE")
+    elif re.search(r"\b(validation|validator)\b.{0,30}\b(pass|passed|success|successful)\b", lowered):
+        errors.add("G05_FALSE_VALIDATION_SUCCESS")
+
+    for line in report.splitlines():
+        if line.startswith("##"):
+            continue
+        line_citations = re.findall(r"\[(E\d+)\]", line)
+        numeric_text = re.sub(r"\[E\d+\]", "", line)
+        numeric_text = re.sub(r"(?<=\d)[x×](?=\d)", " ", numeric_text)
+        numbers = re.findall(r"(?<![A-Za-z_0-9])\d[\d,]*(?:\.\d+)?", numeric_text)
+        if numbers and not line_citations:
+            errors.add("G06_UNCITED_NUMBER")
+        cited_items = [by_id[citation] for citation in line_citations if citation in by_id]
+        if numbers and cited_items and any(not _supported_number(number, cited_items) for number in numbers):
+            errors.add("G07_UNSUPPORTED_NUMBER")
+
+    if passed:
+        for heading in ("## Validation status", "## Verified facts"):
+            for line in sections[heading].splitlines():
+                content = line.strip().lstrip("-* ")
+                if content and not re.search(r"\[E\d+\]", content):
+                    errors.add("G14_UNCITED_VERIFIED_FACT")
+
+    if REQUIRED_UNCERTAINTY not in sections["## Remaining uncertainty"]:
+        errors.add("G08_REQUIRED_UNCERTAINTY")
+    supported_claims = " ".join(str(item.get("claim", "")) for item in evidence_items).lower()
+    for phrase in BANNED_SPECULATION:
+        if phrase in lowered and phrase not in supported_claims:
+            errors.add("G09_UNSUPPORTED_CAUSE")
+
+    if passed:
+        explanations = sections["## Possible explanations"]
+        for line in explanations.splitlines():
+            content = line.strip().lstrip("-* ")
+            if not content or content == REQUIRED_UNCERTAINTY:
+                continue
+            cited = set(re.findall(r"\[(E\d+)\]", content))
+            if "hypothesis" not in content.lower() and not cited.intersection({"E20", "E21", "E22"}):
+                errors.add("G10_UNGROUNDED_EXPLANATION")
+
+    recommendations = sections["## Recommended next investigation"]
+    for line in recommendations.splitlines():
+        content = line.strip().lstrip("-* ")
+        if not content:
+            continue
+        if passed and not re.search(r"\[E\d+\]", content):
+            errors.add("G11_UNCITED_RECOMMENDATION")
+        if re.search(r"\b(modify|edit|delete|overwrite|repair|fix|write)\b", content.lower()):
+            errors.add("G12_MUTATING_RECOMMENDATION")
+        if not re.search(r"\b(inspect|compare|measure|profile|validate|review|run|re-run|separate|capture|resolve)\b", content.lower()):
+            errors.add("G13_UNTESTABLE_RECOMMENDATION")
+
+    return sorted(errors)
 
 
 def _argument_parser() -> argparse.ArgumentParser:
@@ -310,7 +525,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: investigator run failed ({type(error).__name__}).", file=sys.stderr)
         return 1
 
-    print(result.final_output)
+    packet = extract_evidence_packet(result)
+    if packet is None:
+        print("ERROR: investigator grounding failed (G00_EVIDENCE_PACKET).", file=sys.stderr)
+        return 1
+    report = str(result.final_output)
+    grounding_errors = validate_grounded_report(report, packet)
+    if grounding_errors:
+        print(
+            f"ERROR: investigator grounding failed ({','.join(grounding_errors)}).",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(report)
     return 0
 
 

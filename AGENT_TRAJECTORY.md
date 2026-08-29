@@ -733,3 +733,100 @@ The documentation audit found README sections 1 through 17 in order, resolved al
 The final key-pattern scan found no match in repository-owned working-tree files, tracked `HEAD`, the staged index, or any reachable commit. `git diff --check` reported no whitespace error beyond Git's existing Windows line-ending warnings. All user changes remained uncommitted for review.
 
 No test failed. No application-level retry, automatic model fallback, live API request, Godot run, commit, or push occurred. A successful investigator response still depends on a newly issued key whose API project has available quota and access to the selected model.
+
+## 2026-08-29 — Experiment 3: Deterministic investigator evidence grounding
+
+### Original request and approval
+
+The documentation attachment opened with this request verbatim:
+
+> # Goal
+>
+> Implement Experiment 3: deterministic evidence grounding for the Godot Performance Investigator.
+>
+> The first live investigator report is the “before” result for this experiment. It completed successfully and reported accurate measurements, but it introduced unsupported explanations and omitted relevant node-leak evidence.
+>
+> The improved investigator must constrain its important claims to deterministic evidence returned by its tool.
+
+The supplied request then specified the complete evidence-packet fields, grounding rules, safety boundary, fourteen test requirements, evaluation target, documentation routing, and completion criteria. Its recorded “before” evidence was 21 validated files, healthy/CPU-spike median p95 workload values of 148 µs and 8,549 µs, a 57.76× ratio, process p95 values of approximately 0.408 ms and 12.589 ms, and durations of approximately 4,976 ms and 6,406 ms. The reported deficiencies were omitted node-leak evidence, no connection to the intentional CPU workload, unsupported thermal/scheduling/locking/contention explanations, and a stated 25% duration increase where the values calculate to approximately 28.7%.
+
+Before approval, the agent inspected Git state, the investigator, validator, benchmark controller, all scenario result shapes, tests, README, improvement changelog, trajectory, installed SDK behavior, and the 21-file aggregates. It proposed extending the validator because that was the smallest way to reuse its already-loaded and validated dataset without copying validation calculations into the agent.
+
+The user then required this exact sentence in the plan summary:
+
+> The original agent produced an apparently useful but partly speculative report. Experiment 3 adds deterministic evidence citations and automatically blocks ungrounded reports.
+
+The revised plan was approved verbatim through the implementation request. It preserved the sole function-tool boundary, normal validator CLI, existing assertions, no-retry policy, benchmark implementation, stored results, and prohibition on Godot reruns, commits, pushes, unrelated access, and credential exposure.
+
+### Implementation and evidence design
+
+The agent invoked `$godot-performance-guardian-docs` and `$agent-trajectory`, read both supplied skill entrypoints completely, and read the documentation skill's complete requirements reference before documentation edits.
+
+`tools/validate_results.py` gained an opt-in `--evidence-json` mode. The default command retains its existing human-readable messages and exit code. Structured mode uses the same loaded results, per-file assertions, grouping, and cross-run statistics, then emits ordered IDs `E1` through `E22`. These cover validation count; workload, process, and duration medians; ratios and percentage changes; cleanup evidence for all scenarios; actor and leak configuration; mixed CPU configurations; and narrowly allowlisted current controller behavior. Failed validation emits no verified evidence.
+
+The packet records repository-relative sources and explicit limitations: passing configured checks is not proof that no other problem exists; the stored set mixes historical CPU configurations; stored JSON lacks a source revision/hash; headless synthetic evidence does not establish GPU performance; and the available evidence does not establish root cause.
+
+`agent/investigator.py` continues to expose only `validate_benchmark_results`. It now parses the structured validator packet and converts invalid packets, timeouts, and operational failures into evidence-empty error packets. Instructions require `[E#]` citations, every scenario, supported causal language, read-only evidence-linked recommendations, and the exact root-cause uncertainty sentence.
+
+After the SDK returns, the CLI extracts the packet actually produced by the tool call and applies a deterministic local gate to the five-section report. The gate checks heading order, citations, supported numeric presentation, scenario coverage, validation-status consistency, causal language, uncertainty, and recommendation safety. It prints only stable grounding-rule identifiers on rejection, never the rejected report, and does not retry.
+
+### Commands, test failure, and response
+
+The substantive local commands used during implementation were:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\validate_results.py .\demo_project\results
+.\.venv\Scripts\python.exe .\tools\validate_results.py --evidence-json .\demo_project\results
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m py_compile .\agent\investigator.py .\tools\validate_results.py .\tests\test_investigator.py
+git remote -v
+git status --short
+```
+
+The first expanded unit run executed 29 tests and produced one real failure: the valid grounded-report fixture was flagged with `G07_UNSUPPORTED_NUMBER`. A diagnostic showed that the numeric scanner interpreted the `5` in `p95` and partial values after the `x` in `160x160` and `240x240` as standalone measurements. The scanner was corrected to exclude digits embedded in identifiers and to normalize numeric workload-dimension separators before extraction. The bad 25% fixture remained rejected.
+
+Two further cases were then added: malformed validator output must become an evidence-empty safe error, and a safe five-section validation-failure report must remain possible when no evidence IDs exist.
+
+The next run completed successfully:
+
+```text
+Ran 31 tests in 1.050s
+
+OK
+```
+
+Python byte-compilation also completed successfully. The normal validator output remained:
+
+```text
+INFO: median p95 workload: healthy=148.000 usec, cpu_spike=8549.000 usec, ratio=57.76x
+INFO: supporting evidence: process p95 healthy=0.408000 ms, cpu_spike=12.588500 ms; duration healthy=4976.010 ms, cpu_spike=6406.270 ms
+Validated 21 result files successfully.
+```
+
+Canonical structured output was generated repeatedly and compared in tests. The packet calculated a 28.743109% median-duration increase, reported 120 retained nodes across all six node-leak runs, zero across all nine healthy runs, and zero across all six CPU-spike runs. It also identified three `160x160` and three `240x240` CPU-spike results.
+
+### Documentation and current remaining uncertainty
+
+The repository documentation skill synchronized README's current status, evaluation contract, evidence limitations, and hackathon links. `IMPROVEMENT_CHANGELOG.md` retained all prior entries and appended Experiment 3 with the supplied live report as its “before” evaluation. Documentation-only history remains here rather than being represented as a product experiment.
+
+The environment check reported only whether configuration existed and did not inspect or print any credential. `OPENAI_API_KEY` was absent and `OPENAI_MODEL` was unset, so the default remains `gpt-4.1-mini` and no post-change live request was made. The fixed local report fixtures establish that known unsupported output is blocked; they do not establish the quality of a future live model response.
+
+Final skill, link, secret-pattern, deterministic-output, whitespace, and Git-state verification followed this entry.
+
+### Final verification result
+
+A final grounding case was added after review to ensure that nonnumeric statements in Validation status and Verified facts also require evidence citations. The complete suite then reported:
+
+```text
+Ran 32 tests in 1.087s
+
+OK
+```
+
+The unchanged human-readable validator again passed all 21 files with the same 57.76× workload ratio and supporting measurements shown above. Two independent structured invocations produced identical canonical JSON. Python byte-compilation succeeded.
+
+The documentation skill's official `quick_validate.py` printed `Skill is valid!`. Its PyYAML 6.0.3 dependency was installed only in a uniquely named system-temporary directory and that directory was removed. PowerShell's `New-Item -LiteralPath` invocation emitted a non-test parameter error before `pip --target` created the directory itself; validation still completed successfully and the guarded cleanup verified the removal target before deleting it.
+
+The documentation audit resolved all 15 README links, found every required source and skill file, confirmed final newlines and no trailing whitespace, and reconfirmed that the documented clone URL matches the configured `origin` fetch URL. Filename-only scans found no API-key-pattern match in the working tree, tracked files, staged content, or reachable history. `git diff --check` reported no whitespace error, only Git's existing Windows line-ending notices.
+
+No Godot run, post-change live API request, commit, or push occurred. The implementation and deterministic local controls are verified; the quality and 4/4 rubric result of a future grounded live report remain unverified.

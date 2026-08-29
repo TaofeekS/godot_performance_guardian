@@ -43,6 +43,9 @@ TIMING_SERIES = (
     "process_time_ms",
     "physics_process_time_ms",
 )
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+CONTROLLER_RELATIVE_PATH = "demo_project/scripts/benchmark_controller.gd"
+CONTROLLER_PATH = REPOSITORY_ROOT / CONTROLLER_RELATIVE_PATH
 
 
 class Validation:
@@ -329,14 +332,245 @@ def collect_paths(arguments: list[str]) -> list[Path]:
     return collected
 
 
+def _ratio(numerator: float, denominator: float) -> float:
+    if denominator == 0:
+        return math.inf if numerator > 0 else 0.0
+    return numerator / denominator
+
+
+def _item(
+    evidence_id: str,
+    claim: str,
+    metric: str,
+    value: Any,
+    unit: str | None,
+    scenario: str,
+    source_type: str,
+    source: str,
+    **details: Any,
+) -> dict[str, Any]:
+    item = {
+        "id": evidence_id,
+        "claim": claim,
+        "metric": metric,
+        "value": value,
+        "unit": unit,
+        "scenario": scenario,
+        "source_type": source_type,
+        "source": source,
+    }
+    item.update(details)
+    return item
+
+
+def _controller_behavior_evidence(validation: Validation) -> list[dict[str, Any]]:
+    try:
+        source = CONTROLLER_PATH.read_text(encoding="utf-8")
+    except OSError:
+        validation.fail("benchmark controller", "could not read allowlisted scenario source")
+        return []
+
+    required_fragments = {
+        "actor workload": ("for actor in actors:", "actor.simulate_step(frame_index)"),
+        "node-leak workload": (
+            'if scenario == "node_leak":',
+            "var temporary_node := Node2D.new()",
+            "frame_index % LEAK_INTERVAL_FRAMES == 0",
+            "leak_container.add_child(temporary_node)",
+        ),
+        "CPU-spike workload": (
+            'elif scenario == "cpu_spike":',
+            "_run_cpu_spike(frame_index)",
+            "for outer_index in CPU_OUTER_ITERATIONS:",
+            "for inner_index in CPU_INNER_ITERATIONS:",
+        ),
+    }
+    for behavior, fragments in required_fragments.items():
+        if any(fragment not in source for fragment in fragments):
+            validation.fail("benchmark controller", f"allowlisted {behavior} changed unexpectedly")
+    if validation.errors:
+        return []
+
+    return [
+        _item(
+            "E20",
+            "The current controller routes cpu_spike frames through a nested numerical workload.",
+            "scenario_behavior",
+            "nested_numerical_workload_each_frame",
+            None,
+            "cpu_spike",
+            "allowlisted_source",
+            f"{CONTROLLER_RELATIVE_PATH}::_run_workload/_run_cpu_spike",
+        ),
+        _item(
+            "E21",
+            "The current controller creates a temporary node for node_leak and retains one every configured leak interval during measurement.",
+            "scenario_behavior",
+            "temporary_node_with_periodic_retention",
+            None,
+            "node_leak",
+            "allowlisted_source",
+            f"{CONTROLLER_RELATIVE_PATH}::_run_workload",
+        ),
+        _item(
+            "E22",
+            "All scenarios run the fixed actor simulation; healthy adds neither the leak branch nor the CPU-spike branch.",
+            "scenario_behavior",
+            "actor_simulation_only",
+            None,
+            "healthy",
+            "allowlisted_source",
+            f"{CONTROLLER_RELATIVE_PATH}::_run_workload",
+        ),
+    ]
+
+
+def build_evidence(
+    grouped: dict[str, list[dict[str, Any]]], validation: Validation
+) -> list[dict[str, Any]]:
+    """Build ordered evidence from the same validated data used for pass/fail."""
+
+    if validation.errors:
+        return []
+
+    healthy = grouped["healthy"]
+    cpu = grouped["cpu_spike"]
+    leak = grouped["node_leak"]
+    healthy_workload = statistics.median(
+        result["summary"]["timing"]["workload_time_usec"]["p95"] for result in healthy
+    )
+    cpu_workload = statistics.median(
+        result["summary"]["timing"]["workload_time_usec"]["p95"] for result in cpu
+    )
+    workload_ratio = _ratio(cpu_workload, healthy_workload)
+    healthy_process = statistics.median(
+        result["summary"]["timing"]["process_time_ms"]["p95"] for result in healthy
+    )
+    cpu_process = statistics.median(
+        result["summary"]["timing"]["process_time_ms"]["p95"] for result in cpu
+    )
+    process_ratio = _ratio(cpu_process, healthy_process)
+    healthy_duration = statistics.median(
+        result["summary"]["scenario_duration_ms"] for result in healthy
+    )
+    cpu_duration = statistics.median(
+        result["summary"]["scenario_duration_ms"] for result in cpu
+    )
+    duration_ratio = _ratio(cpu_duration, healthy_duration)
+    source = "validated result aggregate"
+
+    configurations: dict[str, int] = {}
+    for result in cpu:
+        config = result["scenario_config"]
+        label = f'{config.get("cpu_outer_iterations")}x{config.get("cpu_inner_iterations")}'
+        configurations[label] = configurations.get(label, 0) + 1
+
+    evidence = [
+        _item("E1", "All candidate result files passed the configured validator checks.", "validated_file_count", sum(len(values) for values in grouped.values()), "files", "all", "validated_result", source),
+        _item("E2", "Healthy median per-run p95 workload time.", "median_p95_workload_time", healthy_workload, "usec", "healthy", "validated_aggregate", source),
+        _item("E3", "CPU-spike median per-run p95 workload time.", "median_p95_workload_time", cpu_workload, "usec", "cpu_spike", "validated_aggregate", source),
+        _item("E4", "CPU-spike to healthy workload-time ratio.", "workload_time_ratio", workload_ratio, "x", "cpu_spike_vs_healthy", "validated_aggregate", source),
+        _item("E5", "CPU-spike workload-time increase over healthy.", "workload_time_increase", (workload_ratio - 1.0) * 100.0, "percent", "cpu_spike_vs_healthy", "validated_aggregate", source),
+        _item("E6", "Healthy median per-run p95 process time.", "median_p95_process_time", healthy_process, "ms", "healthy", "validated_aggregate", source),
+        _item("E7", "CPU-spike median per-run p95 process time.", "median_p95_process_time", cpu_process, "ms", "cpu_spike", "validated_aggregate", source),
+        _item("E8", "CPU-spike to healthy process-time ratio.", "process_time_ratio", process_ratio, "x", "cpu_spike_vs_healthy", "validated_aggregate", source),
+        _item("E9", "CPU-spike process-time increase over healthy.", "process_time_increase", (process_ratio - 1.0) * 100.0, "percent", "cpu_spike_vs_healthy", "validated_aggregate", source),
+        _item("E10", "Healthy median scenario duration.", "median_scenario_duration", healthy_duration, "ms", "healthy", "validated_aggregate", source),
+        _item("E11", "CPU-spike median scenario duration.", "median_scenario_duration", cpu_duration, "ms", "cpu_spike", "validated_aggregate", source),
+        _item("E12", "CPU-spike to healthy scenario-duration ratio.", "scenario_duration_ratio", duration_ratio, "x", "cpu_spike_vs_healthy", "validated_aggregate", source),
+        _item("E13", "CPU-spike scenario-duration increase over healthy.", "scenario_duration_increase", (duration_ratio - 1.0) * 100.0, "percent", "cpu_spike_vs_healthy", "validated_aggregate", source),
+        _item("E14", f"Every one of the {len(leak)} node-leak runs retained 120 nodes after evidence cleanup.", "post_cleanup_retained_nodes", 120, "nodes", "node_leak", "validated_result", source, run_count=len(leak)),
+        _item("E15", f"Every one of the {len(healthy)} healthy runs retained zero nodes after evidence cleanup.", "post_cleanup_retained_nodes", 0, "nodes", "healthy", "validated_result", source, run_count=len(healthy)),
+        _item("E16", f"Every one of the {len(cpu)} CPU-spike runs retained zero nodes after evidence cleanup.", "post_cleanup_retained_nodes", 0, "nodes", "cpu_spike", "validated_result", source, run_count=len(cpu)),
+        _item("E17", "Every validated result used 64 scenario-owned actors.", "actor_count", 64, "actors", "all", "validated_result", source),
+        _item("E18", "Every validated result used a five-frame leak interval.", "leak_interval_frames", 5, "frames", "all", "validated_result", source),
+        _item("E19", "Stored CPU-spike nested-workload configurations and run counts.", "cpu_workload_configurations", configurations, None, "cpu_spike", "validated_result", source),
+    ]
+    evidence.extend(_controller_behavior_evidence(validation))
+    return [] if validation.errors else evidence
+
+
+def _normalized_results_directory(arguments: list[str]) -> str:
+    if len(arguments) != 1:
+        return "multiple-inputs"
+    path = Path(arguments[0]).resolve()
+    try:
+        return path.relative_to(REPOSITORY_ROOT).as_posix()
+    except ValueError:
+        return Path(arguments[0]).as_posix()
+
+
+def evidence_packet(
+    arguments: list[str],
+    paths: list[Path],
+    loaded: list[tuple[Path, dict[str, Any]]],
+    grouped: dict[str, list[dict[str, Any]]],
+    validation: Validation,
+) -> dict[str, Any]:
+    evidence = build_evidence(grouped, validation)
+    configuration_item = next(
+        (item for item in evidence if item.get("id") == "E19"), None
+    )
+    configurations = configuration_item.get("value", {}) if configuration_item else {}
+    if isinstance(configurations, dict) and len(configurations) > 1:
+        configuration_limitation = (
+            "The stored result set mixes historical CPU-workload configurations, "
+            "so its aggregate is descriptive rather than a single "
+            "controlled-configuration comparison."
+        )
+    else:
+        configuration_limitation = (
+            "Timing aggregates describe only the stored workload configuration and "
+            "recorded execution environments; they are not portable performance promises."
+        )
+    return {
+        "packet_type": "godot_performance_evidence",
+        "schema_version": 1,
+        "validation": {
+            "status": "failed" if validation.errors else "passed",
+            "candidate_file_count": len(paths),
+            "validated_file_count": len(loaded) if not validation.errors else 0,
+            "errors": validation.errors,
+            "timed_out": False,
+            "error_type": None,
+            "exit_code": 1 if validation.errors else 0,
+        },
+        "results_directory": _normalized_results_directory(arguments),
+        "evidence": evidence,
+        "limitations": [
+            {"id": "L1", "statement": "Validator success proves only that the configured checks passed; it does not prove that no other performance problem exists."},
+            {"id": "L2", "statement": configuration_limitation},
+            {"id": "L3", "statement": "Stored results do not contain a source revision or source hash, so current allowlisted source cannot prove the exact source used for every historical result."},
+            {"id": "L4", "statement": "The benchmark is synthetic and headless; it does not establish rendering or GPU performance."},
+            {"id": "L5", "statement": "The available evidence does not establish the root cause."},
+        ],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--evidence-json",
+        action="store_true",
+        help="emit a deterministic machine-readable evidence packet",
+    )
     parser.add_argument("paths", nargs="+", help="Result JSON files or directories")
     args = parser.parse_args()
 
     validation = Validation()
     paths = collect_paths(args.paths)
     if not paths:
+        if args.evidence_json:
+            validation.fail("result set", "no result JSON files found")
+            grouped = {scenario: [] for scenario in SCENARIOS}
+            print(
+                json.dumps(
+                    evidence_packet(args.paths, paths, [], grouped, validation),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+            )
+            return 1
         print("ERROR: no result JSON files found", file=sys.stderr)
         return 1
 
@@ -408,6 +642,11 @@ def main() -> int:
         leftovers = sorted(directory.glob("*.tmp.*"))
         if leftovers:
             validation.fail(str(directory), f"temporary result files remain: {leftovers}")
+
+    if args.evidence_json:
+        packet = evidence_packet(args.paths, paths, loaded, grouped, validation)
+        print(json.dumps(packet, sort_keys=True, separators=(",", ":")))
+        return packet["validation"]["exit_code"]
 
     for note in validation.notes:
         print(f"INFO: {note}")

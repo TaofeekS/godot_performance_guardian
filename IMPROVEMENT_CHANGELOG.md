@@ -113,6 +113,53 @@ Retain the allowlisted 429 diagnostics and the no-extra-retry policy. The change
 
 The next step is to revoke the previously exposed credential, configure a newly issued environment-only key whose API project has available quota and model access, and rerun the investigator. A successful live response and the quality of its five-section report remain unverified.
 
+## 2026-08-29 — Experiment 3: Deterministic evidence grounding
+
+**Status:** Retained; deterministic grounding verified locally, post-change live quality unverified
+
+### Hypothesis and reason
+
+The original agent produced an apparently useful but partly speculative report. Experiment 3 adds deterministic evidence citations and automatically blocks ungrounded reports.
+
+The first successful live report was retained as this experiment's “before” result rather than counted as a separate experiment. It reproduced the main measurements but did not connect the CPU-spike timing to the intentional nested workload, omitted node-leak evidence, introduced unsupported thermal, scheduling, locking, and contention explanations, and described the duration increase as approximately 25% instead of the calculated 28.7%.
+
+### Change
+
+The validator gained an optional deterministic `--evidence-json` interface while preserving its normal human-readable CLI and all existing assertions. The packet contains stable evidence IDs for validation status, workload/process/duration comparisons, ratios and percentage changes, cleanup results for every scenario, stored workload configurations, narrowly allowlisted controller behavior, and explicit limitations.
+
+The investigator still has exactly one function tool and no general filesystem or shell access. Its instructions now require `[E#]` citations, all-scenario coverage, evidence-supported causal language, read-only evidence-linked recommendations, and the exact statement `The available evidence does not establish the root cause.` A local post-generation gate rejects invalid headings, unknown or missing citations, unsupported numbers or causes, omitted scenarios, unsafe recommendations, and false validation-success language. Rejected model text is not printed and the application does not retry.
+
+### Evaluation method
+
+The same 21 stored JSON files and unchanged validator assertions used by Experiments 1 and 2 were reused; Godot was not rerun. Packet generation was repeated and compared using canonical JSON serialization. Standard-library tests used fixed good and bad reports, subprocess mocks, and the real validator wrapper without contacting the OpenAI API.
+
+This expanded set contains nine healthy, six node-leak, and six CPU-spike runs. Its CPU-spike results mix three `160 x 160` and three `240 x 240` historical workloads, so it remains a regression-safety set rather than a controlled replacement for Baseline 0.
+
+### Observed result
+
+```text
+Ran 32 tests in 1.087s
+OK
+```
+
+```text
+INFO: median p95 workload: healthy=148.000 usec, cpu_spike=8549.000 usec, ratio=57.76x
+INFO: supporting evidence: process p95 healthy=0.408000 ms, cpu_spike=12.588500 ms; duration healthy=4976.010 ms, cpu_spike=6406.270 ms
+Validated 21 result files successfully.
+```
+
+The evidence packet calculated a 28.7431% median-duration increase. It recorded 120 retained nodes in every node-leak run and zero retained nodes in every healthy and CPU-spike run. A fixed grounded five-section report passed, while a “before-like” fixture containing the incorrect 25% value and an unsupported thermal explanation was rejected. Validation failures, timeouts, malformed packets, and operational errors produced no verified evidence.
+
+No `OPENAI_API_KEY` was configured after local checks, so no post-change live request occurred. The target of a grounded live report covering all scenarios with zero unsupported causes therefore remains unverified.
+
+### Decision and next step
+
+Retain the deterministic packet and local grounding gate. They make unsupported output fail closed without expanding the tool boundary, weakening validation, or adding retries.
+
+The next experiment should run exactly one post-change live evaluation with a newly issued environment-only key and a fixed, uniform benchmark result set. Score it against the original 4/4 report-quality rubric, verify all three scenarios are included, and require zero unsupported causal claims.
+
+
+
 ## Removed-experiment status
 
 No experiment has been removed or reverted. Documentation-only changes remain in `AGENT_TRAJECTORY.md` rather than being presented as product experiments.

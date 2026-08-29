@@ -8,9 +8,9 @@ Godot Performance Budget Guardian is a synthetic Godot 4.5 benchmark that detect
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; a locally tested, read-only investigator that gates its reasoning on that validator. |
+| Implemented and verified | Deterministic `healthy`, `node_leak`, and `cpu_spike` scenarios; headless metric collection; atomic JSON output; three isolated runs per scenario; standard-library Python validation; and a locally tested, read-only investigator with deterministic evidence IDs and a post-generation grounding gate. |
 | Partially implemented | Performance budgets are embedded as controller tolerances and validator assertions. There is no standalone, user-editable budget file or stored golden baseline. |
-| Unverified | The investigator's live OpenAI API execution and the usefulness of its model-generated investigation report have not been exercised with a valid key. |
+| Unverified | The first live investigator run completed before Experiment 3, but its report was partly speculative. The grounded implementation has not yet received a post-change live evaluation. |
 | Planned | Configurable budgets, ten evaluation fixtures, a reusable Godot editor dock/plugin, experimental repair and verification, categorized result packages, and the final hackathon submission workflow. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -29,7 +29,7 @@ The current baseline:
 - Collects raw timing, memory, object, node, and scenario-owned measurements.
 - Compares a multi-run result set against embedded cleanup, growth, and relative CPU thresholds.
 - Reports pass or fail through the validator's output and exit code.
-- Does not load configurable budgets. An optional investigator can validate stored evidence and produce constrained hypotheses, but it cannot prove root causes or modify the project.
+- Does not load configurable budgets. An optional investigator can validate stored evidence, cite stable evidence IDs, and produce constrained hypotheses. A deterministic local gate blocks reports that violate its grounding contract, but the investigator cannot prove root causes or modify the project.
 
 It is a benchmark, evaluator, and initial read-only reasoning layer, not yet the complete editor plugin or automated repair product.
 
@@ -133,6 +133,12 @@ Validate an existing result directory independently:
 
 ```powershell
 python .\tools\validate_results.py .\demo_project\results
+```
+
+Emit the same validated set as the deterministic investigator evidence packet:
+
+```powershell
+python .\tools\validate_results.py --evidence-json .\demo_project\results
 ```
 
 Generated files are in `demo_project/results/`. They are local evidence and are ignored by Git.
@@ -288,9 +294,15 @@ Benchmark suite passed.
 
 This is evidence from one machine, not a portable performance promise. The same scenarios and validator logic are deterministic enough for controlled comparisons, while timing values remain noisy.
 
-The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. SDK configuration requires the tool on the first model turn and then allows a five-section report: Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty. A validator pass means only that the configured assertions passed; it is not proof that the project has no other performance issue.
+The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. The tool invokes the validator's `--evidence-json` mode, which returns a deterministic JSON-compatible packet containing validation status, a repository-relative result directory, stable evidence IDs `E1` through `E22`, aggregate timing comparisons, cleanup evidence for all three scenarios, allowlisted controller behavior, and explicit limitations. The normal validator command and human-readable output remain unchanged.
 
-Local investigator verification on 2026-08-29 ran 20 standard-library unit tests with no API request and passed all 21 JSON files then present in `demo_project/results/`. The tests include safe classification of exhausted quota and transient 429 responses, numeric retry-delay handling, request-ID reporting, sensitive-content exclusion, and confirmation that application code does not retry the agent run. The validator command reported a 57.76× CPU-spike/healthy median-p95 workload ratio across that expanded result set. This 21-file safety check does not replace or revise the accepted nine-file Baseline 0 because it uses a different run set. Live model output remains unverified.
+SDK configuration requires the tool on the first model turn and then allows a five-section report: Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty. Verified numerical statements must cite evidence such as `[E4]`. After generation, a local gate checks section order, evidence references, supported numeric values, scenario coverage, causal language, the required root-cause uncertainty statement, and read-only evidence-linked recommendations. A rejected report is not printed, the CLI exits nonzero with safe rule IDs, and application code does not retry the model. A validator pass means only that the configured assertions passed; it is not proof that the project has no other performance issue.
+
+Experiment 3 local verification on 2026-08-29 ran 32 standard-library unit tests without an API request and passed all 21 JSON files in `demo_project/results/`. The deterministic packet records healthy and CPU-spike median p95 workload times of 148 µs and 8,549 µs, a 57.76× ratio, process medians of 0.408 ms and 12.5885 ms, median durations of 4,976.010 ms and 6,406.270 ms, and a correctly calculated duration increase of approximately 28.7%. It also records 120 retained nodes in every node-leak run and zero in every healthy and CPU-spike run.
+
+The expanded result directory contains nine healthy runs, six node-leak runs, and six CPU-spike runs. Its CPU-spike files mix three historical `160 x 160` runs with three `240 x 240` runs. The packet therefore labels the 21-file aggregate as descriptive rather than a single controlled-configuration comparison. Stored result files also lack a source revision/hash, so current allowlisted controller evidence cannot prove the exact source revision used for every historical file. This safety check does not replace or revise the accepted nine-file Baseline 0.
+
+The pre-Experiment-3 live report was useful enough to reproduce the principal timing measurements, but it omitted node-leak evidence, misstated the duration increase as about 25%, and introduced unsupported possible causes. Those observations are the “before” evaluation. Because no API key was configured during the implementation verification, the new grounding behavior has been exercised through fixed report fixtures and mocks only; post-change live report quality remains unverified.
 
 ## 13. Reproducibility notes
 
@@ -312,8 +324,9 @@ Local investigator verification on 2026-08-29 ran 20 standard-library unit tests
 - Evidence focuses on CPU work and object/node growth, not rendering or GPU performance.
 - Thresholds are duplicated in code rather than loaded from a configurable budget file.
 - There is no committed golden baseline or baseline/iteration/final result organization.
-- There is no reusable editor dock or repair workflow. The investigator produces evidence-constrained hypotheses only; it has no source-reading tool and cannot establish root cause by itself.
-- Live investigator execution and report quality have not yet been evaluated with a valid API key.
+- There is no reusable editor dock or repair workflow. The investigator receives only validator-produced evidence, including narrowly allowlisted controller facts, and cannot establish root cause by itself.
+- The first live report predates deterministic grounding and was partly speculative. Post-change live report quality remains unverified.
+- The current 21-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
 - Individual result JSON does not contain a consolidated budget verdict or structured error object.
 
@@ -325,14 +338,14 @@ Local investigator verification on 2026-08-29 ran 20 standard-library unit tests
 | 2. Configurable budgets | Partial/planned | Replace embedded thresholds with a single documented budget schema and explicit per-run verdicts. |
 | 3. Ten evaluation fixtures | Planned | Add a broader, objective regression fixture set. |
 | 4. Reusable Godot editor dock | Planned | Run and inspect budgets from a reusable editor plugin. |
-| 5. Agent-assisted investigation | Partial | A read-only, validator-gated command-line investigator is implemented and locally tested; live report quality is unverified. |
+| 5. Agent-assisted investigation | Partial | A read-only command-line investigator now receives deterministic cited evidence and blocks ungrounded reports locally; post-change live report quality is unverified. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
 
 ## 16. Hackathon evidence
 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
-- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the first post-baseline investigator experiment.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator boundary, failure diagnosis, and deterministic-grounding experiments.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 
