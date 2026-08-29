@@ -1690,3 +1690,55 @@ PyYAML `6.0.3` was installed only into a uniquely named system-temporary directo
 The focused 20-file staged diff passed `git diff --cached --check` and was reviewed as 1,506 insertions and 64 deletions. Commit `8c01e350bbf90f280459a6822c686b753b19ebbb` was created as `Add baseline-aware pull request regression gate` and pushed from `4c4ded0` to `origin/main`.
 
 Read-only GitHub public API metadata reported both `Performance Guardian` and `Reusable Performance Guardian` as `active`. The reusable workflow blob at the immutable implementation commit was `cc983648193feb4613e28f4e64924686d523e434`, exactly matching `git hash-object` locally. This proves delivery and definition recognition. It does not prove hosted paired execution; a consumer pull request using the documented two-step migration is still required. No consumer repository was modified or dispatched.
+
+## 2026-08-30 — Experiment 12 hosted artifact-path correction
+
+### Request, diagnosis, and approval
+
+The user supplied screenshots of a hosted manual consumer run and asked:
+
+> this is the problem i got
+>
+> found out what is wrong with it
+>
+> let me know what is a problem
+>
+> how you plan to solve it
+>
+> dont change any code yet just show me the plans
+
+The screenshots showed candidate capture and `Run authoritative performance gate` completing successfully. Protected-base checkout and capture were skipped, which was consistent with a manual absolute-only run. `Upload performance evidence` alone failed with:
+
+```text
+Invalid pattern '.performance-guardian-base-source/./.performance-guardian'. Relative pathing '.' and '..' is not allowed.
+```
+
+Inspection confirmed that the reusable workflow always constructed a baseline upload pattern as `.performance-guardian-base-source/${{ inputs['project-path'] }}/.performance-guardian`. With the consumer's valid `project-path: .`, this became the rejected `/./` pattern even though comparison was disabled. Missing baseline files would have been only a warning, but the artifact action rejected the invalid pattern before file discovery. The deterministic gate result and the later artifact-preservation failure were therefore separate outcomes.
+
+After receiving the read-only diagnosis and implementation plan, the user asked about documentation and then approved the correction with:
+
+> okay do this
+
+### Implementation
+
+The reusable workflow now stages evidence before invoking the artifact action. The PowerShell step resolves the consumer project beneath `GITHUB_WORKSPACE`, checks containment, and copies candidate evidence into a fixed runner-temporary staging directory. It resolves and stages protected-base evidence only when `compare-with-base` is true. Available baseline/candidate manifests and the canonical Guardian report are copied beneath a reports directory. The upload action receives only the fixed staging path, retains `include-hidden-files: true`, 14-day retention, and `if: always()`, and never receives an interpolated consumer path.
+
+Regression coverage now requires fixed-path staging, candidate and conditional baseline destinations, containment resolution, narrow report staging, and an upload input without consumer interpolation or explicit `.`/`..` segments. Capture, validation, budget, comparison, and investigator calculations were not changed.
+
+The documentation skill synchronized the root README, addon README, Experiment 12 clarification, and repository-specific documentation requirements. The README explains absolute versus comparison artifact contents, the distinction between a green authoritative gate and failed evidence preservation, and the corrective action for the exact invalid-pattern symptom. Hosted staging remains unverified until a consumer reruns against the delivered correction.
+
+### Verification and operational notes
+
+The focused reusable-workflow tests passed three of three. The complete suite reported:
+
+```text
+Ran 146 tests in 5.061s
+
+OK
+```
+
+Python byte compilation succeeded and `pip check` reported no broken requirements. The repository environment lacked PyYAML, so the first workflow/skill validation attempt stopped with `ModuleNotFoundError` without changing dependencies. PyYAML `6.0.3` was then supplied only in a uniquely named system-temporary target; both workflows parsed and the official skill validator printed `Skill is valid!`. The temporary target was removed afterward. The temporary-directory setup emitted a non-fatal PowerShell warning because `New-Item` does not accept `-LiteralPath`; `pip --target` created the unique directory and all requested validation still completed successfully.
+
+The first Markdown-link command mishandled root-level files because `Split-Path -Parent README.md` returns an empty string. It produced only diagnostic path errors and no edits. The corrected command used the workspace root for root-level documents; all relative links resolved, README sections 1 through 17 were present, and all checked documents had final newlines. Working-tree, tracked-file, and reachable-history scans reported no credential-pattern filename or commit match. `git diff --check` reported no whitespace error.
+
+Commit, push, immutable SHA reporting, and hosted consumer rerun evidence follow this entry. No Godot process, benchmark, OpenAI request, fixture, budget, or consumer repository was changed or invoked during this correction.

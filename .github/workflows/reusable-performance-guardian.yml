@@ -249,17 +249,62 @@ jobs:
           $report | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\guardian-report.json"
           exit $gateExit
 
+      - name: Stage performance evidence
+        if: always()
+        shell: pwsh
+        env:
+          PROJECT_PATH: ${{ inputs['project-path'] }}
+          COMPARE_WITH_BASE: ${{ inputs['compare-with-base'] }}
+        run: |
+          $workspace = [System.IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
+          $workspacePrefix = $workspace.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+          $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $workspace $env:PROJECT_PATH))
+          if ($projectRoot -ne $workspace -and -not $projectRoot.StartsWith($workspacePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Error "The project path escaped the consumer workspace while staging evidence."
+            exit 2
+          }
+
+          $artifactRoot = Join-Path $env:RUNNER_TEMP "performance-guardian-artifact"
+          if (Test-Path -LiteralPath $artifactRoot) {
+            Write-Error "The performance evidence staging directory already exists."
+            exit 2
+          }
+          New-Item -ItemType Directory -Path $artifactRoot | Out-Null
+
+          $candidateEvidence = Join-Path $projectRoot ".performance-guardian"
+          if (Test-Path -LiteralPath $candidateEvidence -PathType Container) {
+            Copy-Item -LiteralPath $candidateEvidence -Destination (Join-Path $artifactRoot "candidate") -Recurse
+          }
+
+          if ($env:COMPARE_WITH_BASE -eq "true") {
+            $baseSourceRoot = [System.IO.Path]::GetFullPath((Join-Path $workspace ".performance-guardian-base-source"))
+            $basePrefix = $baseSourceRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+            $baseProjectRoot = [System.IO.Path]::GetFullPath((Join-Path $baseSourceRoot $env:PROJECT_PATH))
+            if ($baseProjectRoot -ne $baseSourceRoot -and -not $baseProjectRoot.StartsWith($basePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+              Write-Error "The project path escaped the protected-base checkout while staging evidence."
+              exit 2
+            }
+            $baselineEvidence = Join-Path $baseProjectRoot ".performance-guardian"
+            if (Test-Path -LiteralPath $baselineEvidence -PathType Container) {
+              Copy-Item -LiteralPath $baselineEvidence -Destination (Join-Path $artifactRoot "baseline") -Recurse
+            }
+          }
+
+          $reportsRoot = Join-Path $artifactRoot "reports"
+          foreach ($reportName in @("baseline-capture-manifest.json", "candidate-capture-manifest.json", "guardian-report.json")) {
+            $reportPath = Join-Path $env:RUNNER_TEMP $reportName
+            if (Test-Path -LiteralPath $reportPath -PathType Leaf) {
+              New-Item -ItemType Directory -Path $reportsRoot -Force | Out-Null
+              Copy-Item -LiteralPath $reportPath -Destination (Join-Path $reportsRoot $reportName)
+            }
+          }
+
       - name: Upload performance evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: performance-guardian-${{ inputs.profile }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
-          path: |
-            ${{ inputs['project-path'] }}/.performance-guardian
-            .performance-guardian-base-source/${{ inputs['project-path'] }}/.performance-guardian
-            ${{ runner.temp }}/baseline-capture-manifest.json
-            ${{ runner.temp }}/candidate-capture-manifest.json
-            ${{ runner.temp }}/guardian-report.json
+          path: ${{ runner.temp }}/performance-guardian-artifact
           if-no-files-found: warn
           retention-days: 14

@@ -554,3 +554,11 @@ Exactly one authorized live comparison request was attempted after local checks.
 ### Decision and next step
 
 Retain schema v3 and opt-in protected-base comparison. Merge the v3 policy first with comparison disabled, then enable comparison in a later pull request so the protected base controls policy. Sequential same-runner capture reduces environmental variation but does not prove identical thermal, scheduling, or system-load conditions. The next step is one real hosted consumer pull request and artifact inspection; hosted comparison-aware AI also remains unverified.
+
+### Experiment 12 clarification — normalize hosted artifact paths
+
+A consumer manual run supplied the first hosted evidence after Experiment 12. Candidate capture and the authoritative performance gate completed successfully, while protected-base checkout and capture were correctly skipped because comparison was not requested. The final upload nevertheless failed before creating an artifact with `Invalid pattern '.performance-guardian-base-source/./.performance-guardian'`: the workflow interpolated `project-path: .` into a baseline path even in absolute-only mode, and `actions/upload-artifact@v7` rejects explicit `.` and `..` relative path segments.
+
+The workflow now resolves the consumer and optional protected-base project roots, verifies their containment, and stages a narrow evidence set beneath a fixed runner-temporary directory. Absolute-only runs stage candidate evidence and available reports. Comparison runs additionally stage baseline evidence and its manifest. The artifact action receives only the fixed staging path, so neither root nor nested consumer project paths become upload patterns. It still enables hidden files, runs unconditionally, and excludes source checkouts, `.git`, tooling, environment files, and credentials.
+
+This correction changes artifact preservation only; it does not reinterpret the already green deterministic gate or alter capture, validation, budgets, or optional investigation. Local verification and delivery evidence are recorded in `AGENT_TRAJECTORY.md`. Hosted absolute-only staging and hosted paired artifact preservation require a consumer rerun pinned to the corrected immutable revision before either new path is described as hosted-verified.
