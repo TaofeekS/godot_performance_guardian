@@ -45,6 +45,10 @@ The README may add a short section for the repository-local documentation skill,
 - Explain that `MEMORY_STATIC` can be unavailable and must then be represented as `null`, not a valid zero.
 - Explain that the portable probe retains raw samples during capture, so static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak. Memory-budget comparisons must use matching measured-frame counts and sampling intervals.
 - Explain atomic temporary-file writing and refusal to overwrite an existing final result.
+- Preserve the consumer-workflow contract: installing the addon is distinct from enabling CI; the caller commits the addon, an automatically starting probe, and a v2 budget; the workflow defaults to three isolated captures and no AI; and deterministic exits remain authoritative.
+- Verify `.github/workflows/reusable-performance-guardian.yml` before documenting its inputs, defaults, artifacts, secret scope, or action versions. Preserve the immutable `chickensoft-games/setup-godot@f166999204a4f2722c6fe042fbaa3b3ea0d9c789` pin unless implementation evidence changes it.
+- Explain that `--workspace-root` permits an explicit consumer root while all project, scene, results, and budget inputs remain relative to it, with resolved symlink containment and generic-only external validation.
+- Distinguish the verified local independent-consumer three-run proof from the unverified GitHub-hosted reusable-workflow execution.
 - Do not call generated ignored JSON files a committed baseline or organized hackathon evidence package.
 
 ## Verification checklist

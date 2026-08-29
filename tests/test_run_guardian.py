@@ -7,6 +7,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -133,6 +134,27 @@ class PathContainmentTests(unittest.TestCase):
             relative = Path(directory).relative_to(guardian.REPOSITORY_ROOT).as_posix()
             with self.assertRaises(guardian.GuardianConfigurationError):
                 guardian.resolve_repository_input(relative, kind="results directory")
+
+    def test_external_workspace_generic_gate_passes_with_relative_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            results = root / "captures"
+            results.mkdir()
+            shutil.copy2(
+                guardian.REPOSITORY_ROOT / RESULTS_DIRECTORY / "main_scene.json",
+                results / "main_scene.json",
+            )
+            shutil.copy2(guardian.REPOSITORY_ROOT / BUDGET_FILE, root / "budgets.json")
+            report = guardian.run_deterministic_pipeline(
+                "captures",
+                "budgets.json",
+                mode="never",
+                workspace_root=root,
+                validator_runner=subprocess.run,
+            )
+            self.assertEqual(report["authoritative_exit_code"], 0, report)
+            self.assertEqual(report["validator"]["results_directory"], "captures")
+            self.assertNotIn(str(root), guardian.canonical_json(report))
 
     def test_rejects_a_resolved_symlink_escape(self) -> None:
         outside = guardian.REPOSITORY_ROOT.parent / "outside-results"

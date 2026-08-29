@@ -462,3 +462,37 @@ The one live unified Mini request returned a directly accepted locally rendered 
 Retain the unified command and workflow. The implementation preserves the governing boundary: **The deterministic tools decide; the agent explains.**
 
 The next step is to exercise the workflow through a pull request and a manual dispatch, inspect the uploaded artifacts, and then broaden the tracked profile/policy fixture set before treating hosted CI behavior as verified.
+
+## 2026-08-29 — Experiment 11: Turnkey consumer-project performance CI
+
+**Status:** Retained; independent local consumer proof passed, hosted reusable invocation unverified
+
+### Hypothesis and reason
+
+A consumer should be able to turn a committed probe and v2 policy into a repeatable performance gate with one small reusable-workflow job. This was tried because Experiment 10 automated Guardian's tracked fixture, but another Godot repository still had to install Godot, orchestrate fresh captures, validate external paths, preserve evidence, and handle deterministic exits itself.
+
+### Change
+
+A standard-library capture helper now accepts an explicit consumer workspace and repository-relative project configuration. It preflights the project, committed addon, measured scene, automatically starting probe, identifiers, frame settings, output path, and symlink containment. By default it launches three isolated Godot processes with collision-safe IDs, a 300-second timeout, revision-presence metadata, sanitized per-run logs, and a canonical manifest. It never deletes or overwrites existing captures and stops at the first failed process.
+
+The validator, budget checker, unified runner, and investigator boundary now support `--workspace-root`. Inputs remain relative to the resolved consumer root, evidence stores only relative paths, and external workspaces accept generic captures only. A reusable Windows workflow checks out caller and matching Guardian revisions separately, installs Godot through an immutable setup-action pin, captures and gates the consumer project, optionally investigates downstream, and uploads evidence even when the authoritative gate fails. The project also adopted the MIT license.
+
+### Evaluation method
+
+Fixed tests exercised path containment, simulated symlink escape handling, command arguments, three-process isolation, optional scenes, revision metadata, timeouts, collision preservation, stop-on-failure, missing outputs, sanitized logs/manifests, external generic validation, and the workflow contract. Existing repository-root commands and investigator behavior remained in the complete regression suite.
+
+For the portability proof, the included minimal project and canonical addon were copied into a temporary independent consumer directory. Exactly three Godot `4.5.1.stable.official.f62fdbde1` processes ran with seed-backed project activity, 120 warmup frames, 600 measured frames, sampling interval 1, and the existing calibrated v2 policy. No AI request or synthetic benchmark rerun was made.
+
+### Observed result
+
+All three fresh captures completed with 600 samples and supplied revision metadata. Their process-time p95 values were `0.364 ms`, `0.344 ms`, and `0.334 ms`; the cross-run median was `0.344 ms`, passing the unchanged `1.1 ms` maximum. Every capture peaked at three nodes, so the median peak-node result passed equality at `3 <= 3`.
+
+The generic validator accepted all three files, the budget checker returned `0`, and the unified `never` gate returned authoritative exit `0`. The evidence contained no consumer absolute path, no temporary output remained, and investigation attempted zero API calls. Two earlier sandboxed attempts stopped safely on the first Godot crash and taught that the local executable needed explicit permission in this execution environment; the same helper then passed when the headless subprocess was allowed. Those failed outputs were not treated as measurements.
+
+The complete post-change suite passed 129 tests. The reusable workflow itself is structurally tested but has not yet run on a GitHub-hosted caller.
+
+### Decision and next step
+
+Retain the reusable workflow, external-workspace boundary, capture helper, and MIT license. Addon installation and CI activation remain explicit separate steps, and the deterministic tools remain authoritative.
+
+Next, merge the workflow and call it from an actual consumer repository at an immutable Guardian commit SHA. Inspect the hosted artifact and timing behavior before describing GitHub-hosted portability as verified.

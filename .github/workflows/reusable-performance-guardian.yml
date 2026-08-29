@@ -1,0 +1,187 @@
+name: Reusable Performance Guardian
+
+on:
+  workflow_call:
+    inputs:
+      project-path:
+        description: Repository-relative directory containing project.godot.
+        required: true
+        type: string
+      profile:
+        description: PerformanceBudgetProbe profile to capture.
+        required: true
+        type: string
+      budget-file:
+        description: Repository-relative v2 performance budget JSON file.
+        required: true
+        type: string
+      scene-path:
+        description: Optional res:// scene; defaults to the project's main scene.
+        required: false
+        default: ""
+        type: string
+      godot-version:
+        description: Godot version installed for capture.
+        required: false
+        default: "4.5.1"
+        type: string
+      use-dotnet:
+        description: Install the .NET Godot build.
+        required: false
+        default: false
+        type: boolean
+      warmup-frames:
+        description: Frames completed before measurement.
+        required: false
+        default: 120
+        type: number
+      measured-frames:
+        description: Frames included in each capture.
+        required: false
+        default: 600
+        type: number
+      sampling-interval:
+        description: Measured frames between samples.
+        required: false
+        default: 1
+        type: number
+      capture-runs:
+        description: Number of isolated capture processes.
+        required: false
+        default: 3
+        type: number
+      investigate:
+        description: Optional AI mode: never, on-failure, or always.
+        required: false
+        default: never
+        type: string
+      openai-model:
+        description: Optional investigator model override.
+        required: false
+        default: gpt-4.1-mini
+        type: string
+    secrets:
+      openai-api-key:
+        description: Optional API key used only when investigation is requested.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  performance-guardian:
+    runs-on: windows-latest
+    env:
+      GUARDIAN_TOOLS: ${{ github.workspace }}\.performance-guardian-tooling
+      RUN_PREFIX: ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out consumer repository
+        uses: actions/checkout@v7
+
+      - name: Check out matching Guardian tooling
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .performance-guardian-tooling
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Set up Godot
+        uses: chickensoft-games/setup-godot@f166999204a4f2722c6fe042fbaa3b3ea0d9c789 # v2.4.1
+        with:
+          version: ${{ inputs['godot-version'] }}
+          use-dotnet: ${{ inputs['use-dotnet'] }}
+          include-templates: false
+
+      - name: Validate investigation mode
+        shell: pwsh
+        env:
+          INVESTIGATE: ${{ inputs.investigate }}
+        run: |
+          if ($env:INVESTIGATE -notin @("never", "on-failure", "always")) {
+            Write-Error "investigate must be never, on-failure, or always"
+            exit 2
+          }
+
+      - name: Install optional investigator dependencies
+        if: inputs.investigate != 'never'
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check -r "$env:GUARDIAN_TOOLS\requirements-agent.txt"
+          python -m pip check
+
+      - name: Capture isolated runs
+        id: capture
+        continue-on-error: true
+        shell: pwsh
+        env:
+          PROJECT_PATH: ${{ inputs['project-path'] }}
+          PROFILE: ${{ inputs.profile }}
+          SCENE_PATH: ${{ inputs['scene-path'] }}
+          WARMUP_FRAMES: ${{ inputs['warmup-frames'] }}
+          MEASURED_FRAMES: ${{ inputs['measured-frames'] }}
+          SAMPLING_INTERVAL: ${{ inputs['sampling-interval'] }}
+          CAPTURE_RUNS: ${{ inputs['capture-runs'] }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          $arguments = @(
+            "$env:GUARDIAN_TOOLS\tools\capture_project.py",
+            "--workspace-root", "$env:GITHUB_WORKSPACE",
+            "--godot-executable", "godot",
+            "--project-path", "$env:PROJECT_PATH",
+            "--profile", "$env:PROFILE",
+            "--output-base", ".performance-guardian",
+            "--run-prefix", "$env:RUN_PREFIX",
+            "--runs", "$env:CAPTURE_RUNS",
+            "--warmup-frames", "$env:WARMUP_FRAMES",
+            "--measured-frames", "$env:MEASURED_FRAMES",
+            "--sampling-interval", "$env:SAMPLING_INTERVAL",
+            "--source-revision", "$env:SOURCE_REVISION"
+          )
+          if ($env:SCENE_PATH) { $arguments += @("--scene-path", "$env:SCENE_PATH") }
+          $manifest = python @arguments
+          $captureExit = $LASTEXITCODE
+          $manifest | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\capture-manifest.json"
+          exit $captureExit
+
+      - name: Run authoritative performance gate
+        if: always() && steps.capture.outcome != 'skipped'
+        shell: pwsh
+        env:
+          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+          PROJECT_PATH: ${{ inputs['project-path'] }}
+          PROFILE: ${{ inputs.profile }}
+          BUDGET_FILE: ${{ inputs['budget-file'] }}
+          INVESTIGATE: ${{ inputs.investigate }}
+          OPENAI_API_KEY: ${{ secrets['openai-api-key'] }}
+          OPENAI_MODEL: ${{ inputs['openai-model'] }}
+        run: |
+          $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX/captures"
+          if ($env:CAPTURE_OUTCOME -ne "success") {
+            $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX/incomplete-capture"
+          }
+          $report = python "$env:GUARDIAN_TOOLS\tools\run_guardian.py" `
+            --workspace-root "$env:GITHUB_WORKSPACE" `
+            --json `
+            --investigate "$env:INVESTIGATE" `
+            "$results" `
+            "$env:BUDGET_FILE"
+          $gateExit = $LASTEXITCODE
+          $report | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\guardian-report.json"
+          exit $gateExit
+
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: performance-guardian-${{ inputs.profile }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ inputs['project-path'] }}/.performance-guardian
+            ${{ runner.temp }}/capture-manifest.json
+            ${{ runner.temp }}/guardian-report.json
+          if-no-files-found: warn
+          retention-days: 14

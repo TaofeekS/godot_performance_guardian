@@ -8,9 +8,9 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; headless atomic JSON capture in an independent Godot 4.5.1 project; schema-specific deterministic validation; v1 scenario and v2 profile budgets; a unified standard-library gate; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in an independent Godot 4.5.1 consumer workspace; schema-specific deterministic validation; v1 scenario and v2 profile budgets; a unified standard-library gate; a reusable consumer workflow contract; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | The GitHub-hosted pull-request/manual workflow has not yet run. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | Neither GitHub-hosted workflow has run yet, including the reusable workflow from a separate consumer repository. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -30,6 +30,7 @@ The current baseline:
 - Compares a multi-run result set against embedded data-integrity, cleanup, growth, and relative CPU assertions.
 - Applies optional versioned project policy from `budgets/example_budgets.json` after deterministic validation, with a separate pass/fail exit status.
 - Runs validation and budget policy through one deterministic `run_guardian.py` command suitable for local use or CI, with optional post-decision AI explanation.
+- Provides a reusable Windows workflow that installs Godot, captures a consumer scene three times, validates the fresh generic evidence, enforces that consumer's v2 policy, and always uploads the evidence bundle.
 - Allows an unrelated project to copy `addons/performance_budget_guardian/`, add a probe node, capture generic engine metrics, validate them, and apply profile-based v2 budgets.
 - Offers an optional investigator that can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
 
@@ -40,6 +41,8 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 ```text
 .
 |-- .github/workflows/performance-guardian.yml
+|-- .github/workflows/reusable-performance-guardian.yml
+|-- LICENSE
 |-- README.md
 |-- AGENT_TRAJECTORY.md
 |-- IMPROVEMENT_CHANGELOG.md
@@ -63,7 +66,8 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   |-- test_check_budgets.py
 |   |-- test_investigator.py
 |   |-- test_portable_addon.py
-|   `-- test_run_guardian.py
+|   |-- test_run_guardian.py
+|   `-- test_capture_project.py
 |-- examples/
 |   |-- fixtures/main_scene-godot-4.5.1.json
 |   `-- minimal_project/
@@ -87,9 +91,11 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   |   `-- test_actor.gd
 |   `-- results/                 # Generated locally; ignored by Git
 `-- tools/
+    |-- capture_project.py
     |-- check_budgets.py
     |-- run_guardian.py
-    `-- validate_results.py
+    |-- validate_results.py
+    `-- workspace_paths.py
 ```
 
 - [`demo_project/project.godot`](demo_project/project.godot) defines the Godot 4.5 project and main scene.
@@ -99,7 +105,10 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`tools/validate_results.py`](tools/validate_results.py) validates schemas, calculations, cleanup evidence, leak growth, and relative CPU cost using only the Python standard library.
 - [`tools/check_budgets.py`](tools/check_budgets.py) evaluates validated semantic evidence against a versioned project policy without AI or third-party packages.
 - [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs the validator once, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
+- [`tools/capture_project.py`](tools/capture_project.py) preflights a consumer project and runs isolated, collision-safe Godot captures with sanitized logs and a canonical manifest.
+- [`tools/workspace_paths.py`](tools/workspace_paths.py) centralizes symlink-aware containment for explicit consumer workspaces.
 - [`.github/workflows/performance-guardian.yml`](.github/workflows/performance-guardian.yml) runs the tracked fixture and policy on pull requests to `main` and through manual dispatch.
+- [`.github/workflows/reusable-performance-guardian.yml`](.github/workflows/reusable-performance-guardian.yml) is the callable consumer-project capture and gate workflow.
 - [`addons/performance_budget_guardian/performance_probe.gd`](addons/performance_budget_guardian/performance_probe.gd) is the reusable runtime capture node.
 - [`examples/minimal_project/project.godot`](examples/minimal_project/project.godot) is the independent consumer project; it intentionally requires copying the addon into its ignored `addons/` directory.
 - [`examples/fixtures/main_scene-godot-4.5.1.json`](examples/fixtures/main_scene-godot-4.5.1.json) is the sanitized canonical live capture.
@@ -109,6 +118,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`tests/test_check_budgets.py`](tests/test_check_budgets.py) uses fixed evidence fixtures to verify configuration, semantic matching, deterministic output, and exit behavior.
 - [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, and v2 budgets against tracked test fixtures.
 - [`tests/test_run_guardian.py`](tests/test_run_guardian.py) verifies orchestration, containment, exit preservation, output stability, optional-investigation safety, and the workflow contract without an API request.
+- [`tests/test_capture_project.py`](tests/test_capture_project.py) verifies isolated capture commands, collisions, stop-on-failure, sanitized manifests/logs, and the reusable workflow contract.
 - [`tests/fixtures/generic_results/main_scene.json`](tests/fixtures/generic_results/main_scene.json), [`tests/fixtures/investigator/evidence_packet.json`](tests/fixtures/investigator/evidence_packet.json), and [`tests/fixtures/investigator/generic_evidence_packet.json`](tests/fixtures/investigator/generic_evidence_packet.json) are small deterministic fixtures used by the default test suite.
 - [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator and OpenAI SDK versions used by the clean test environment.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
@@ -127,7 +137,7 @@ Godot-generated `.uid` files are present beside the GDScript sources. The `.godo
 | Operating system | Windows 10.0.26200 is the only verified platform. Linux and macOS are unverified, and the supplied batch harness is PowerShell-specific. |
 | Debug build | Not required for scenario execution. `Performance.MEMORY_STATIC` is accepted only when a debug build reports a positive value; otherwise memory samples are `null` and explicitly marked unavailable. |
 | External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation and budget policy. The optional investigator pins `openai-agents==0.22.0` and `openai==3.6.0`; OpenAI installs `httpx2` transitively, but repository tests do not import that transport package directly. |
-| Network or API key | Benchmarking, addon capture, deterministic validation, and budget checking need neither. A live investigator run requires network access and `OPENAI_API_KEY`; local investigator tests do not. |
+| Network or API key | Benchmarking, addon capture, deterministic validation, and budget checking need neither. GitHub Actions needs network access to obtain actions and Godot. A live investigator run additionally requires `OPENAI_API_KEY`; local investigator tests do not. |
 
 ## 7. Quick start
 
@@ -301,6 +311,52 @@ The key is read only from the process environment. Do not place it in source fil
 The `Performance Guardian` workflow runs on pull requests targeting `main` and on manual dispatch. Both paths install only `requirements-agent.txt`, run `pip check` and the complete test suite, then evaluate the tracked generic fixture and its v2 policy through `run_guardian.py`. Pull requests always use `--investigate never`, so they need no credential and make no API request.
 
 Manual dispatch exposes `never`, `on-failure`, and `always`. To enable the optional modes, configure an Actions repository secret named `OPENAI_API_KEY`; an optional repository variable named `OPENAI_MODEL` overrides the default `gpt-4.1-mini`. The secret is scoped only to the manual gate step. The workflow writes canonical JSON beneath the runner's temporary directory, preserves the Python exit status, and uploads `performance-guardian-report` with `if: always()`, including deterministic failures. This workflow definition and its command contract are locally tested; an actual GitHub-hosted run remains unverified.
+
+### Turnkey CI for another Godot project
+
+Installing the addon does not automatically enable CI. A consumer repository must commit `addons/performance_budget_guardian/`, add an automatically starting `PerformanceBudgetProbe` to the measured scene, commit a schema-v2 profile budget, ignore `.performance-guardian/`, and add a small caller workflow. Pin the Guardian reusable workflow to an immutable commit SHA:
+
+```yaml
+name: Game performance
+
+on:
+  pull_request:
+
+jobs:
+  performance:
+    uses: TaofeekS/godot_performance_guardian/.github/workflows/reusable-performance-guardian.yml@<guardian-commit-sha>
+    with:
+      project-path: .
+      profile: main_scene
+      budget-file: budgets/performance_budgets.json
+```
+
+The three required inputs are `project-path`, `profile`, and `budget-file`. Optional inputs are:
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `scene-path` | Project main scene | Optional `res://` scene containing the probe. |
+| `godot-version` | `4.5.1` | Godot version installed by the pinned setup action. |
+| `use-dotnet` | `false` | Select the .NET Godot build. |
+| `warmup-frames` | `120` | Frames before measurement. |
+| `measured-frames` | `600` | Measured frames per run. |
+| `sampling-interval` | `1` | Frames between samples; the final frame is always sampled. |
+| `capture-runs` | `3` | Isolated Godot processes. |
+| `investigate` | `never` | `never`, `on-failure`, or `always`. |
+| `openai-model` | `gpt-4.1-mini` | Optional investigator override. |
+
+The optional reusable-workflow secret is `openai-api-key`. Pass it only when AI is requested:
+
+```yaml
+    secrets:
+      openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+```
+
+Mode `never` does not install the Agents SDK, inspect the key, or launch the investigator. The workflow checks out Guardian tooling at `job.workflow_repository` and `job.workflow_sha`, matching the exact called workflow revision. Godot installation uses `chickensoft-games/setup-godot` pinned to commit `f166999204a4f2722c6fe042fbaa3b3ea0d9c789` (`v2.4.1`).
+
+The capture helper creates collision-safe run IDs, uses the caller SHA as opaque revision metadata, applies a 300-second timeout per process, and stores only workspace-relative paths. The validator, checker, unified runner, and investigator accept `--workspace-root <consumer-root>`; every results, scene, project, and budget input remains relative to that resolved root. Symlink escapes are rejected, and external workspaces may contain generic captures only—not Guardian's synthetic controller evidence.
+
+The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit. The reusable contract and an independent local three-run consumer proof are verified; an actual hosted caller remains unverified until this workflow is merged and invoked from another repository.
 
 ### Investigator troubleshooting
 
@@ -636,6 +692,7 @@ Experiment 10 added the unified deterministic gate and Windows workflow without 
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - The [`Performance Guardian` workflow](.github/workflows/performance-guardian.yml) is the first automated deterministic gate; its tracked fixture output is uploaded as a JSON artifact, while broader categorized evidence packages remain planned.
+- The [`reusable consumer workflow`](.github/workflows/reusable-performance-guardian.yml) adds fresh three-run capture, validation, policy enforcement, sanitized logs, a manifest, and canonical gate output for another Godot repository; its local independent-consumer proof passed, while hosted invocation remains unverified.
 - Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
 
 The trajectory explains how an agent performed work. The improvement changelog explains how the product changes across evidence-backed experiments, including unsuccessful or removed approaches.
@@ -646,4 +703,4 @@ The repository-local [`godot-performance-guardian-docs`](.agents/skills/godot-pe
 
 ## 17. License
 
-No license has been selected. Until a license is added, do not assume that the repository is distributed under MIT or another standard open-source license.
+This repository is licensed under the [MIT License](LICENSE), Copyright (c) 2026 TaofeekS.

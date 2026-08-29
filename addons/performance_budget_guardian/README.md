@@ -11,3 +11,5 @@ Command-line overrides are `--pbg-profile`, `--pbg-warmup-frames`, `--pbg-measur
 When upgrading the addon, replace the installed addon directory while the plugin is disabled and create a fresh capture with a new run ID. Do not change old capture metadata to claim a newer addon version: result files are evidence of the version that produced them.
 
 To remove the addon, remove its probe nodes, disable the plugin, and delete only `res://addons/performance_budget_guardian/`.
+
+Installing the addon is separate from enabling CI. For turnkey Windows CI, also commit the addon, keep an automatically starting probe in the measured scene, commit a schema-v2 profile budget, ignore `.performance-guardian/`, and call the repository's reusable workflow at an immutable Guardian commit SHA. It installs Godot, runs three isolated captures by default, validates them, applies the project budget, and uploads captures, logs, a manifest, and canonical gate JSON. AI investigation is optional and defaults to `never`; deterministic validation and budgets always decide the exit. See the root [consumer CI instructions](../../README.md#turnkey-ci-for-another-godot-project).

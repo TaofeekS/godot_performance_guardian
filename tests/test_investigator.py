@@ -72,6 +72,25 @@ class ResultsDirectoryTests(unittest.TestCase):
 
 
 class ValidatorRunnerTests(unittest.TestCase):
+    def test_external_workspace_is_forwarded_safely(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            results = root / "captures"
+            results.mkdir()
+            (results / "one.json").write_text("{}", encoding="utf-8")
+            completed = subprocess.CompletedProcess(
+                [], 0, json.dumps(load_generic_evidence_packet()), ""
+            )
+            runner = Mock(return_value=completed)
+            investigator.run_validator(
+                "captures", workspace_root=root, subprocess_runner=runner
+            )
+            command = runner.call_args.args[0]
+            self.assertIn("--workspace-root", command)
+            self.assertIn(str(root.resolve()), command)
+            self.assertEqual(runner.call_args.kwargs["cwd"], root.resolve())
+            self.assertNotIn("shell", runner.call_args.kwargs)
+
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory(
             dir=investigator.REPOSITORY_ROOT

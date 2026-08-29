@@ -13,6 +13,19 @@ import subprocess
 import sys
 from typing import Any, Callable
 
+if __package__:
+    from .workspace_paths import (
+        WorkspacePathError,
+        resolve_workspace_member,
+        resolve_workspace_root,
+    )
+else:
+    from workspace_paths import (
+        WorkspacePathError,
+        resolve_workspace_member,
+        resolve_workspace_root,
+    )
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = (REPOSITORY_ROOT / "tools" / "validate_results.py").resolve()
@@ -191,18 +204,22 @@ def load_budget_configuration(path: Path) -> list[BudgetRule]:
 def run_validator_packet(
     results_directory: str,
     *,
+    workspace_root: Path = REPOSITORY_ROOT,
     subprocess_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
+    resolved_root = workspace_root.resolve()
     command = [
         sys.executable,
         str(VALIDATOR_PATH),
         "--evidence-json",
-        results_directory,
     ]
+    if resolved_root != REPOSITORY_ROOT.resolve():
+        command.extend(["--workspace-root", str(resolved_root)])
+    command.append(results_directory)
     try:
         completed = subprocess_runner(
             command,
-            cwd=REPOSITORY_ROOT,
+            cwd=resolved_root,
             capture_output=True,
             text=True,
             timeout=VALIDATOR_TIMEOUT_SECONDS,
@@ -395,6 +412,10 @@ def _argument_parser() -> argparse.ArgumentParser:
         dest="json_output",
         help="emit canonical machine-readable JSON",
     )
+    parser.add_argument(
+        "--workspace-root",
+        help="explicit workspace root for repository-relative generic captures",
+    )
     parser.add_argument("results_directory", help="benchmark result directory")
     parser.add_argument("budget_file", help="versioned JSON budget configuration")
     return parser
@@ -403,10 +424,31 @@ def _argument_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
     try:
-        rules = load_budget_configuration(Path(args.budget_file))
-        packet = run_validator_packet(args.results_directory)
+        if args.workspace_root is None:
+            rules = load_budget_configuration(Path(args.budget_file))
+            packet = run_validator_packet(args.results_directory)
+        else:
+            workspace_root = resolve_workspace_root(args.workspace_root, REPOSITORY_ROOT)
+            _results_path, relative_results = resolve_workspace_member(
+                workspace_root,
+                args.results_directory,
+                label="results directory",
+                expected="directory",
+            )
+            budget_path, _relative_budget = resolve_workspace_member(
+                workspace_root,
+                args.budget_file,
+                label="budget file",
+                expected="file",
+                require_json=True,
+            )
+            rules = load_budget_configuration(budget_path)
+            packet = run_validator_packet(
+                relative_results,
+                workspace_root=workspace_root,
+            )
         report = evaluate_budgets(rules, packet)
-    except (BudgetConfigurationError, BudgetEvidenceError) as error:
+    except (WorkspacePathError, BudgetConfigurationError, BudgetEvidenceError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2
 

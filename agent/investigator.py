@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = (REPOSITORY_ROOT / "tools" / "validate_results.py").resolve()
+ACTIVE_WORKSPACE_ROOT = REPOSITORY_ROOT
 DEFAULT_MODEL = "gpt-4.1-mini"
 DEFAULT_TIMEOUT_SECONDS = 30.0
 SAFE_API_METADATA = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -153,7 +154,21 @@ class EvidenceSchemaError(ValueError):
     """The evidence packet cannot satisfy the semantic reporting contract."""
 
 
-def resolve_results_directory(results_directory: str) -> tuple[Path, str, int]:
+def resolve_workspace_root(value: str | Path | None = None) -> Path:
+    candidate = REPOSITORY_ROOT if value is None else Path(value)
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as error:
+        raise ValueError("The workspace root does not exist.") from error
+    if not resolved.is_dir():
+        raise ValueError("The workspace root is not a directory.")
+    return resolved
+
+
+def resolve_results_directory(
+    results_directory: str,
+    workspace_root: Path | None = None,
+) -> tuple[Path, str, int]:
     """Resolve and validate a repository-contained benchmark result directory."""
 
     if not isinstance(results_directory, str) or not results_directory.strip():
@@ -163,11 +178,12 @@ def resolve_results_directory(results_directory: str) -> tuple[Path, str, int]:
     if supplied.is_absolute() or supplied.drive or supplied.anchor:
         raise ValueError("The results directory must be repository-relative.")
 
-    resolved = (REPOSITORY_ROOT / supplied).resolve()
+    root = resolve_workspace_root(workspace_root or ACTIVE_WORKSPACE_ROOT)
+    resolved = (root / supplied).resolve()
     try:
-        relative = resolved.relative_to(REPOSITORY_ROOT)
+        relative = resolved.relative_to(root)
     except ValueError as error:
-        raise ValueError("The results directory must remain inside the repository.") from error
+        raise ValueError("The results directory must remain inside the workspace.") from error
 
     if not resolved.exists():
         raise FileNotFoundError("The results directory does not exist.")
@@ -188,6 +204,8 @@ def _sanitized_text(value: str | bytes | None) -> str:
     root_variants = {
         str(REPOSITORY_ROOT),
         str(REPOSITORY_ROOT).replace("\\", "/"),
+        str(ACTIVE_WORKSPACE_ROOT),
+        str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/"),
     }
     for root in root_variants:
         text = text.replace(root, "<repository>")
@@ -293,13 +311,16 @@ def run_validator(
     results_directory: str,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     *,
+    workspace_root: Path | None = None,
     subprocess_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
     """Run the existing deterministic validator and return structured evidence."""
 
+    root = resolve_workspace_root(workspace_root or ACTIVE_WORKSPACE_ROOT)
     try:
         _resolved, relative_directory, json_file_count = resolve_results_directory(
-            results_directory
+            results_directory,
+            root,
         )
     except (ValueError, FileNotFoundError, NotADirectoryError) as error:
         return _evidence_packet(
@@ -316,12 +337,14 @@ def run_validator(
         sys.executable,
         str(VALIDATOR_PATH),
         "--evidence-json",
-        relative_directory,
     ]
+    if root != REPOSITORY_ROOT.resolve():
+        command.extend(["--workspace-root", str(root)])
+    command.append(relative_directory)
     try:
         completed = subprocess_runner(
             command,
-            cwd=REPOSITORY_ROOT,
+            cwd=root,
             capture_output=True,
             text=True,
             timeout=timeout_seconds,
@@ -1367,6 +1390,10 @@ def _argument_parser() -> argparse.ArgumentParser:
         description="Interpret existing Godot benchmark results without modifying them."
     )
     parser.add_argument(
+        "--workspace-root",
+        help="explicit workspace root for repository-relative generic captures",
+    )
+    parser.add_argument(
         "results_directory",
         help="Repository-relative directory containing benchmark result JSON files",
     )
@@ -1399,11 +1426,14 @@ def _emit_deterministic_fallback(packet: dict[str, Any], rule_ids: list[str]) ->
 
 
 def main(argv: list[str] | None = None) -> int:
+    global ACTIVE_WORKSPACE_ROOT
     args = _argument_parser().parse_args(argv)
 
     try:
+        ACTIVE_WORKSPACE_ROOT = resolve_workspace_root(args.workspace_root)
         _resolved, relative_directory, _count = resolve_results_directory(
-            args.results_directory
+            args.results_directory,
+            ACTIVE_WORKSPACE_ROOT,
         )
     except (ValueError, FileNotFoundError, NotADirectoryError) as error:
         print(f"ERROR: {error}", file=sys.stderr)

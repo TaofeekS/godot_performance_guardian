@@ -14,8 +14,18 @@ from typing import Any, Callable, Mapping
 
 if __package__:
     from . import check_budgets
+    from .workspace_paths import (
+        WorkspacePathError,
+        resolve_workspace_member,
+        resolve_workspace_root,
+    )
 else:  # Direct execution places this file's directory on sys.path.
     import check_budgets
+    from workspace_paths import (
+        WorkspacePathError,
+        resolve_workspace_member,
+        resolve_workspace_root,
+    )
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -58,39 +68,33 @@ class GuardianConfigurationError(ValueError):
     """A repository-contained runner input is invalid."""
 
 
-def resolve_repository_input(value: str, *, kind: str) -> tuple[Path, str]:
+def resolve_repository_input(
+    value: str,
+    *,
+    kind: str,
+    workspace_root: Path = REPOSITORY_ROOT,
+) -> tuple[Path, str]:
     """Resolve one input inside the repository without exposing absolute paths."""
 
-    if not isinstance(value, str) or not value.strip():
-        raise GuardianConfigurationError(f"{kind} path is required")
-    supplied = Path(value)
-    if supplied.is_absolute() or supplied.drive or supplied.anchor or ".." in supplied.parts:
-        raise GuardianConfigurationError(f"{kind} path must be repository-relative")
-    resolved = (REPOSITORY_ROOT / supplied).resolve()
     try:
-        relative = resolved.relative_to(REPOSITORY_ROOT)
-    except ValueError as error:
-        raise GuardianConfigurationError(
-            f"{kind} path must remain inside the repository"
-        ) from error
+        resolved, relative = resolve_workspace_member(
+            workspace_root,
+            value,
+            label=kind,
+            expected="directory" if kind == "results directory" else "file",
+            require_json=kind == "budget file",
+        )
+    except WorkspacePathError as error:
+        raise GuardianConfigurationError(str(error)) from error
 
     if kind == "results directory":
-        if not resolved.exists():
-            raise GuardianConfigurationError("results directory does not exist")
-        if not resolved.is_dir():
-            raise GuardianConfigurationError("results path is not a directory")
         if not any(path.is_file() for path in resolved.glob("*.json")):
             raise GuardianConfigurationError("results directory contains no JSON files")
     elif kind == "budget file":
-        if not resolved.exists():
-            raise GuardianConfigurationError("budget file does not exist")
-        if not resolved.is_file():
-            raise GuardianConfigurationError("budget path is not a file")
-        if resolved.suffix.lower() != ".json":
-            raise GuardianConfigurationError("budget file must use the .json extension")
+        pass
     else:
         raise GuardianConfigurationError("unsupported input kind")
-    return resolved, relative.as_posix()
+    return resolved, relative
 
 
 def _empty_investigation(mode: str, outcome: str) -> dict[str, Any]:
@@ -132,24 +136,35 @@ def run_deterministic_pipeline(
     budget_file: str,
     *,
     mode: str,
+    workspace_root: str | Path | None = None,
     validator_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
     """Run configuration, validator, then existing budget evaluation in order."""
 
     try:
+        resolved_root = resolve_workspace_root(workspace_root, REPOSITORY_ROOT)
         _results_path, relative_results = resolve_repository_input(
-            results_directory, kind="results directory"
+            results_directory,
+            kind="results directory",
+            workspace_root=resolved_root,
         )
         budget_path, _relative_budget = resolve_repository_input(
-            budget_file, kind="budget file"
+            budget_file,
+            kind="budget file",
+            workspace_root=resolved_root,
         )
         rules = check_budgets.load_budget_configuration(budget_path)
-    except (GuardianConfigurationError, check_budgets.BudgetConfigurationError) as error:
+    except (
+        WorkspacePathError,
+        GuardianConfigurationError,
+        check_budgets.BudgetConfigurationError,
+    ) as error:
         return _error_report(mode, str(error), configuration_error=True)
 
     try:
         packet = check_budgets.run_validator_packet(
             relative_results,
+            workspace_root=resolved_root,
             subprocess_runner=validator_runner,
         )
         budget_report = check_budgets.evaluate_budgets(rules, packet)
@@ -229,6 +244,7 @@ def _investigation_needed(report: dict[str, Any]) -> bool:
 def run_optional_investigation(
     report: dict[str, Any],
     *,
+    workspace_root: Path = REPOSITORY_ROOT,
     environment: Mapping[str, str] = os.environ,
     subprocess_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> None:
@@ -249,8 +265,10 @@ def run_optional_investigation(
     command = [
         sys.executable,
         str(INVESTIGATOR_PATH),
-        report["validator"]["results_directory"],
     ]
+    if workspace_root.resolve() != REPOSITORY_ROOT.resolve():
+        command.extend(["--workspace-root", str(workspace_root.resolve())])
+    command.append(report["validator"]["results_directory"])
     investigation = _empty_investigation(report["investigation"]["mode"], "api_error")
     investigation["api_request_attempted"] = True
     try:
@@ -359,6 +377,10 @@ def _argument_parser() -> argparse.ArgumentParser:
         choices=INVESTIGATION_MODES,
         default="never",
     )
+    parser.add_argument(
+        "--workspace-root",
+        help="explicit workspace root for repository-relative generic captures",
+    )
     parser.add_argument("results_directory")
     parser.add_argument("budget_file")
     return parser
@@ -370,8 +392,16 @@ def main(argv: list[str] | None = None) -> int:
         args.results_directory,
         args.budget_file,
         mode=args.investigate,
+        workspace_root=args.workspace_root,
     )
-    run_optional_investigation(report)
+    try:
+        workspace_root = resolve_workspace_root(args.workspace_root, REPOSITORY_ROOT)
+    except WorkspacePathError:
+        workspace_root = REPOSITORY_ROOT
+    if workspace_root.resolve() == REPOSITORY_ROOT.resolve():
+        run_optional_investigation(report)
+    else:
+        run_optional_investigation(report, workspace_root=workspace_root)
     output = canonical_json(report) if args.json_output else human_report(report)
     print(output, end="")
     return report["authoritative_exit_code"]

@@ -12,6 +12,19 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable
 
+if __package__:
+    from .workspace_paths import (
+        WorkspacePathError,
+        resolve_workspace_member,
+        resolve_workspace_root,
+    )
+else:
+    from workspace_paths import (
+        WorkspacePathError,
+        resolve_workspace_member,
+        resolve_workspace_root,
+    )
+
 
 SCENARIOS = {"healthy", "node_leak", "cpu_spike"}
 EXPECTED_PERCENTILE_DEFINITION = (
@@ -727,14 +740,14 @@ def build_evidence(
     return [] if validation.errors else evidence
 
 
-def _normalized_results_directory(arguments: list[str]) -> str:
+def _normalized_results_directory(arguments: list[str], workspace_root: Path) -> str:
     if len(arguments) != 1:
         return "multiple-inputs"
-    path = Path(arguments[0]).resolve()
+    path = (workspace_root / arguments[0]).resolve()
     try:
-        return path.relative_to(REPOSITORY_ROOT).as_posix()
+        return path.relative_to(workspace_root).as_posix()
     except ValueError:
-        return Path(arguments[0]).as_posix()
+        return "unsafe-results-directory"
 
 
 def evidence_packet(
@@ -743,6 +756,7 @@ def evidence_packet(
     loaded: list[tuple[Path, dict[str, Any]]],
     grouped: dict[str, list[dict[str, Any]]],
     validation: Validation,
+    workspace_root: Path = REPOSITORY_ROOT,
 ) -> dict[str, Any]:
     evidence = build_evidence(grouped, validation)
     configuration_item = next(
@@ -773,7 +787,7 @@ def evidence_packet(
             "error_type": None,
             "exit_code": 1 if validation.errors else 0,
         },
-        "results_directory": _normalized_results_directory(arguments),
+        "results_directory": _normalized_results_directory(arguments, workspace_root),
         "evidence": evidence,
         "limitations": [
             {"id": "L1", "statement": "Validator success proves only that the configured checks passed; it does not prove that no other performance problem exists."},
@@ -790,10 +804,11 @@ def generic_evidence_packet(
     paths: list[Path],
     loaded: list[tuple[Path, dict[str, Any]]],
     validation: Validation,
+    workspace_root: Path = REPOSITORY_ROOT,
 ) -> dict[str, Any]:
     evidence: list[dict[str, Any]] = []
     if not validation.errors:
-        source = _normalized_results_directory(arguments)
+        source = _normalized_results_directory(arguments, workspace_root)
         evidence.append(
             _generic_item(
                 "G1",
@@ -913,7 +928,7 @@ def generic_evidence_packet(
             "error_type": None,
             "exit_code": 1 if validation.errors else 0,
         },
-        "results_directory": _normalized_results_directory(arguments),
+        "results_directory": _normalized_results_directory(arguments, workspace_root),
         "evidence": [] if validation.errors else evidence,
         "limitations": limitations,
     }
@@ -926,18 +941,57 @@ def main() -> int:
         action="store_true",
         help="emit a deterministic machine-readable evidence packet",
     )
+    parser.add_argument(
+        "--workspace-root",
+        help="explicit workspace root for repository-relative generic captures",
+    )
     parser.add_argument("paths", nargs="+", help="Result JSON files or directories")
     args = parser.parse_args()
 
+    try:
+        workspace_root = resolve_workspace_root(args.workspace_root, REPOSITORY_ROOT)
+        normalized_arguments: list[str] = []
+        resolved_arguments: list[str] = []
+        for argument in args.paths:
+            if args.workspace_root is None:
+                resolved = Path(argument).resolve()
+                if not resolved.exists():
+                    raise WorkspacePathError("result input does not exist")
+                try:
+                    normalized = resolved.relative_to(workspace_root).as_posix()
+                except ValueError:
+                    normalized = resolved.as_posix()
+            else:
+                resolved, normalized = resolve_workspace_member(
+                    workspace_root,
+                    argument,
+                    label="result input",
+                    expected=None,
+                )
+                if not resolved.exists():
+                    raise WorkspacePathError("result input does not exist")
+            normalized_arguments.append(normalized)
+            resolved_arguments.append(str(resolved))
+    except WorkspacePathError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+
     validation = Validation()
-    paths = collect_paths(args.paths)
+    paths = collect_paths(resolved_arguments)
     if not paths:
         if args.evidence_json:
             validation.fail("result set", "no result JSON files found")
             grouped = {scenario: [] for scenario in SCENARIOS}
             print(
                 json.dumps(
-                    evidence_packet(args.paths, paths, [], grouped, validation),
+                    evidence_packet(
+                        normalized_arguments,
+                        paths,
+                        [],
+                        grouped,
+                        validation,
+                        workspace_root,
+                    ),
                     sort_keys=True,
                     separators=(",", ":"),
                 )
@@ -952,7 +1006,7 @@ def main() -> int:
             with path.open("r", encoding="utf-8") as handle:
                 data = json.load(handle)
         except (OSError, json.JSONDecodeError) as error:
-            validation.fail(str(path), f"could not read valid JSON: {error}")
+            validation.fail(path.name, f"could not read valid JSON: {error}")
             continue
         if isinstance(data, dict):
             loaded.append((path, data))
@@ -968,6 +1022,11 @@ def main() -> int:
     if "unknown" in result_kinds:
         validation.fail("result set", "unsupported result_type")
     result_kind = next(iter(result_kinds), "synthetic")
+    if workspace_root != REPOSITORY_ROOT.resolve() and result_kind != "generic":
+        validation.fail(
+            "result set",
+            "external workspaces support generic performance captures only",
+        )
     for path, data in loaded:
         if result_kind == "generic":
             validate_generic_result(data, path, validation)
@@ -1030,13 +1089,29 @@ def main() -> int:
     for directory in result_directories:
         leftovers = sorted(directory.glob("*.tmp.*"))
         if leftovers:
-            validation.fail(str(directory), f"temporary result files remain: {leftovers}")
+            validation.fail(
+                directory.name,
+                "temporary result files remain",
+            )
 
     if args.evidence_json:
         packet = (
-            generic_evidence_packet(args.paths, paths, loaded, validation)
+            generic_evidence_packet(
+                normalized_arguments,
+                paths,
+                loaded,
+                validation,
+                workspace_root,
+            )
             if result_kind == "generic"
-            else evidence_packet(args.paths, paths, loaded, grouped, validation)
+            else evidence_packet(
+                normalized_arguments,
+                paths,
+                loaded,
+                grouped,
+                validation,
+                workspace_root,
+            )
         )
         print(json.dumps(packet, sort_keys=True, separators=(",", ":")))
         return packet["validation"]["exit_code"]

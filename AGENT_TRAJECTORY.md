@@ -1456,3 +1456,64 @@ No Godot process or synthetic benchmark ran. No dependency, validator calculatio
 The first skill-validator invocation failed with `ModuleNotFoundError: No module named 'yaml'`, as PyYAML is intentionally not a project dependency. A follow-up temporary-install command used `New-Item -LiteralPath`, which this PowerShell rejected; `pip --target` nevertheless created the uniquely named temporary directory, installed cached PyYAML `6.0.3`, and the official validator printed `Skill is valid!`. Cleanup verified the resolved directory was an immediate system-temporary child with the expected prefix, removed it, and confirmed `TEMP_REMOVED=True`. No project manifest or persistent environment changed.
 
 The final post-documentation suite passed all 120 tests in 0.592 seconds; `pip check`, byte compilation, and `git diff --check` also passed. README retained all 17 numbered sections, all 33 relative-link occurrences resolved, and README plus both evidence documents ended with final newlines. Tests contained zero references to the ignored `demo_project/results` path. Filename-only credential-pattern scans found zero matching working-tree, tracked, staged, or reachable-history files/commits. Final status contained the three documentation files plus the new workflow, unified runner, and runner tests. The branch remained `main` at `f177009`; no commit or push occurred.
+
+## 2026-08-29 — Experiment 11 turnkey consumer-project performance CI
+
+### Request and approved plan
+
+The user requested:
+
+> PLEASE IMPLEMENT THIS PLAN:
+> # Experiment 11: Turnkey Consumer-Project Performance CI
+
+The approved summary required a reusable Windows GitHub Actions workflow that another Godot repository can call with a small job. It must install Godot `4.5.1`, produce three fresh headless captures from a configured scene, validate them, apply the consumer's v2 policy, upload evidence and the canonical report, and optionally invoke the existing investigator downstream. The consumer must commit the addon, an automatically starting probe, and a v2 budget. AI defaults to disabled, deterministic tools decide the exit, and the work adds an MIT license attributed to `TaofeekS`.
+
+The plan further required a standard-library capture helper, symlink-aware `--workspace-root` support across validator/checker/runner/investigator, generic-only external validation, an independent temporary-consumer proof, documentation synchronization, and no commit, tag, push, synthetic benchmark rerun, or API request.
+
+The repository-local `godot-performance-guardian-docs` skill, its complete README requirements reference, and the `agent-trajectory` skill were read before implementation. They required verified status language, exact workflow/command evidence, preservation of the 17 README sections, append-only experiment history, and a chronological execution record.
+
+### Inspection and design evidence
+
+The starting tree was clean at `a7f66885a14a720f22fefd083039138bf9fa082b`. Existing tools assumed the Guardian repository as their containment root, while the generic schema and v2 policy already had the semantics needed for a consumer project. The included minimal project referenced `res://addons/performance_budget_guardian/performance_probe.gd` and used profile `main_scene` with maxima `1.1 ms` process p95 and three peak nodes.
+
+Official documentation checks confirmed Godot's `--path`, `--scene`, and `--` user-argument boundary and GitHub's immutable-SHA recommendation for cross-repository reusable workflows. The selected setup action tag resolved to immutable commit `f166999204a4f2722c6fe042fbaa3b3ea0d9c789`. The configured public `origin` remained `https://github.com/TaofeekS/godot_performance_guardian.git` for fetch and push.
+
+### Implementation
+
+`tools/workspace_paths.py` centralizes explicit-root resolution and relative-member containment after symlink resolution. `--workspace-root` was added to `validate_results.py`, `check_budgets.py`, `run_guardian.py`, and the investigator CLI/boundary. Default repository-root invocations retain their original behavior. External roots require relative inputs and generic captures; normalized evidence and reports contain only consumer-root-relative paths.
+
+`tools/capture_project.py` validates the project, addon, scene/probe reference, automatic start, identifiers, numbers, source-revision shape, and output containment. It creates a fresh run directory, launches one Godot process per capture, stops on the first launch/timeout/exit/missing-output/collision failure, writes exclusive sanitized logs, and atomically writes a canonical manifest. It defaults to three runs, 120 warmup frames, 600 measured frames, sampling interval 1, and 300 seconds per process.
+
+`.github/workflows/reusable-performance-guardian.yml` defines the approved `workflow_call` interface. It uses Windows, read-only contents permission, caller and matching-tooling checkouts, Python 3.14, the immutable setup-Godot commit, conditional agent dependency installation, a process-scoped optional secret, authoritative unified-gate exit preservation, and unconditional 14-day artifact upload. `LICENSE` now contains the standard MIT text with `Copyright (c) 2026 TaofeekS`.
+
+Focused tests cover isolated subprocess arguments, collisions, timeouts, missing output, stop-on-failure, sanitized manifests/logs, external generic gates, investigator workspace forwarding, legacy command compatibility, and the reusable workflow's inputs, pinned action, checkout identities, conditional dependencies, secret safety, and artifacts.
+
+### Failures and responses
+
+The first complete test run exposed a compatibility regression: default validator invocations using absolute temporary fixture paths were rejected by the new relative-input rule. The default mode was restored to its legacy path behavior, while an explicitly supplied external workspace remains strictly relative. The full suite then retained the old mixed-schema boundary behavior.
+
+The first temporary project copy attempted a nonexistent `scripts/` directory and omitted `main.gd`, so Godot stopped with a signal-11 crash before producing evidence. The missing scene dependency was copied and a new run prefix was used, but the restricted sandbox still caused the same engine crash. In both attempts, the helper stopped after one process, recorded a safe failure manifest/log, and accepted no measurement. After explicitly authorizing the same headless subprocess outside the sandbox, a third unique prefix completed exactly three processes. Existing failed directories were preserved during diagnosis and removed only with the containing temporary consumer after all verification.
+
+One cross-suite test initially depended on a function default retaining a prior mocked subprocess reference. Passing the real standard-library subprocess runner explicitly in that integration test removed the state dependency; production behavior was unchanged.
+
+### Independent consumer evidence
+
+The successful command used the local Godot `4.5.1.stable.official.f62fdbde1` executable against a temporary independent directory containing the minimal project and a copied canonical addon. It used profile `main_scene`, source revision `a7f66885a14a720f22fefd083039138bf9fa082b`, run prefix `exp11-local-final`, three processes, 120 warmup frames, 600 measured frames, and sampling interval 1.
+
+All three captures completed with 600 sequential samples. Their process p95 values were `0.364 ms`, `0.344 ms`, and `0.334 ms`; all peak node counts were three. Structured generic validation accepted three files and declared revision availability present without exposing or comparing values. The existing v2 policy passed median p95 `0.344 ms <= 1.1 ms` and median peak nodes `3 <= 3`. The unified `--investigate never` command returned authoritative exit `0`, attempted no API request, retained consumer-relative paths, and found no temporary file or private consumer path in capture JSON.
+
+### Documentation and remaining uncertainty
+
+The documentation skill synchronized README status, tree, requirements, addon-versus-CI distinction, consumer prerequisites, immutable caller example, every workflow input/default, outputs, exits, artifacts, secret behavior, workspace containment, licensing, and local-versus-hosted verification. Its requirements reference now makes those claims repository invariants. `IMPROVEMENT_CHANGELOG.md` records Experiment 11 as a product change; this section preserves its execution history and failed attempts.
+
+The reusable workflow has not yet run on GitHub-hosted Windows or from a separate hosted caller. The local proof establishes only this included project, local Godot build, and machine. No OpenAI request, original synthetic benchmark, commit, tag, or push occurred. Final regression, integration, documentation, secret, link, whitespace, and Git-state checks follow this entry.
+
+### Final verification
+
+`pip check` reported no broken requirements, all 129 tests passed in 0.998 seconds, and byte compilation succeeded. The tracked generic fixture validated and its policy passed `0.5 ms <= 1.1 ms` plus `3 <= 3`. The canonical live fixture separately passed `0.529 ms <= 1.1 ms` plus `3 <= 3`. Two repeated structured-validator outputs and two repeated unified JSON outputs were byte-equivalent.
+
+The optional 49-file historical integration validated successfully. Its Experiment 5 demonstration policy returned the expected `1`, with only `cpu-spike-workload-p95` and `node-leak-retained-nodes` failing. No test referenced the ignored historical results directory.
+
+The first official documentation-skill validator attempt failed because PyYAML is intentionally absent from project dependencies. A sandboxed temporary installation then failed because network access was restricted and its verified temporary directory was removed. With explicit permission, cached PyYAML `6.0.3` was installed only into a new system-temporary directory; the official validator printed `Skill is valid!`, and cleanup confirmed removal. No manifest or persistent Python environment changed.
+
+README retained 17 numbered sections, every checked relative link resolved, and all changed documents ended with final newlines. The configured public fetch/push remote remained correct. `git diff --check` returned `0` with only line-ending notices. Filename-only credential scans found no matches in the working tree, tracked files, staged state, or reachable history, and no private absolute path was found. The temporary consumer directory—including both failed diagnostic attempts and the successful fresh evidence—was removed after measurements and metadata were recorded here. Final status contains only the focused Experiment 11 implementation, tests, license, workflow, skill, and documentation changes; no commit or push was performed.
