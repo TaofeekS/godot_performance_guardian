@@ -123,6 +123,45 @@ class CaptureProjectTests(unittest.TestCase):
         log = self.project / ".performance-guardian/main_scene/timeout-run/logs/timeout-run-01.log"
         self.assertIn("<workspace>", log.read_text(encoding="utf-8"))
 
+    def test_script_errors_reject_capture_and_stop_after_first_run(self) -> None:
+        diagnostics = (
+            'SCRIPT ERROR: Parse Error: Could not find type "PerformanceShape".\n',
+            'ERROR: Failed to load script "res://scripts/performance_visual.gd" '
+            f'from {self.root} with error "Parse error".\n',
+        )
+        for index, (stdout, stderr) in enumerate((diagnostics, diagnostics[::-1]), 1):
+            with self.subTest(stream="stdout" if index == 1 else "stderr"):
+                def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+                    output_arg = next(value for value in command if value.startswith("--pbg-output="))
+                    run_id_arg = next(value for value in command if value.startswith("--pbg-run-id="))
+                    output = output_arg.split("=", 1)[1].removeprefix("res://")
+                    run_id = run_id_arg.split("=", 1)[1]
+                    (self.project / output / f"{run_id}.json").write_text(
+                        "{}\n", encoding="utf-8"
+                    )
+                    return subprocess.CompletedProcess(command, 0, stdout, stderr)
+
+                runner = Mock(side_effect=run)
+                prefix = f"script-error-{index}"
+                manifest, exit_code = capture_project.capture_project(
+                    workspace_root=self.root,
+                    godot_executable=self.godot,
+                    project_path="game",
+                    profile="main_scene",
+                    run_prefix=prefix,
+                    subprocess_runner=runner,
+                )
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(runner.call_count, 1)
+                self.assertEqual(manifest["status"], "failed")
+                self.assertEqual(manifest["error_category"], "godot_script_error")
+                self.assertEqual(manifest["completed_runs"], 0)
+                self.assertEqual(manifest["captures"], [])
+                log = self.project / f".performance-guardian/main_scene/{prefix}/logs/{prefix}-01.log"
+                log_text = log.read_text(encoding="utf-8")
+                self.assertIn("SCRIPT ERROR:", log_text)
+                self.assertNotIn(str(self.root), log_text)
+
     def test_invalid_configuration_is_rejected_before_launch(self) -> None:
         cases = [
             {"project_path": "../game"},

@@ -562,3 +562,21 @@ A consumer manual run supplied the first hosted evidence after Experiment 12. Ca
 The workflow now resolves the consumer and optional protected-base project roots, verifies their containment, and stages a narrow evidence set beneath a fixed runner-temporary directory. Absolute-only runs stage candidate evidence and available reports. Comparison runs additionally stage baseline evidence and its manifest. The artifact action receives only the fixed staging path, so neither root nor nested consumer project paths become upload patterns. It still enables hidden files, runs unconditionally, and excludes source checkouts, `.git`, tooling, environment files, and credentials.
 
 This correction changes artifact preservation only; it does not reinterpret the already green deterministic gate or alter capture, validation, budgets, or optional investigation. Local verification and delivery evidence are recorded in `AGENT_TRAJECTORY.md`. Hosted absolute-only staging and hosted paired artifact preservation require a consumer rerun pinned to the corrected immutable revision before either new path is described as hosted-verified.
+
+## 2026-08-30 — Experiment 13: Valid object counts with always-on AI investigation
+
+**Status:** In progress; invalid before-evidence reproduced and capture-integrity guard implemented
+
+### Hypothesis and reason
+
+Object and node comparisons are meaningful only when the intended scene scripts loaded. The earlier hosted comparison appeared green, but both revisions logged `performance_visual.gd` parse failures while the independent probe continued. It therefore measured an inactive scene at 12 nodes and 1,418 objects rather than the intended 2,000-versus-25,000 shape populations.
+
+### Change and consistent evaluation
+
+The capture helper now treats Godot script parse/load diagnostics as capture failure even when Godot returns `0` and writes JSON. It preserves sanitized diagnostics, records `godot_script_error`, stops after the first invalid run, and exposes zero completed captures to deterministic validation or budgets. Fixed tests reproduce the successful-process-plus-JSON failure mode in both stdout and stderr.
+
+PluginTest will remove its clean-checkout dependency on a cached custom global type, use seed `1337`, name `res://main.tscn` explicitly, and calibrate node/object ceilings from three valid 2,000-shape hosted runs. The later 25,000-shape comparison will use the same 120/600/1 settings and three runs per side. Process p95 retains its 2 ms absolute and 20% relative limits; node and object counts will use a 10% baseline-derived absolute ceiling and 5% relative limit.
+
+### Observed result, decision, and next step
+
+The focused Guardian tests reject the previously accepted failure shape with exit `2`, no authoritative capture entries, and a sanitized log. The invalid 12-node/1,418-object values are retained only as a lesson and will not be used for policy calibration. Corrected local and hosted PluginTest counts, deterministic policy outcome, and the single `gpt-4.1-mini` accepted-versus-fallback result remain pending and will be appended without rewriting this history.

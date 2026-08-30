@@ -14,6 +14,7 @@ On every invocation, inspect `README.md`, `AGENT_TRAJECTORY.md`, and `IMPROVEMEN
 - Classify capabilities as implemented, partial, planned, missing, or unverified from workspace evidence. Never present roadmap intent as current behavior.
 - Verify paths, arguments, schemas, thresholds, versions, platform support, Git remotes, and test output at their sources. Inspect `git remote -v` or equivalent before documenting clone commands. Use the configured fetch URL when present and an explicitly labeled placeholder only when no remote exists. Never publish credentials or embedded authentication from a remote URL.
 - For consumer CI claims, inspect the reusable workflow, capture helper, workspace-root boundaries, pinned action revisions, artifact paths, and actual local/hosted verification separately. Never imply that copying the addon alone enables CI.
+- Before treating consumer JSON as valid performance evidence, inspect the associated sanitized Godot logs and capture manifest. Script parse/load errors invalidate the capture even when Godot exited successfully and the probe wrote JSON.
 - Distinguish deterministic workload configuration from noisy performance measurements. Do not generalize one machine's numbers into portable claims.
 - Treat embedded validator assertions as the current budget mechanism unless a configurable budget schema actually exists.
 - Reuse trustworthy existing results and command logs. Do not rerun costly benchmarks solely to make documentation appear complete.

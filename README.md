@@ -366,6 +366,8 @@ Mode `never` does not install the Agents SDK, inspect the key, or launch the inv
 
 The capture helper creates collision-safe run IDs, uses the caller SHA as opaque revision metadata, applies a 300-second timeout per process, and stores only workspace-relative paths. The validator, checker, unified runner, and investigator accept `--workspace-root <consumer-root>`; every results, scene, project, and budget input remains relative to that resolved root. Symlink escapes are rejected, and external workspaces may contain generic captures only—not Guardian's synthetic controller evidence.
 
+Capture validity also requires a clean Godot script-load log. `capture_project.py` rejects `SCRIPT ERROR:` and failed-script-load diagnostics even if Godot exits `0` and the independent probe wrote JSON. It preserves the sanitized log and a failed manifest with `godot_script_error`, stops subsequent runs, and keeps that result set out of validation and policy evaluation. This prevents an inactive or partially loaded scene from becoming apparently valid performance evidence.
+
 The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Before upload, it resolves the configured project beneath the consumer workspace and copies only the applicable evidence into a fixed runner-temporary staging directory. Absolute-only runs stage candidate evidence and reports; comparison runs additionally stage protected-base evidence and its manifest. This prevents `project-path: .` or a nested project path from producing artifact patterns containing `.` or `..`. The upload explicitly enables hidden files and does not include the full workspace, protected-base source checkout, `.git`, Guardian tooling checkout, environment files, or credentials. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit.
 
 A separate hosted consumer `never` run completed all three 600-sample captures, validated all three files, and passed both configured budgets at `0.093 ms <= 2 ms` process p95 and `12 <= 100` peak nodes, returning authoritative exit `0`. The later corrected artifact contained nine entries: three capture JSON files, three sanitized Godot logs, the internal capture manifest, the runner manifest, and canonical Guardian report. A filename-only inspection found no private path or credential pattern. Hosted absolute-only capture and evidence retention are therefore verified; hosted paired comparison remains unverified.
@@ -399,6 +401,8 @@ jobs:
       compare-with-base: true
       investigate: never
 ```
+
+The public [PluginTest consumer repository](https://github.com/TaofeekS/PluginTest) is the external integration example used to exercise this workflow. Its clean-checkout scene, v3 policy, and caller workflow are being corrected and recalibrated in Experiment 13; earlier `12`-node/`1,418`-object comparison output is explicitly invalid because the scene controller failed to load on both revisions.
 
 ### Investigator troubleshooting
 

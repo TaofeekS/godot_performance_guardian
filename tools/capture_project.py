@@ -33,6 +33,12 @@ IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 SOURCE_REVISION = re.compile(r"^[A-Za-z0-9._/-]{1,128}$")
 MAIN_SCENE = re.compile(r'^run/main_scene="([^"]+)"$', re.MULTILINE)
 PROBE_SCRIPT_REFERENCE = "res://addons/performance_budget_guardian/performance_probe.gd"
+SCRIPT_ERROR_PATTERNS = (
+    re.compile(r"(?im)^\s*SCRIPT ERROR:"),
+    re.compile(r"(?im)^\s*ERROR:\s+Failed to load script\b"),
+    re.compile(r"(?im)^\s*ERROR:\s+Cannot load source code from file\b"),
+    re.compile(r"(?im)^\s*ERROR:\s+Failed loading resource:.*\.(?:gd|cs)\b"),
+)
 
 
 class CaptureConfigurationError(ValueError):
@@ -139,6 +145,16 @@ def _sanitize_log(value: str | bytes | None, workspace_root: Path, executable: P
     ):
         text = text.replace(original, replacement)
     return text
+
+
+def _contains_script_error(*streams: str | bytes | None) -> bool:
+    """Return whether Godot reported a script parse or load failure."""
+
+    combined = "\n".join(
+        value.decode(errors="replace") if isinstance(value, bytes) else str(value or "")
+        for value in streams
+    )
+    return any(pattern.search(combined) for pattern in SCRIPT_ERROR_PATTERNS)
 
 
 def canonical_json(value: dict[str, Any]) -> str:
@@ -330,6 +346,11 @@ def capture_project(
 
         manifest["logs"].append(log_path.relative_to(root).as_posix())
         result_path = captures / f"{run_id}.json"
+        if _contains_script_error(completed.stdout, completed.stderr):
+            manifest["status"] = "failed"
+            manifest["error_category"] = "godot_script_error"
+            _write_manifest(manifest_path, manifest)
+            return manifest, 2
         if completed.returncode != 0:
             manifest["status"] = "failed"
             manifest["error_category"] = "godot_exit"

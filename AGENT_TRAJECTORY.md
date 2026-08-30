@@ -1748,3 +1748,25 @@ Commit, push, immutable SHA reporting, and hosted consumer rerun evidence follow
 The seven-file focused diff passed staged whitespace inspection and was committed as `248dbcf551e7480b69bffced2ef458adab238e94` with message `Normalize reusable workflow artifact staging`. It was pushed from `820abba` to `origin/main`; a read-only remote check confirmed that `refs/heads/main` resolved to the same full commit.
 
 GitHub's public workflow metadata reported `Reusable Performance Guardian` as `active` at `.github/workflows/reusable-performance-guardian.yml`. This proves delivery and workflow-definition recognition, not successful hosted artifact staging. The consumer must update its `uses:` reference to `248dbcf551e7480b69bffced2ef458adab238e94` and rerun. Absolute-only acceptance requires candidate captures/logs plus available reports in the artifact; paired acceptance additionally requires protected-base evidence and its manifest.
+
+## 2026-08-30 — Experiment 13 valid-object-count investigation and implementation
+
+### Request and approved boundary
+
+The user approved Experiment 13 after inspection of an external comparison artifact showed that the scene controller had not loaded. The central request was:
+
+> The previous comparison was invalid because `performance_visual.gd` failed to load on both revisions. The independent probe still produced JSON, so Guardian compared an inactive 12-node scene instead of the intended 2,000-versus-25,000 populations.
+
+The approved work covers Guardian capture integrity, PluginTest clean-checkout script correction, deterministic object/node policy calibration, an always-on `gpt-4.1-mini` comparison evaluation, synchronized documentation, and delivery to both repositories. GPU metrics and longer captures remain out of scope.
+
+### Inspection and invalid-before evidence
+
+Read-only inspection of `performance-guardian-main_scene-33281834727-1.zip` found three baseline captures, three candidate captures, their logs and manifests, and a canonical exit-0 report. Every JSON contained 600 samples, but every baseline and candidate sample reported 12 nodes and 1,418 objects. All six Godot logs contained `SCRIPT ERROR:` parse failures for `performance_visual.gd` and `Failed to load script ... Parse error`. The probe node ran independently, so JSON existence and Godot exit status had not established that the measured controller was active.
+
+Public PluginTest inspection found `main` configured for 2,000 shapes and `codex/high-load-visual-performance` for 25,000. The controller preloaded `performance_shape.gd` but also depended on the editor-generated `PerformanceShape` global type cache, and it randomized its RNG instead of applying the benchmark seed. The high-load caller requested `investigate: always` but did not pass the repository secret into the reusable workflow. The v3 policy lacked an object-count rule.
+
+### Guardian integrity implementation and focused verification
+
+`tools/capture_project.py` now detects `SCRIPT ERROR:`, failed script loads, failed script-source loads, and failed GDScript/C# resource loads across captured stdout and stderr. Detection happens after the log is sanitized and persisted but before return-code and result-file acceptance. The manifest becomes failed with `godot_script_error`, contains no capture entries, leaves `completed_runs` at zero, and returns exit `2`, so downstream validation cannot treat the JSON as authoritative.
+
+`tests/test_capture_project.py` creates a result file while returning process exit `0` and injects the diagnostic through each output stream. Both cases stop after one launch, preserve a sanitized log, and reject the capture. The focused module passed 9 tests and Python byte compilation succeeded. README, addon guidance, the repository-local documentation skill, and its detailed requirements now require clean scene logs before a capture can support a performance claim. Cross-repository correction, calibration, hosted evidence, final full verification, commits, and pushes follow this entry.
