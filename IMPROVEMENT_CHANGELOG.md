@@ -665,7 +665,7 @@ Retain the dock as the first editor-facing product surface. Its rendered visual 
 
 ## 2026-08-30 — Experiment 17: Main-screen Performance Guardian workspace
 
-**Status:** Retained; main-screen lifecycle verified, direct visual placement pending
+**Status:** Retained; automated lifecycle and PluginTest visual placement verified
 
 ### Hypothesis and reason
 
@@ -681,6 +681,10 @@ Tests require the exact Godot 4.5 main-screen contract, reject side-dock and aut
 
 The focused addon/main-screen suite passed 19 tests. The complete suite passed 180 tests in 4.936 seconds with one environment-dependent directory-symlink test skipped. Python byte compilation succeeded, both tracked generic fixtures validated, the Godot evidence helper produced its synchronized pass marker, and a three-second headless editor lifecycle exited `0` without script/load diagnostics.
 
-Retain the main-screen design because the implementation no longer reserves any Inspector/Node/FileSystem dock slot. Headless checks cannot establish the rendered toolbar position or hands-on switching behavior, so direct visual confirmation in the updated PluginTest editor remains the next acceptance step. The workspace remains deliberately read-only.
+Retain the main-screen design because the implementation no longer reserves any Inspector/Node/FileSystem dock slot. Headless checks could not establish the rendered toolbar position or hands-on switching behavior, so that claim initially remained pending. After delivery, the user manually confirmed in PluginTest that the editor workspace works as intended. The workspace remains deliberately read-only.
 
 Guardian implementation commit `80ba5d6fa829b4e947eff8e4aee0f540727aa58a` was pushed to `main`. PluginTest then received the canonical addon `1.2.0`, removed the obsolete side-dock script and UID, pinned all three reusable-workflow jobs to that immutable Guardian commit, and passed a Godot 4.5.1 editor lifecycle without script/load diagnostics. PluginTest commit `7f6780099c98f9d2993cf0edb2a3e4efa6d211b9` was pushed to `main`. No hosted workflow was dispatched.
+
+### Experiment 17 clarification — manual editor acceptance completed
+
+The user opened the updated PluginTest project and reported that the main-screen editor workspace works. This closes the pending visual acceptance check: **Guardian** is usable from the workspace selector without the previous side-dock interference with Inspector and Node access. This is user-reported manual evidence from PluginTest, not an automated cross-platform UI test.

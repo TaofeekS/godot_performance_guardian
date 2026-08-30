@@ -2003,3 +2003,15 @@ The synchronized documentation describes the main-screen API and read-only bound
 The focused Guardian change was committed as `80ba5d6fa829b4e947eff8e4aee0f540727aa58a` with message `Move Guardian to main editor workspace` and pushed to `origin/main`. The local PluginTest checkout was clean on `main`. Its canonical addon copy was advanced from `1.1.0` to `1.2.0`, the obsolete `performance_guardian_dock.gd` and UID were removed, the new main-screen script and Godot-generated UID were added, and each of its three reusable-workflow jobs was pinned to the immutable Guardian implementation commit.
 
 PluginTest's final Godot 4.5.1 headless editor lifecycle exited `0` without a matched script/load diagnostic, and `project.godot` had no diff. The focused external change passed `git diff --check`, was committed as `7f6780099c98f9d2993cf0edb2a3e4efa6d211b9` with the same message, and was pushed to PluginTest `origin/main`. No consumer workflow was dispatched, no capture was generated, and direct visual confirmation remains for the user to perform by opening PluginTest and selecting **Guardian**.
+
+### Manual visual acceptance follow-up
+
+The user subsequently reported:
+
+> i did the manual visual check for the editor workspace it works
+>
+> make sure to document this
+
+This user-observed PluginTest result closes Experiment 17's pending manual UI acceptance item. Documentation was updated to distinguish that direct visual evidence from the prior automated helper and headless editor lifecycle: the main-screen workspace was manually confirmed to work in PluginTest, while no new performance capture, hosted workflow, benchmark, or API request was needed for this documentation follow-up.
+
+The official documentation-skill validator printed `Skill is valid!` using temporary cached PyYAML 6.0.3 removed immediately afterward. README retained all 17 numbered sections, every checked relative Markdown link resolved, all updated documents ended with a newline, stale visual-pending claims were absent, and `git diff --check` reported no whitespace error.
