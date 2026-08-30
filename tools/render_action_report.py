@@ -38,6 +38,9 @@ class ActionReportError(ValueError):
     """The canonical report cannot be presented safely."""
 
 
+CALIBRATION_REPORT_TYPE = "performance_budget_calibration"
+
+
 def _mapping(value: Any, label: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ActionReportError(f"{label} is malformed")
@@ -137,6 +140,46 @@ def validate_report(report: Any) -> dict[str, Any]:
             _validate_comparison_result(result)
     elif comparison is not None:
         raise ActionReportError("schema v1 cannot contain comparison results")
+    return data
+
+
+def validate_calibration_report(report: Any) -> dict[str, Any]:
+    """Validate the safe presentation surface of calibration report schema v1."""
+
+    data = _mapping(report, "calibration report")
+    if data.get("report_type") != CALIBRATION_REPORT_TYPE or data.get("schema_version") != 1:
+        raise ActionReportError("calibration report schema is unsupported")
+    if data.get("status") != "proposal_generated":
+        raise ActionReportError("calibration report status is unsupported")
+    if SENSITIVE_TEXT.search(json.dumps(data, sort_keys=True)):
+        raise ActionReportError("calibration report contains unsafe presentation data")
+    validator = _mapping(data.get("validator"), "calibration validator")
+    if validator.get("status") != "passed":
+        raise ActionReportError("calibration validator did not pass")
+    for field in ("candidate_file_count", "validated_file_count"):
+        if isinstance(validator.get(field), bool) or not isinstance(validator.get(field), int) or validator[field] < 3:
+            raise ActionReportError(f"calibration validator {field} is invalid")
+    calibration = _mapping(data.get("calibration"), "calibration settings")
+    if calibration.get("preset") != "balanced" or calibration.get("proposal_authoritative") is not False:
+        raise ActionReportError("calibration settings are unsupported")
+    recommendations = data.get("recommendations")
+    if not isinstance(recommendations, list) or not recommendations:
+        raise ActionReportError("calibration recommendations are malformed")
+    seen: set[str] = set()
+    for value in recommendations:
+        item = _mapping(value, "calibration recommendation")
+        for field in ("budget_id", "evidence_id", "metric", "profile", "unit"):
+            if not isinstance(item.get(field), str) or not item[field]:
+                raise ActionReportError(f"calibration recommendation {field} is invalid")
+        if item["budget_id"] in seen:
+            raise ActionReportError("calibration recommendation ids are duplicated")
+        seen.add(item["budget_id"])
+        for field in ("observed_value", "margin_percent", "proposed_maximum", "relative_allowance_percent"):
+            _finite_number(item.get(field), f"calibration recommendation {field}")
+        if isinstance(item.get("run_count"), bool) or not isinstance(item.get("run_count"), int) or item["run_count"] < 3:
+            raise ActionReportError("calibration recommendation run count is invalid")
+    if not isinstance(data.get("proposed_policy"), dict) or not isinstance(data.get("limitations"), list):
+        raise ActionReportError("calibration proposal metadata is malformed")
     return data
 
 
@@ -350,15 +393,81 @@ def render_summary(report: dict[str, Any], artifact_name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_calibration_log(report: dict[str, Any], artifact_name: str) -> str:
+    validator = report["validator"]
+    lines = [
+        "Performance Guardian calibration proposal",
+        "PROPOSAL ONLY - NOT AN ENFORCED VERDICT",
+        f"Validation: PASSED ({validator['validated_file_count']} validated captures)",
+    ]
+    for item in report["recommendations"]:
+        lines.append(
+            f"- {item['budget_id']}: observed {_number(item['observed_value'])} {item['unit']}; "
+            f"margin {_number(item['margin_percent'])}%; proposed maximum "
+            f"{_number(item['proposed_maximum'])} {item['unit']}; relative allowance "
+            f"{_number(item['relative_allowance_percent'])}% [{item['evidence_id']}]"
+        )
+    lines.extend([
+        f"Evidence artifact: {artifact_name}",
+        "Download and review the proposal before applying or committing it.",
+    ])
+    return "\n".join(lines) + "\n"
+
+
+def render_calibration_summary(report: dict[str, Any], artifact_name: str) -> str:
+    validator = report["validator"]
+    lines = [
+        "# Performance Guardian calibration",
+        "",
+        "> **Proposal only—not an enforced verdict. Calibration does not decide whether a build passes.**",
+        "",
+        f"Validated **{validator['validated_file_count']}** captures with the balanced preset.",
+        "",
+        "## Proposed rules",
+        "",
+        "| Profile | Metric | Observed | Margin | Proposed maximum | Relative allowance | Evidence |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for item in report["recommendations"]:
+        lines.append(
+            f"| `{_md(item['profile'])}` | `{_md(item['metric'])}` | "
+            f"{_number(item['observed_value'])} {_md(item['unit'])} | "
+            f"{_number(item['margin_percent'])}% | "
+            f"{_number(item['proposed_maximum'])} {_md(item['unit'])} | "
+            f"{_number(item['relative_allowance_percent'])}% | `{_md(item['evidence_id'])}` |"
+        )
+    lines.extend([
+        "",
+        "## Review and migration",
+        "",
+        "1. Run calibration on the default branch.",
+        "2. Download and review the proposal.",
+        "3. Apply it explicitly with `tools/calibrate_budgets.py --apply-proposal`.",
+        "4. Commit the v3 policy while protected-base comparison remains disabled.",
+        "5. Enable protected-base comparison in a later pull request.",
+        "",
+        "## Evidence",
+        "",
+        f"Download artifact `{_md(artifact_name)}` for the five captures, sanitized logs, manifests, calibration report, and proposed policy.",
+    ])
+    return "\n".join(lines) + "\n"
+
+
 def render(report_path: Path, summary_path: Path, artifact_name: str) -> tuple[str, str]:
     if not artifact_name.strip() or any(character in artifact_name for character in "\r\n"):
         raise ActionReportError("artifact name is invalid")
     try:
-        report = validate_report(json.loads(report_path.read_text(encoding="utf-8-sig")))
+        raw_report = json.loads(report_path.read_text(encoding="utf-8-sig"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ActionReportError("canonical report could not be read") from error
-    log = render_log(report, artifact_name)
-    summary = render_summary(report, artifact_name)
+    if isinstance(raw_report, dict) and raw_report.get("report_type") == CALIBRATION_REPORT_TYPE:
+        report = validate_calibration_report(raw_report)
+        log = render_calibration_log(report, artifact_name)
+        summary = render_calibration_summary(report, artifact_name)
+    else:
+        report = validate_report(raw_report)
+        log = render_log(report, artifact_name)
+        summary = render_summary(report, artifact_name)
     try:
         with summary_path.open("a", encoding="utf-8", newline="\n") as stream:
             stream.write(summary)

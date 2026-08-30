@@ -192,7 +192,7 @@ class ReusableWorkflowTests(unittest.TestCase):
         for name in (
             "project-path", "profile", "budget-file", "scene-path", "godot-version",
             "use-dotnet", "warmup-frames", "measured-frames", "sampling-interval",
-            "capture-runs", "compare-with-base", "investigate", "openai-model", "openai-api-key",
+            "capture-runs", "calibration-runs", "mode", "compare-with-base", "investigate", "openai-model", "openai-api-key",
         ):
             self.assertIn(name, workflow)
         self.assertIn("windows-latest", workflow)
@@ -203,7 +203,7 @@ class ReusableWorkflowTests(unittest.TestCase):
         self.assertIn("Test-Path -LiteralPath $env:GODOT -PathType Leaf", workflow)
         self.assertIn('"--godot-executable", "$env:GODOT"', workflow)
         self.assertNotIn('"--godot-executable", "godot"', workflow)
-        self.assertIn("if: inputs.investigate != 'never'", workflow)
+        self.assertIn("if: inputs.mode == 'enforce' && inputs.investigate != 'never'", workflow)
         self.assertIn("continue-on-error: true", workflow)
         self.assertIn("CAPTURE_OUTCOME: ${{ steps.capture.outcome }}", workflow)
         self.assertIn("incomplete-capture", workflow)
@@ -247,6 +247,30 @@ class ReusableWorkflowTests(unittest.TestCase):
         )
         self.assertNotRegex(workflow, r"(?m)^\s+description: [^\"'].*: .*$")
         self.assertNotRegex(workflow, r"sk-[A-Za-z0-9_-]{12,}")
+
+    def test_calibration_mode_is_manual_proposal_only_and_ai_free(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertRegex(workflow, r"mode:\s+description:[\s\S]+?default: enforce")
+        self.assertRegex(workflow, r"calibration-runs:\s+description:[\s\S]+?default: 5")
+        self.assertRegex(workflow, r"budget-file:\s+description:[\s\S]+?required: false")
+        self.assertIn("calibrate mode requires a workflow_dispatch event", workflow)
+        self.assertIn("calibrate mode must run on the consumer repository default branch", workflow)
+        self.assertIn("calibrate mode cannot compare with a protected base", workflow)
+        self.assertIn("calibrate mode requires investigate never", workflow)
+        self.assertIn("inputs.mode == 'enforce' && inputs.investigate != 'never'", workflow)
+        self.assertIn("inputs.mode == 'calibrate' && inputs['calibration-runs'] || inputs['capture-runs']", workflow)
+        calibration_step = workflow.split("- name: Generate calibration proposal", maxsplit=1)[1].split(
+            "- name: Stage performance evidence", maxsplit=1
+        )[0]
+        self.assertIn("tools\\calibrate_budgets.py", calibration_step)
+        self.assertIn("--policy-output", calibration_step)
+        self.assertIn("--report-output", calibration_step)
+        self.assertIn("tools\\render_action_report.py", calibration_step)
+        self.assertNotIn("OPENAI_API_KEY", calibration_step)
+        self.assertNotIn("run_guardian.py", calibration_step)
+        self.assertIn("exit $calibrationExit", calibration_step)
+        self.assertIn("calibration-report.json", workflow)
+        self.assertIn("proposed-performance-budgets.json", workflow)
 
     def test_comparison_is_opt_in_pr_only_and_base_controlled(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")

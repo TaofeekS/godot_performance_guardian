@@ -12,8 +12,14 @@ on:
         required: true
         type: string
       budget-file:
-        description: Repository-relative v2 or v3 performance budget JSON file.
-        required: true
+        description: Repository-relative v2 or v3 budget; required in enforce mode.
+        required: false
+        default: ""
+        type: string
+      mode:
+        description: "Operation mode: enforce or calibrate."
+        required: false
+        default: enforce
         type: string
       scene-path:
         description: Optional res:// scene; defaults to the project's main scene.
@@ -49,6 +55,11 @@ on:
         description: Number of isolated capture processes.
         required: false
         default: 3
+        type: number
+      calibration-runs:
+        description: Number of isolated captures used for a calibration proposal.
+        required: false
+        default: 5
         type: number
       compare-with-base:
         description: Compare a pull-request candidate with its protected base revision using schema v3.
@@ -86,7 +97,7 @@ jobs:
           ref: ${{ inputs['compare-with-base'] && github.event.pull_request.head.sha || github.sha }}
 
       - name: Check out protected base revision
-        if: inputs.compare-with-base
+        if: inputs.mode == 'enforce' && inputs.compare-with-base
         uses: actions/checkout@v7
         with:
           repository: ${{ github.repository }}
@@ -115,8 +126,14 @@ jobs:
       - name: Validate investigation mode
         shell: pwsh
         env:
+          MODE: ${{ inputs.mode }}
+          BUDGET_FILE: ${{ inputs['budget-file'] }}
           INVESTIGATE: ${{ inputs.investigate }}
         run: |
+          if ($env:MODE -notin @("enforce", "calibrate")) {
+            Write-Error "mode must be enforce or calibrate"
+            exit 2
+          }
           if ($env:INVESTIGATE -notin @("never", "on-failure", "always")) {
             Write-Error "investigate must be never, on-failure, or always"
             exit 2
@@ -125,9 +142,31 @@ jobs:
             Write-Error "compare-with-base requires a pull_request event"
             exit 2
           }
+          if ($env:MODE -eq "enforce" -and [string]::IsNullOrWhiteSpace($env:BUDGET_FILE)) {
+            Write-Error "budget-file is required in enforce mode"
+            exit 2
+          }
+          if ($env:MODE -eq "calibrate") {
+            if ('${{ github.event_name }}' -ne 'workflow_dispatch') {
+              Write-Error "calibrate mode requires a workflow_dispatch event"
+              exit 2
+            }
+            if ('${{ github.ref_name }}' -ne '${{ github.event.repository.default_branch }}') {
+              Write-Error "calibrate mode must run on the consumer repository default branch"
+              exit 2
+            }
+            if ('${{ inputs.compare-with-base }}' -eq 'true') {
+              Write-Error "calibrate mode cannot compare with a protected base"
+              exit 2
+            }
+            if ($env:INVESTIGATE -ne "never") {
+              Write-Error "calibrate mode requires investigate never"
+              exit 2
+            }
+          }
 
       - name: Install optional investigator dependencies
-        if: inputs.investigate != 'never'
+        if: inputs.mode == 'enforce' && inputs.investigate != 'never'
         shell: pwsh
         run: |
           python -m pip install --disable-pip-version-check -r "$env:GUARDIAN_TOOLS\requirements-agent.txt"
@@ -135,7 +174,7 @@ jobs:
 
       - name: Capture protected baseline runs
         id: baseline-capture
-        if: inputs.compare-with-base
+        if: inputs.mode == 'enforce' && inputs.compare-with-base
         continue-on-error: true
         shell: pwsh
         env:
@@ -183,7 +222,7 @@ jobs:
           WARMUP_FRAMES: ${{ inputs['warmup-frames'] }}
           MEASURED_FRAMES: ${{ inputs['measured-frames'] }}
           SAMPLING_INTERVAL: ${{ inputs['sampling-interval'] }}
-          CAPTURE_RUNS: ${{ inputs['capture-runs'] }}
+          CAPTURE_RUNS: ${{ inputs.mode == 'calibrate' && inputs['calibration-runs'] || inputs['capture-runs'] }}
           SOURCE_REVISION: ${{ inputs['compare-with-base'] && github.event.pull_request.head.sha || github.sha }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:GODOT) -or -not (Test-Path -LiteralPath $env:GODOT -PathType Leaf)) {
@@ -211,7 +250,7 @@ jobs:
           exit $captureExit
 
       - name: Run authoritative performance gate
-        if: always() && steps.capture.outcome != 'skipped'
+        if: always() && inputs.mode == 'enforce' && steps.capture.outcome != 'skipped'
         shell: pwsh
         env:
           CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
@@ -257,6 +296,40 @@ jobs:
             Write-Warning "Performance Guardian presentation failed safely; the deterministic exit is unchanged."
           }
           exit $gateExit
+
+      - name: Generate calibration proposal
+        if: always() && inputs.mode == 'calibrate' && steps.capture.outcome != 'skipped'
+        shell: pwsh
+        env:
+          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+          PROJECT_PATH: ${{ inputs['project-path'] }}
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-candidate/captures"
+          if ($env:CAPTURE_OUTCOME -ne "success") {
+            $results = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-candidate/incomplete-capture"
+          }
+          $policyPath = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-candidate/proposed-performance-budgets.json"
+          $reportPath = "$env:PROJECT_PATH/.performance-guardian/$env:PROFILE/$env:RUN_PREFIX-candidate/calibration-report.json"
+          $calibrationOutput = python "$env:GUARDIAN_TOOLS\tools\calibrate_budgets.py" `
+            --workspace-root "$env:GITHUB_WORKSPACE" `
+            --json `
+            --policy-output "$policyPath" `
+            --report-output "$reportPath" `
+            "$results"
+          $calibrationExit = $LASTEXITCODE
+          $artifactName = "performance-guardian-$env:PROFILE-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $absoluteReportPath = Join-Path $env:GITHUB_WORKSPACE $reportPath
+          if (Test-Path -LiteralPath $absoluteReportPath -PathType Leaf) {
+            python "$env:GUARDIAN_TOOLS\tools\render_action_report.py" `
+              --summary-file "$env:GITHUB_STEP_SUMMARY" `
+              --artifact-name $artifactName `
+              $absoluteReportPath
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "Performance Guardian calibration presentation failed safely; the calibration exit is unchanged."
+            }
+          }
+          exit $calibrationExit
 
       - name: Stage performance evidence
         if: always()

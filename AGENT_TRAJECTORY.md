@@ -1852,3 +1852,36 @@ The artifact contained nine entries: three capture JSON files, three Godot logs,
 The renderer writes `GITHUB_STEP_SUMMARY` before emitting its log, so the successful hosted presentation log and absence of its safe warning establish that the append operation completed. GitHub's REST/check-run response returned no custom summary body, and the in-app browser's unsigned public view required sign-in for job details. Direct visual inspection of the Markdown body therefore remains unverified; no extra run was made merely to close that UI-access gap. Final Guardian documentation verification, cleanup, commit, and push follow this entry.
 
 The temporary clone, downloaded log ZIP, artifact ZIP, and extracted evidence were contained beneath the exact `.experiment-14` child directory. That resolved target was verified before recursive removal; remote commits, the workflow run, and its GitHub artifact remain available. The final Guardian suite passed all 160 tests in 4.860 seconds, byte compilation succeeded, `pip check` found no broken requirements, all checked relative links resolved, README retained sections 1 through 17, and `git diff --check` passed. The official documentation-skill validator again printed `Skill is valid!` using temporary PyYAML removed immediately afterward. Final working-tree, tracked-file, and reachable-history credential scans reported no matching filename or commit identifier.
+
+## 2026-08-30 — Experiment 15 budget calibration assistant
+
+### Request and approved boundary
+
+The user requested:
+
+> PLEASE IMPLEMENT THIS PLAN:
+> # Experiment 15: Budget Calibration Assistant
+>
+> Add a deterministic calibration assistant that converts repeated, validated generic captures into a reviewable schema-v3 budget proposal.
+
+The approved plan requires local generation and explicit application commands, balanced process/node/object formulas, one structured-validator invocation, at least three captures per profile, five hosted captures by default, atomic collision-refusing output, manual/default-branch-only calibration, no AI or enforcement in calibration mode, actionable proposal rendering, a five-run local Godot evaluation, synchronized documentation, Guardian and PluginTest delivery, and exactly one hosted calibration that does not apply its proposal.
+
+### Inspection and implementation
+
+The repository-local documentation skill, its complete README requirements reference, the agent-trajectory skill, and skill-creator guidance were read before documentation or skill changes. Implementation inspection covered `check_budgets.py`, `validate_results.py` evidence shape, workspace containment, capture orchestration, Actions presentation, both workflow contracts, tracked fixtures, the addon example, and current documentation.
+
+`tools/calibrate_budgets.py` now builds schema-v3 rules exclusively from passed generic aggregate evidence. It rejects reserved/global profile metadata as a profile, ambiguous or malformed aggregates, fewer than three contributing runs, unsafe paths, collisions, and synthetic evidence. It gives long rule IDs deterministic SHA-256 suffixes, writes policy and report atomically, and leaves no temporary output. Apply mode reuses the strict budget parser, rejects self-application, creates a missing target, and requires `--replace` for an existing policy.
+
+`render_action_report.py` now dispatches calibration-report schema v1 separately from Guardian verdict schemas. Its log and Markdown summary state that the output is a proposal rather than an enforced verdict, show observed value, margin, proposed maximum, relative allowance, evidence ID, artifact guidance, and the five-step migration sequence.
+
+The reusable workflow defaults to `mode: enforce` and retains three enforcement captures. `budget-file` is optional only at the callable schema boundary and is still checked as required for enforcement. `mode: calibrate` defaults to five captures, is accepted only for manual dispatch on the consumer default branch, forbids comparison and investigation, skips optional dependency installation and `run_guardian.py`, generates the two proposal files, renders them, and stages them with capture evidence. No API secret is referenced by the calibration step.
+
+### Tests and local evaluation
+
+The first focused modules passed after one expectation was updated to reflect the intentionally narrowed optional-dependency condition. The complete initial suite passed 173 tests after the final symlink-containment case was added.
+
+The first temporary consumer copy accidentally included ignored editor state and old results; Godot crashed before producing evidence. A second clean tracked-file export parsed, but its sandboxed capture could not use Godot's normal AppData directories and stopped safely with `godot_exit`. Neither attempt was treated as measurement evidence. The same clean isolated consumer was then run with the required local permission. Exactly five Godot `4.5.1.stable.official.f62fdbde1` processes completed using seed 1337, 120 warmup frames, 600 measured frames, interval 1, and profile `main_scene`.
+
+The five captures passed generic validation. The structured aggregates were `0.421 ms` median process p95, `3` median peak nodes, and `1,393` median peak objects. The balanced proposal contained `0.7 ms` with 20% relative allowance, `4` nodes with 5%, and `1,533` objects with 5%. The proposal was explicitly applied to a separate temporary policy, and `check_budgets.py` reported all three absolute rules passed on the same captures. Repository example policies were unchanged and no OpenAI request or synthetic benchmark ran.
+
+Documentation-skill validation, final tests, delivery, PluginTest caller changes, one hosted calibration, artifact inspection, and final Git state follow this entry.

@@ -614,3 +614,25 @@ Guardian commit `7622997bd3a9c5d166703e578af943b7e25f61ba` and PluginTest caller
 The optional `gpt-4.1-mini` request was attempted once and accepted; no fallback or retry occurred. Its five-section report retained the required uncertainty statement and contained no detected private path, revision value, or credential pattern. Renderer completion without a presentation warning establishes that the summary file was appended before the log was printed. The public API and unsigned Actions view did not expose the custom Markdown body, so its direct signed-in visual inspection remains pending rather than inferred as a UI claim.
 
 The nine-entry artifact retained three capture JSON files, three clean Godot logs, the internal and runner manifests, and canonical Guardian JSON. All capture files contained 600 samples and addon version `1.0.1`; generic validation passed, and artifact scans found no private absolute path or credential pattern. This meets the actionable log, annotation, AI separation, and evidence-retention goals without changing the unchanged `2 ms` project policy. A future signed-in inspection can close only the visual-summary evidence gap; it does not require another performance or AI run.
+
+## 2026-08-30 — Experiment 15: Budget calibration assistant
+
+**Status:** Retained; deterministic local generation and explicit application verified, hosted consumer proof pending
+
+### Hypothesis and reason
+
+Customers should not have to invent initial timing and global-count thresholds by hand. A deterministic assistant can turn repeated validated captures into a conservative, reviewable policy without weakening the separation between evidence, policy, and optional AI.
+
+### Change and evaluation method
+
+`tools/calibrate_budgets.py` invokes the existing structured validator once, requires passed generic evidence with at least three contributing captures per profile, and discovers aggregate facts semantically. Its balanced preset proposes process p95 at 150% of the observed median rounded upward to `0.1 ms`, peak nodes and objects at 110% rounded upward to integers, and relative allowances of 20%, 5%, and 5%. Outputs are deterministic, atomically written, collision-refusing schema-v3 policy and calibration-report files. The separate apply mode revalidates the proposal and requires `--replace` before changing an existing target.
+
+The reusable workflow adds opt-in `mode: calibrate`, defaulting to five runs. Calibration is restricted to manual dispatch on the consumer default branch, forbids protected-base comparison and AI investigation, skips enforcement, and uploads proposal evidence. Existing `enforce` behavior remains the default.
+
+The consistent local evaluation used the included independent Godot `4.5.1.stable.official.f62fdbde1` project with seed 1337, 120 warmup frames, 600 measured frames, sampling interval 1, and five isolated processes. The existing synthetic benchmark was not rerun and OpenAI was not called.
+
+### Observed result, decision, and next step
+
+All five fresh captures validated. Their aggregate medians were `0.421 ms` process p95, `3` peak nodes, and `1,393` peak objects. The assistant proposed `0.7 ms`, `4` nodes, and `1,533` objects. Applying the proposal to a temporary contained policy succeeded, and the same five captures passed all three absolute limits. The initial complete suite passed 173 tests.
+
+Retain proposal-only calibration. The measurements and thresholds are host-specific and global node/object counts are not project-owned; headless capture does not measure GPU performance. The proposal has no authority until reviewed and committed. The next step is delivery followed by exactly one five-run PluginTest default-branch calibration to verify hosted logs, summary, fourteen-file artifact, and zero AI activity; the hosted proposal will not be applied automatically.

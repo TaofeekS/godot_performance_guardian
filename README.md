@@ -8,9 +8,9 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; repeated headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a deterministic five-run calibration assistant verified locally; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | Direct visual inspection of the hosted custom job-summary body remains unavailable from the unsigned/API inspection environment. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | Hosted `calibrate` mode remains pending one consumer default-branch dispatch. Direct visual inspection of the hosted custom job-summary body remains unavailable from the unsigned/API inspection environment. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -32,6 +32,7 @@ The current baseline:
 - Runs validation and budget policy through one deterministic `run_guardian.py` command suitable for local use or CI, with optional post-decision AI explanation.
 - Provides a reusable Windows workflow that installs Godot, captures a consumer scene three times, validates fresh generic evidence, enforces a v2 or v3 policy, and always uploads the evidence bundle.
 - Optionally compares three protected-base captures with three pull-request candidate captures under a base-controlled schema-v3 policy on the same runner.
+- Generates a reviewable schema-v3 proposal from at least three validated generic captures; hosted calibration defaults to five and never edits or enforces policy automatically.
 - Allows an unrelated project to copy `addons/performance_budget_guardian/`, add a probe node, capture generic engine metrics, validate them, and apply profile-based v2 budgets.
 - Offers an optional investigator that can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
 
@@ -68,6 +69,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   |   |-- investigator/generic_evidence_packet.json
 |   |   `-- investigator/comparison_evidence_packet.json
 |   |-- test_comparison.py
+|   |-- test_calibrate_budgets.py
 |   |-- test_check_budgets.py
 |   |-- test_investigator.py
 |   |-- test_portable_addon.py
@@ -99,6 +101,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   `-- results/                 # Generated locally; ignored by Git
 `-- tools/
     |-- capture_project.py
+    |-- calibrate_budgets.py
     |-- check_budgets.py
     |-- comparison_evidence.py
     |-- render_action_report.py
@@ -113,6 +116,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`demo_project/run_benchmarks.ps1`](demo_project/run_benchmarks.ps1) launches three isolated runs of each scenario and calls the validator.
 - [`tools/validate_results.py`](tools/validate_results.py) validates schemas, calculations, cleanup evidence, leak growth, and relative CPU cost using only the Python standard library.
 - [`tools/check_budgets.py`](tools/check_budgets.py) evaluates validated semantic evidence against a versioned project policy without AI or third-party packages.
+- [`tools/calibrate_budgets.py`](tools/calibrate_budgets.py) turns repeated validated generic captures into a deterministic schema-v3 proposal and applies it only through a separate explicit command.
 - [`tools/comparison_evidence.py`](tools/comparison_evidence.py) emits schema-v2 comparison evidence for the optional investigator without exposing revision values.
 - [`tools/render_action_report.py`](tools/render_action_report.py) turns canonical gate JSON into safe GitHub logs, annotations, and a Markdown job summary without changing the verdict.
 - [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs one validator call for absolute mode or exactly two for paired mode, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
@@ -130,6 +134,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, and v2 budgets against tracked test fixtures.
 - [`tests/test_run_guardian.py`](tests/test_run_guardian.py) verifies orchestration, containment, exit preservation, output stability, optional-investigation safety, and the workflow contract without an API request.
 - [`tests/test_capture_project.py`](tests/test_capture_project.py) verifies isolated capture commands, collisions, stop-on-failure, sanitized manifests/logs, and the reusable workflow contract.
+- [`tests/test_calibrate_budgets.py`](tests/test_calibrate_budgets.py) verifies calibration formulas, semantic evidence, safe IDs, atomic output, explicit replacement, and deterministic reports.
 - [`tests/test_comparison.py`](tests/test_comparison.py) verifies schema v3, paired semantic matching, zero baselines, deterministic comparison evidence, and exits.
 - [`tests/fixtures/generic_results/main_scene.json`](tests/fixtures/generic_results/main_scene.json), [`tests/fixtures/investigator/evidence_packet.json`](tests/fixtures/investigator/evidence_packet.json), and [`tests/fixtures/investigator/generic_evidence_packet.json`](tests/fixtures/investigator/generic_evidence_packet.json) are small deterministic fixtures used by the default test suite.
 - [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator and OpenAI SDK versions used by the clean test environment.
@@ -343,10 +348,12 @@ jobs:
       budget-file: budgets/performance_budgets.json
 ```
 
-The three required inputs are `project-path`, `profile`, and `budget-file`. Optional inputs are:
+`project-path` and `profile` are always required. `budget-file` is optional in the reusable-workflow schema only because calibration does not enforce a policy; it remains required in the default `enforce` mode. Other inputs are:
 
 | Input | Default | Meaning |
 | --- | --- | --- |
+| `mode` | `enforce` | `enforce` applies policy; `calibrate` creates a proposal only. |
+| `budget-file` | Empty | Required for `enforce`; unused by `calibrate`. |
 | `scene-path` | Project main scene | Optional `res://` scene containing the probe. |
 | `godot-version` | `4.5.1` | Godot version installed by the pinned setup action. |
 | `use-dotnet` | `false` | Select the .NET Godot build. |
@@ -354,6 +361,7 @@ The three required inputs are `project-path`, `profile`, and `budget-file`. Opti
 | `measured-frames` | `600` | Measured frames per run. |
 | `sampling-interval` | `1` | Frames between samples; the final frame is always sampled. |
 | `capture-runs` | `3` | Isolated Godot processes. |
+| `calibration-runs` | `5` | Isolated captures used only in `calibrate` mode. |
 | `compare-with-base` | `false` | On a pull request, capture and compare the protected base under its schema-v3 policy. |
 | `investigate` | `never` | `never`, `on-failure`, or `always`. |
 | `openai-model` | `gpt-4.1-mini` | Optional investigator override. |
@@ -366,6 +374,47 @@ The optional reusable-workflow secret is `openai-api-key`. Pass it only when AI 
 ```
 
 Mode `never` does not install the Agents SDK, inspect the key, or launch the investigator. The workflow checks out Guardian tooling at `job.workflow_repository` and `job.workflow_sha`, matching the exact called workflow revision. Godot installation uses `chickensoft-games/setup-godot` pinned to commit `f166999204a4f2722c6fe042fbaa3b3ea0d9c789` (`v2.4.1`).
+
+### Calibrate a consumer budget
+
+Calibration is deliberately separate from enforcement. It validates repeated generic captures, proposes three schema-v3 rules, and exits `0` only after safely writing both proposal files. It does not invoke AI, decide a build verdict, edit an existing policy, or enable comparison.
+
+Local generation requires at least three captures:
+
+```powershell
+python tools/calibrate_budgets.py `
+  --workspace-root . `
+  --json `
+  --policy-output .performance-guardian/proposed-performance-budgets.json `
+  --report-output .performance-guardian/calibration-report.json `
+  .performance-guardian/main_scene/<run-prefix>/captures
+```
+
+The balanced preset proposes:
+
+- Process p95: observed median multiplied by `1.50`, rounded upward to `0.1 ms`, with a `20%` comparison allowance.
+- Peak global nodes: observed median multiplied by `1.10` and rounded upward to an integer, with a `5%` comparison allowance.
+- Peak global objects: the same `1.10` integer ceiling and `5%` comparison allowance.
+
+Review the generated JSON before applying it. A missing target may be created directly; replacing an existing policy requires the additional `--replace` acknowledgement:
+
+```powershell
+python tools/calibrate_budgets.py `
+  --workspace-root . `
+  --apply-proposal .performance-guardian/proposed-performance-budgets.json `
+  --budget-file budgets/performance_budgets.json `
+  --replace
+```
+
+For hosted calibration, expose a manual job that passes `mode: calibrate`, `calibration-runs: 5`, `compare-with-base: false`, and `investigate: never`. The reusable workflow accepts calibration only on `workflow_dispatch` for the consumer repository's default branch. It does not install investigator dependencies or receive `openai-api-key`. The artifact contains five captures, five sanitized logs, both manifests, the canonical calibration report, and the proposed v3 policy. The job summary labels the output **proposal only—not an enforced verdict**.
+
+Safe migration remains explicit:
+
+1. Run calibration on the default branch.
+2. Download and review the proposal.
+3. Apply it explicitly.
+4. Commit the v3 policy while `compare-with-base` remains `false`.
+5. Enable protected-base comparison in a later pull request.
 
 The capture helper creates collision-safe run IDs, uses the caller SHA as opaque revision metadata, applies a 300-second timeout per process, and stores only workspace-relative paths. The validator, checker, unified runner, and investigator accept `--workspace-root <consumer-root>`; every results, scene, project, and budget input remains relative to that resolved root. Symlink escapes are rejected, and external workspaces may contain generic captures only—not Guardian's synthetic controller evidence.
 
@@ -538,6 +587,8 @@ Each JSON result records the controller tolerances using the implemented schema:
 When static memory is unavailable, `healthy_memory_growth_bytes` is `null` and memory validation is skipped explicitly. Changing these integrity assertions still requires coordinated controller and validator edits; the versioned policy checker intentionally consumes only evidence that already passed them.
 
 Limits should be calibrated from repeated healthy runs on the target environment. Results from different machines, operating systems, power modes, background loads, or Godot builds should not be compared as though they share one performance budget.
+
+Experiment 15 exercised the assistant against five fresh captures from the independent Godot 4.5.1 project. The validated medians were `0.421 ms` process p95, `3` peak nodes, and `1,393` peak objects. The balanced preset proposed `0.7 ms`, `4` nodes, and `1,533` objects. An explicit apply to a temporary contained policy succeeded, and the same five captures passed all three absolute rules. These values describe that local host and capture configuration only; they were not copied into the repository's existing example budgets.
 
 ## 11. Output format
 
@@ -724,6 +775,8 @@ Experiment 13 corrected PluginTest's clean-checkout scene loading and made scrip
 
 Experiment 14 added safe Actions presentation without changing calculations or canonical JSON. The complete local suite passed 160 tests. Hosted PluginTest run `33286227714` validated three clean 600-sample captures and returned the expected exit `1`: process p95 failed at `11.619 ms > 2 ms`, while peak nodes and objects passed. The log named the measurement and threshold, the check run contained one corresponding named rule annotation, optional `gpt-4.1-mini` investigation was accepted, and the nine-entry artifact retained three captures, three logs, two manifests, and canonical JSON with no detected private-path or credential pattern. No second workflow or model request was made.
 
+Experiment 15 added deterministic budget calibration without changing validation, enforcement, or investigator authority. Five fresh independent-project captures validated, produced the local proposal described above, and passed after explicit application to a temporary policy. The complete initial implementation suite passed 173 tests. Hosted calibration remains unverified until the reusable workflow is delivered and invoked once from a consumer default branch.
+
 ## 13. Reproducibility notes
 
 - Use unchanged scenarios for baseline and final comparisons.
@@ -747,6 +800,7 @@ Experiment 14 added safe Actions presentation without changing calculations or c
 - Paired comparison doubles capture work. Same-runner sequential execution reduces variation but does not guarantee identical thermal, scheduling, or system-load conditions.
 - There is no committed golden baseline or baseline/iteration/final result organization.
 - There is no reusable editor dock or repair workflow. The investigator receives only validator-produced synthetic or generic evidence and cannot establish root cause by itself.
+- Calibration proposes host-specific thresholds from engine-global metrics; it does not identify project-owned objects, measure GPU work, edit policy automatically, or establish that a threshold is appropriate without human review.
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
 - The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow's absolute-only nine-entry artifact, paired 17-entry PluginTest artifact, and actionable hosted failure log/annotation are verified. Direct visual reading of the custom job-summary body remains pending from a signed-in UI because public/API inspection does not expose it.
 - The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.

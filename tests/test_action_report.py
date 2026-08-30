@@ -99,6 +99,40 @@ The available evidence does not establish the root cause.
 """
 
 
+def calibration_fixture() -> dict[str, object]:
+    policy = {
+        "schema_version": 3,
+        "budgets": [{
+            "id": "main-scene-process-p95", "profile": "main_scene",
+            "metric": "median_p95_process_time", "maximum": 0.8,
+            "maximum_increase_percent": 20, "unit": "ms",
+            "description": "Balanced process policy.",
+        }],
+    }
+    return {
+        "report_type": "performance_budget_calibration",
+        "schema_version": 1,
+        "status": "proposal_generated",
+        "validator": {
+            "status": "passed", "candidate_file_count": 5,
+            "validated_file_count": 5, "results_directory": "results",
+        },
+        "calibration": {
+            "minimum_validated_runs": 3, "preset": "balanced",
+            "proposal_authoritative": False,
+        },
+        "recommendations": [{
+            "budget_id": "main-scene-process-p95", "evidence_id": "opaque-process",
+            "margin_percent": 50, "metric": "median_p95_process_time",
+            "observed_value": 0.529, "profile": "main_scene",
+            "proposed_maximum": 0.8, "relative_allowance_percent": 20,
+            "run_count": 5, "unit": "ms",
+        }],
+        "proposed_policy": policy,
+        "limitations": [{"id": "CL1", "statement": "Proposal only."}],
+    }
+
+
 class ActionReportTests(unittest.TestCase):
     def test_observed_absolute_failure_is_actionable_and_annotated_once(self) -> None:
         report = action_report.validate_report(report_fixture(failed=True))
@@ -238,6 +272,41 @@ class ActionReportTests(unittest.TestCase):
             report_path.write_text(original, encoding="utf-8")
             action_report.render(report_path, root / "summary.md", "evidence")
             self.assertEqual(report_path.read_text(encoding="utf-8"), original)
+
+    def test_calibration_dispatch_is_proposal_only_and_actionable(self) -> None:
+        report = action_report.validate_calibration_report(calibration_fixture())
+        log = action_report.render_calibration_log(report, "calibration-evidence")
+        summary = action_report.render_calibration_summary(report, "calibration-evidence")
+        self.assertIn("PROPOSAL ONLY", log)
+        self.assertIn("0.529 ms", log)
+        self.assertIn("0.8 ms", log)
+        self.assertIn("relative allowance 20%", log)
+        self.assertNotIn("::error", log)
+        self.assertIn("Proposal only—not an enforced verdict", summary)
+        self.assertIn("Apply it explicitly", summary)
+        self.assertIn("Enable protected-base comparison in a later pull request", summary)
+
+    def test_calibration_cli_is_deterministic_and_suppresses_unsafe_data(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report_path = root / "calibration.json"
+            summary_path = root / "summary.md"
+            report_path.write_text(json.dumps(calibration_fixture()), encoding="utf-8")
+            outputs = []
+            for _ in range(2):
+                summary_path.write_text("", encoding="utf-8")
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    code = action_report.main([
+                        "--summary-file", str(summary_path), "--artifact-name", "evidence", str(report_path)
+                    ])
+                self.assertEqual(code, 0)
+                outputs.append((stdout.getvalue(), summary_path.read_text(encoding="utf-8")))
+            self.assertEqual(outputs[0], outputs[1])
+            unsafe = calibration_fixture()
+            unsafe["validator"]["results_directory"] = "C:\\Users\\person\\private"  # type: ignore[index]
+            with self.assertRaises(action_report.ActionReportError):
+                action_report.validate_calibration_report(unsafe)
 
 
 if __name__ == "__main__":
