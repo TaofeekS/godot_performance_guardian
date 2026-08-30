@@ -565,7 +565,7 @@ This correction changes artifact preservation only; it does not reinterpret the 
 
 ## 2026-08-30 — Experiment 13: Valid object counts with always-on AI investigation
 
-**Status:** In progress; invalid before-evidence reproduced and capture-integrity guard implemented
+**Status:** Retained; local and hosted comparison plus one accepted AI contribution verified
 
 ### Hypothesis and reason
 
@@ -579,4 +579,12 @@ PluginTest will remove its clean-checkout dependency on a cached custom global t
 
 ### Observed result, decision, and next step
 
-The focused Guardian tests reject the previously accepted failure shape with exit `2`, no authoritative capture entries, and a sanitized log. The invalid 12-node/1,418-object values are retained only as a lesson and will not be used for policy calibration. Corrected local and hosted PluginTest counts, deterministic policy outcome, and the single `gpt-4.1-mini` accepted-versus-fallback result remain pending and will be appended without rewriting this history.
+The focused Guardian tests reject the previously accepted failure shape with exit `2`, no authoritative capture entries, and a sanitized log. The invalid 12-node/1,418-object values are retained only as a lesson and were not used for policy calibration.
+
+A clean local PluginTest checkout passed Godot 4.5.1 parsing and produced three baseline plus three candidate captures with 600 samples each and zero script/load errors. The 2,000-shape baseline median peaks were 2,280 nodes and 5,584 objects; the 25,000-shape candidate reached 26,357 nodes and 49,513 objects. The relative increases were approximately 1,056% and 787%, so both 5% count rules failed. Candidate process p95 also rose from 10.246 ms to 216.101 ms. This establishes that the corrected comparison sees the intended population difference, while the absolute 2 ms process rule remains deliberately unchanged and fails on this local machine.
+
+Retain the script-integrity boundary and object policy. PluginTest `main` now contains the corrected deterministic 2,000-shape baseline with comparison disabled. Its first valid hosted comparison calibrated count ceilings from 2,320 median peak nodes and 5,891 objects to `ceil(baseline × 1.10)`: 2,552 and 6,481. The final PR rerun preserved six 600-sample captures and six clean logs. Median nodes increased from 2,289 to 26,366 (`1,051.857%`), objects from 5,608 to 49,511 (`782.864%`), and process p95 from 14.169 ms to 224.999 ms (`1,487.967%`). The deterministic gate returned `1` as intended.
+
+Exactly one `gpt-4.1-mini` invocation occurred in the final run. Its typed contribution was accepted without fallback; one unsafe hypothesis was discarded under `C03_HYPOTHESIS_TEXT`, while three evidence-linked recommendations survived. Local rendering covered baseline/candidate values for process, node, and object rules, preserved every limitation and the exact root-cause uncertainty sentence, revealed no revision value, and made no unsupported causal claim. The 17-entry artifact contained all baseline/candidate captures and logs, both internal manifests, both runner manifests, and the canonical report, with no detected private path or credential pattern.
+
+The experiment demonstrates that script-integrity enforcement changes an apparently green inactive-scene comparison into a valid, deterministic object-growth failure and a grounded explanatory report. Next, evaluate whether the 2 ms process ceiling is appropriate for this deliberately large project profile on its chosen CI hardware; do not relax it as part of this object-count experiment.
