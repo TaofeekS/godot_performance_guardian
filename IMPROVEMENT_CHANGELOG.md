@@ -617,7 +617,7 @@ The nine-entry artifact retained three capture JSON files, three clean Godot log
 
 ## 2026-08-30 — Experiment 15: Budget calibration assistant
 
-**Status:** Retained; deterministic local generation and explicit application verified, hosted consumer proof pending
+**Status:** Retained; deterministic local and hosted proposal generation verified
 
 ### Hypothesis and reason
 
@@ -635,4 +635,8 @@ The consistent local evaluation used the included independent Godot `4.5.1.stabl
 
 All five fresh captures validated. Their aggregate medians were `0.421 ms` process p95, `3` peak nodes, and `1,393` peak objects. The assistant proposed `0.7 ms`, `4` nodes, and `1,533` objects. Applying the proposal to a temporary contained policy succeeded, and the same five captures passed all three absolute limits. The initial complete suite passed 173 tests.
 
-Retain proposal-only calibration. The measurements and thresholds are host-specific and global node/object counts are not project-owned; headless capture does not measure GPU performance. The proposal has no authority until reviewed and committed. The next step is delivery followed by exactly one five-run PluginTest default-branch calibration to verify hosted logs, summary, fourteen-file artifact, and zero AI activity; the hosted proposal will not be applied automatically.
+Retain proposal-only calibration. The measurements and thresholds are host-specific and global node/object counts are not project-owned; headless capture does not measure GPU performance. The proposal has no authority until reviewed and committed.
+
+Guardian commit `a1d0cfd02cffbc626884454cdcd4341dd1c2bd24` and PluginTest caller commit `5dde4ee3b4614d1d9aa208ecddbc29fcd9b16c72` were pushed. Exactly one PluginTest default-branch calibration ran as Actions run `33288045948`. Optional investigator installation, enforcement, comparison, and AI were all skipped. Five clean 600-sample captures validated and yielded medians of `11.62 ms`, `2,281` peak nodes, and `5,580` peak objects; the proposal was `17.5 ms`, `2,510` nodes, and `6,138` objects. Evaluating the proposal against the same captures passed all three absolute rules.
+
+The artifact contained the expected fourteen files: five captures, five sanitized logs, the internal and runner manifests, calibration report, and proposed policy. Scans found no private path or credential-shaped value. The proposal remains unapplied in PluginTest. The next step is customer review of that policy, followed by an explicit commit with comparison disabled; enabling protected-base comparison remains a later pull request.
