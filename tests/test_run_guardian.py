@@ -493,6 +493,17 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("if: always()", self.workflow)
         self.assertIn("%GUARDIAN_EXIT%", self.workflow)
 
+    def test_workflow_renders_actionable_report_without_changing_gate_exit(self) -> None:
+        self.assertEqual(self.workflow.count("tools\\render_action_report.py"), 2)
+        self.assertEqual(self.workflow.count('--summary-file "%GITHUB_STEP_SUMMARY%"'), 2)
+        self.assertEqual(self.workflow.count("set \"GUARDIAN_EXIT=%ERRORLEVEL%\""), 2)
+        self.assertEqual(self.workflow.count("exit /b %GUARDIAN_EXIT%"), 2)
+        self.assertLess(
+            self.workflow.index("set \"GUARDIAN_EXIT=%ERRORLEVEL%\""),
+            self.workflow.index("tools\\render_action_report.py"),
+        )
+        self.assertNotIn('type "%RUNNER_TEMP%\\performance-guardian.json"', self.workflow)
+
     def test_workflow_uses_runner_temp_only_in_supported_contexts(self) -> None:
         self.assertNotIn("GUARDIAN_REPORT: ${{ runner.temp }}", self.workflow)
         self.assertIn("%RUNNER_TEMP%\\performance-guardian.json", self.workflow)

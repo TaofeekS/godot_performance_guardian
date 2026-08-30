@@ -1796,3 +1796,39 @@ The final run requested investigation exactly once. `gpt-4.1-mini` returned an a
 After the final documentation synchronization, the complete Guardian suite again passed 147 tests in 5.135 seconds, byte compilation succeeded, and `pip check` reported no broken requirements. Every local Markdown link resolved, numbered README sections 1 through 17 remained present, and `git diff --check` reported no whitespace error. The updated documentation skill again passed its official validator with PyYAML supplied only through a unique temporary target and removed immediately afterward.
 
 The PluginTest clone, ignored local captures, downloaded hosted ZIP files, and extracted artifacts existed only beneath the dedicated `.experiment-13` workspace directory. Its resolved absolute path was verified as that exact child of the Guardian workspace before recursive removal; no consumer source or hosted evidence was deleted remotely. Final documentation commit, Guardian push, public branch/workflow checks, and the remaining safe credential-pattern scan follow this entry.
+
+## 2026-08-30 — Experiment 14 actionable Actions reporting
+
+### Request and approved plan
+
+After observing that the authoritative gate returned exit `1` without showing the failed budget in the step log, the user requested:
+
+> The best next improvement would be to:
+>
+> - Print a safe human-readable budget summary directly in the failed step.
+> - Add the same summary to the GitHub Actions job summary.
+> - Create GitHub error annotations for failed rules.
+> - Keep canonical JSON and raw captures in the artifact for deeper inspection.
+> - Show the accepted AI explanation in the job summary while clearly separating it from the authoritative budget verdict.
+>
+> do this
+
+The approved Experiment 14 plan required one standard-library renderer, integration into both Guardian workflows, saved deterministic exits, safe handling of optional AI, fixed tests including the observed `11.58 ms > 2 ms` failure, documentation synchronization, Guardian delivery, and exactly one PluginTest manual `on-failure` evaluation without retry.
+
+### Inspection and implementation
+
+The repository documentation skill, its complete requirements reference, the agent-trajectory skill, and skill-creator guidance were read before documentation changes. Inspection covered both workflows, `run_guardian.py`, v1/v2 canonical report shapes, v3 absolute/comparison result structures, workflow tests, README, addon guidance, experiment history, and current Git state.
+
+`tools/render_action_report.py` was added as a standard-library presentation boundary. It validates report schema and exit consistency, renders deterministic log and Markdown output, escapes GitHub workflow commands, combines absolute and relative failures by budget ID, and emits a single safe evaluation annotation when rules cannot be evaluated. It shows AI text only for recognized accepted or deterministic-fallback outcomes that pass its safe presentation check. Credentials, private paths, raw exceptions, revision values, and rejected model output are withheld.
+
+Both workflows now save the gate exit before presentation. The reusable PowerShell step writes the unchanged canonical JSON, derives the exact artifact name, invokes the renderer once with `GITHUB_STEP_SUMMARY`, warns on presentation failure, and exits with the saved gate code. The repository workflow applies the same sequence to pull-request and manual jobs. Artifact paths and secret scope were not broadened.
+
+### Local failures and verification so far
+
+The first focused run had one test-only expectation error: the test expected colons in the annotation message body to use property escaping, while GitHub requires colon/comma escaping only in command properties. The implementation output was correct; the assertion was narrowed to the message-body contract. The focused modules then passed.
+
+`pip check` reported no broken requirements. The complete suite passed 160 tests in 5.037 seconds and Python byte compilation succeeded. A real tracked v2 report passed and rendered `0.5 ms <= 1.1 ms` plus `3 nodes <= 3 nodes`, with authoritative and renderer exits both `0`. A real tracked v3 regression retained gate exit `1` while the renderer returned `0`; it showed the baseline/candidate values and the `22% > 20%` relative process failure and emitted one annotation. Documentation, skill validation, delivery, consumer update, and hosted evidence follow this entry.
+
+The repository virtual environment lacked PyYAML, so no permanent dependency was added. PyYAML `6.0.3` was installed only into a uniquely named system-temporary directory, both workflow definitions parsed, the official documentation-skill validator printed `Skill is valid!`, and the temporary directory was removed. All checked relative Markdown links resolved, README retained sections 1 through 17, and final-newline checks passed.
+
+The first credential-scan expression used PCRE constructs unsupported by Git's extended regular-expression engine; Git rejected the expression without searching or changing files. A corrected set of portable patterns then reported no matching working-tree or tracked filename and no reachable commit identifier. The test-only key-shaped sentinel was assembled from string fragments so the safety test remains effective without resembling a stored credential. The final full run again passed all 160 tests in 4.942 seconds; byte compilation, dependency consistency, and `git diff --check` also passed.

@@ -8,9 +8,9 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a unified standard-library gate; a reusable consumer workflow; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/summary/annotation rendering verified locally; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | Hosted pull-request baseline comparison and optional hosted AI have not yet been exercised through the reusable workflow. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | Hosted presentation of the new actionable failure report has not yet been exercised. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -71,6 +71,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 |   |-- test_check_budgets.py
 |   |-- test_investigator.py
 |   |-- test_portable_addon.py
+|   |-- test_action_report.py
 |   |-- test_run_guardian.py
 |   `-- test_capture_project.py
 |-- examples/
@@ -100,6 +101,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
     |-- capture_project.py
     |-- check_budgets.py
     |-- comparison_evidence.py
+    |-- render_action_report.py
     |-- run_guardian.py
     |-- validate_results.py
     `-- workspace_paths.py
@@ -112,6 +114,7 @@ It is a benchmark, portable capture/evaluation layer, and initial read-only reas
 - [`tools/validate_results.py`](tools/validate_results.py) validates schemas, calculations, cleanup evidence, leak growth, and relative CPU cost using only the Python standard library.
 - [`tools/check_budgets.py`](tools/check_budgets.py) evaluates validated semantic evidence against a versioned project policy without AI or third-party packages.
 - [`tools/comparison_evidence.py`](tools/comparison_evidence.py) emits schema-v2 comparison evidence for the optional investigator without exposing revision values.
+- [`tools/render_action_report.py`](tools/render_action_report.py) turns canonical gate JSON into safe GitHub logs, annotations, and a Markdown job summary without changing the verdict.
 - [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs one validator call for absolute mode or exactly two for paired mode, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
 - [`tools/capture_project.py`](tools/capture_project.py) preflights a consumer project and runs isolated, collision-safe Godot captures with sanitized logs and a canonical manifest.
 - [`tools/workspace_paths.py`](tools/workspace_paths.py) centralizes symlink-aware containment for explicit consumer workspaces.
@@ -370,6 +373,14 @@ Capture validity also requires a clean Godot script-load log. `capture_project.p
 
 The job uploads raw captures, sanitized Godot logs, the capture manifest, and canonical gate JSON even on failure, with 14-day retention. Before upload, it resolves the configured project beneath the consumer workspace and copies only the applicable evidence into a fixed runner-temporary staging directory. Absolute-only runs stage candidate evidence and reports; comparison runs additionally stage protected-base evidence and its manifest. This prevents `project-path: .` or a nested project path from producing artifact patterns containing `.` or `..`. The upload explicitly enables hidden files and does not include the full workspace, protected-base source checkout, `.git`, Guardian tooling checkout, environment files, or credentials. Exit `0` means capture, validation, and every budget passed; `1` means valid captures exceeded policy; `2` means capture, configuration, validation, evidence, or operational failure. Optional AI cannot change that exit.
 
+GitHub Actions presents that unchanged canonical report in three immediate places:
+
+- The gate step log lists validation status, every measured value and absolute threshold, and baseline/candidate delta plus relative threshold when comparison is enabled.
+- The check run receives one escaped error annotation per failed deterministic rule. A rule that fails both absolute and relative limits produces one combined annotation. Validation or configuration failures receive one safe evaluation-error annotation.
+- The job summary contains the deterministic table, authority disclaimer, evidence-artifact guidance, and—only when accepted by the grounding boundary—the optional report under **Optional AI explanation — non-authoritative**.
+
+`tools/render_action_report.py` is presentation-only. Each workflow saves the gate exit before invoking it, so renderer failure produces a warning and cannot alter deterministic exit `0`, `1`, or `2`. Canonical JSON and raw evidence remain the deeper inspection source in the artifact. Rejected model text, credentials, private paths, raw exceptions, and revision values are not presented.
+
 A separate hosted consumer `never` run completed all three 600-sample captures, validated all three files, and passed both configured budgets at `0.093 ms <= 2 ms` process p95 and `12 <= 100` peak nodes, returning authoritative exit `0`. The later corrected artifact contained nine entries: three capture JSON files, three sanitized Godot logs, the internal capture manifest, the runner manifest, and canonical Guardian report. Experiment 13 subsequently verified the paired path through PluginTest PR #2: three protected-base and three candidate captures validated, count/process budgets failed as intended, the 17-entry artifact preserved both sides, and one `gpt-4.1-mini` contribution was accepted. No private path or credential pattern was detected in either inspected artifact.
 
 For pull-request regression comparison, use the safe two-step migration:
@@ -418,6 +429,7 @@ The investigator exits nonzero when it cannot obtain a model response. Its messa
 | `WARNING: model contribution failed (...)` | The typed contribution left no acceptable recommendation or violated a local rule. The rejected content is not printed; a deterministic cited fallback follows without another API request when a safe validator packet is available. |
 | Unified outcome `skipped_no_key` | Investigation was requested, but the process had no `OPENAI_API_KEY`. Deterministic validation/budget output and exit remain authoritative. |
 | Unified outcome `api_error` | The investigator timed out, could not launch, returned an API/model-access error, or emitted unrecognized output. Only a safe category is retained; deterministic exit is unchanged. |
+| The gate ends with `Process completed with exit code 1` | Read the measured/threshold lines earlier in that step, select the failed-rule annotation, or open the job **Summary** tab. Download the named artifact for canonical JSON and raw captures. |
 | Upload error reporting an invalid pattern such as `base-source/./.performance-guardian` | An older reusable-workflow revision interpolated `project-path: .` directly into the baseline artifact pattern. The green authoritative-gate step still records the deterministic verdict, but the job is incomplete because evidence preservation failed. Update the caller to a Guardian revision containing normalized artifact staging and rerun. |
 
 The installed OpenAI Python client already retries HTTP 429 twice. The investigator deliberately does not wrap the entire agent run in another retry loop, which avoids duplicate tool execution and additional requests when quota is exhausted. A request ID is printed when available so it can support diagnosis without exposing request content.

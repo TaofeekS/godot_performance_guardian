@@ -246,7 +246,16 @@ jobs:
           ) + $baselineArguments + @("$results", "$budget")
           $report = python @arguments
           $gateExit = $LASTEXITCODE
-          $report | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\guardian-report.json"
+          $reportPath = "$env:RUNNER_TEMP\guardian-report.json"
+          $artifactName = "performance-guardian-$env:PROFILE-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $report | Set-Content -Encoding utf8 $reportPath
+          python "$env:GUARDIAN_TOOLS\tools\render_action_report.py" `
+            --summary-file "$env:GITHUB_STEP_SUMMARY" `
+            --artifact-name $artifactName `
+            $reportPath
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Performance Guardian presentation failed safely; the deterministic exit is unchanged."
+          }
           exit $gateExit
 
       - name: Stage performance evidence

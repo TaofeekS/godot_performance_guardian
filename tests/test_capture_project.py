@@ -207,6 +207,15 @@ class ReusableWorkflowTests(unittest.TestCase):
         self.assertIn("continue-on-error: true", workflow)
         self.assertIn("CAPTURE_OUTCOME: ${{ steps.capture.outcome }}", workflow)
         self.assertIn("incomplete-capture", workflow)
+        gate_step = workflow.split("- name: Run authoritative performance gate", maxsplit=1)[1].split(
+            "- name: Stage performance evidence", maxsplit=1
+        )[0]
+        self.assertIn("tools\\render_action_report.py", gate_step)
+        self.assertIn('--summary-file "$env:GITHUB_STEP_SUMMARY"', gate_step)
+        self.assertIn("$gateExit = $LASTEXITCODE", gate_step)
+        self.assertIn("exit $gateExit", gate_step)
+        self.assertLess(gate_step.index("$gateExit = $LASTEXITCODE"), gate_step.index("render_action_report.py"))
+        self.assertIn("presentation failed safely", gate_step)
         stage_step = workflow.split("- name: Stage performance evidence", maxsplit=1)[1].split(
             "- name: Upload performance evidence", maxsplit=1
         )[0]

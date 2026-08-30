@@ -48,7 +48,8 @@ jobs:
         run: |
           python tools\run_guardian.py --json --investigate never tests\fixtures\generic_results examples\minimal_project\budgets\performance_budgets.json > "%RUNNER_TEMP%\performance-guardian.json"
           set "GUARDIAN_EXIT=%ERRORLEVEL%"
-          type "%RUNNER_TEMP%\performance-guardian.json"
+          python tools\render_action_report.py --summary-file "%GITHUB_STEP_SUMMARY%" --artifact-name performance-guardian-report "%RUNNER_TEMP%\performance-guardian.json"
+          if errorlevel 1 echo WARNING: Performance Guardian presentation failed safely; the deterministic exit is unchanged.
           exit /b %GUARDIAN_EXIT%
 
       - name: Run manual gate
@@ -61,7 +62,8 @@ jobs:
         run: |
           python tools\run_guardian.py --json --investigate %INVESTIGATION_MODE% tests\fixtures\generic_results examples\minimal_project\budgets\performance_budgets.json > "%RUNNER_TEMP%\performance-guardian.json"
           set "GUARDIAN_EXIT=%ERRORLEVEL%"
-          type "%RUNNER_TEMP%\performance-guardian.json"
+          python tools\render_action_report.py --summary-file "%GITHUB_STEP_SUMMARY%" --artifact-name performance-guardian-report "%RUNNER_TEMP%\performance-guardian.json"
+          if errorlevel 1 echo WARNING: Performance Guardian presentation failed safely; the deterministic exit is unchanged.
           exit /b %GUARDIAN_EXIT%
 
       - name: Upload deterministic guardian report

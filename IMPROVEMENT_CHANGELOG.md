@@ -588,3 +588,23 @@ Retain the script-integrity boundary and object policy. PluginTest `main` now co
 Exactly one `gpt-4.1-mini` invocation occurred in the final run. Its typed contribution was accepted without fallback; one unsafe hypothesis was discarded under `C03_HYPOTHESIS_TEXT`, while three evidence-linked recommendations survived. Local rendering covered baseline/candidate values for process, node, and object rules, preserved every limitation and the exact root-cause uncertainty sentence, revealed no revision value, and made no unsupported causal claim. The 17-entry artifact contained all baseline/candidate captures and logs, both internal manifests, both runner manifests, and the canonical report, with no detected private path or credential pattern.
 
 The experiment demonstrates that script-integrity enforcement changes an apparently green inactive-scene comparison into a valid, deterministic object-growth failure and a grounded explanatory report. Next, evaluate whether the 2 ms process ceiling is appropriate for this deliberately large project profile on its chosen CI hardware; do not relax it as part of this object-count experiment.
+
+## 2026-08-30 — Experiment 14: Actionable GitHub Actions failure reporting
+
+**Status:** Retained; deterministic presentation verified locally, hosted consumer evaluation pending
+
+### Hypothesis and reason
+
+A correct exit code is insufficient customer feedback when the failed Actions step shows only `Process completed with exit code 1`. The canonical artifact contained the observed `11.58 ms` process p95 and `2 ms` threshold, but users had to download and inspect JSON to learn which policy failed. The experiment tests whether a presentation-only layer can expose the same deterministic evidence immediately without changing policy authority or trusting model-authored prose.
+
+### Change and consistent evaluation
+
+`tools/render_action_report.py` validates Guardian report schema v1 or v2, prints every absolute and paired result, appends a structured Markdown job summary, and emits one escaped error annotation per failed deterministic rule. Absolute and relative failures for one rule are combined. Evaluation failures receive one safe annotation. Accepted and deterministic-fallback investigations may appear only under a non-authoritative heading; unsafe or rejected text is suppressed.
+
+Both workflows save `run_guardian.py`'s exit before invoking the renderer. Renderer failure produces a warning but the workflow still exits with the saved deterministic `0`, `1`, or `2`. The canonical JSON, captures, logs, and manifests remain unchanged artifact evidence.
+
+### Observed result, decision, and next step
+
+The initial local evaluation passed all 160 tests and byte compilation. A fixed reproduction of the observed failure rendered `11.58 ms > 2 ms` and exactly one rule annotation. A real tracked v2 pass rendered `0.5 ms <= 1.1 ms` and `3 nodes <= 3 nodes` with gate/renderer exits `0`/`0`. A real tracked v3 regression retained authoritative exit `1`, reported baseline `0.5 ms`, candidate `0.61 ms`, delta `0.11 ms`, and `22% > 20%`, while the renderer returned `0` and did not alter the verdict.
+
+Retain the presentation layer because it makes deterministic evidence visible at the failure point without duplicating calculations. The next step is the approved single PluginTest `on-failure` dispatch pinned to the delivered Guardian commit. Acceptance requires hosted log details, a failed-rule annotation, a job summary with the authority boundary and accepted/fallback AI when available, and an artifact that still contains canonical JSON plus raw evidence. No retry will be made if optional AI is inconclusive.
