@@ -591,7 +591,7 @@ The experiment demonstrates that script-integrity enforcement changes an apparen
 
 ## 2026-08-30 — Experiment 14: Actionable GitHub Actions failure reporting
 
-**Status:** Retained; deterministic presentation verified locally, hosted consumer evaluation pending
+**Status:** Retained; local and hosted failure presentation verified, direct signed-in summary-body inspection pending
 
 ### Hypothesis and reason
 
@@ -608,3 +608,9 @@ Both workflows save `run_guardian.py`'s exit before invoking the renderer. Rende
 The initial local evaluation passed all 160 tests and byte compilation. A fixed reproduction of the observed failure rendered `11.58 ms > 2 ms` and exactly one rule annotation. A real tracked v2 pass rendered `0.5 ms <= 1.1 ms` and `3 nodes <= 3 nodes` with gate/renderer exits `0`/`0`. A real tracked v3 regression retained authoritative exit `1`, reported baseline `0.5 ms`, candidate `0.61 ms`, delta `0.11 ms`, and `22% > 20%`, while the renderer returned `0` and did not alter the verdict.
 
 Retain the presentation layer because it makes deterministic evidence visible at the failure point without duplicating calculations. The next step is the approved single PluginTest `on-failure` dispatch pinned to the delivered Guardian commit. Acceptance requires hosted log details, a failed-rule annotation, a job summary with the authority boundary and accepted/fallback AI when available, and an artifact that still contains canonical JSON plus raw evidence. No retry will be made if optional AI is inconclusive.
+
+Guardian commit `7622997bd3a9c5d166703e578af943b7e25f61ba` and PluginTest caller commit `f3ca43995e3ed9780cc99e0f68182cb7ae25fe90` were pushed. Exactly one manual `on-failure` run (`33286227714`) completed. Three clean 600-sample captures validated; peak-node and object budgets passed, while process p95 failed at `11.619 ms > 2 ms`, preserving authoritative exit `1`. The step printed the measurement and threshold, and GitHub exposed one named `main-scene-process-p95` annotation in addition to its generic exit annotation.
+
+The optional `gpt-4.1-mini` request was attempted once and accepted; no fallback or retry occurred. Its five-section report retained the required uncertainty statement and contained no detected private path, revision value, or credential pattern. Renderer completion without a presentation warning establishes that the summary file was appended before the log was printed. The public API and unsigned Actions view did not expose the custom Markdown body, so its direct signed-in visual inspection remains pending rather than inferred as a UI claim.
+
+The nine-entry artifact retained three capture JSON files, three clean Godot logs, the internal and runner manifests, and canonical Guardian JSON. All capture files contained 600 samples and addon version `1.0.1`; generic validation passed, and artifact scans found no private absolute path or credential pattern. This meets the actionable log, annotation, AI separation, and evidence-retention goals without changing the unchanged `2 ms` project policy. A future signed-in inspection can close only the visual-summary evidence gap; it does not require another performance or AI run.

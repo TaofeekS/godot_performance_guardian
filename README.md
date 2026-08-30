@@ -8,9 +8,9 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/summary/annotation rendering verified locally; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; three-run headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | Hosted presentation of the new actionable failure report has not yet been exercised. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | Direct visual inspection of the hosted custom job-summary body remains unavailable from the unsigned/API inspection environment. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, an editor dock, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -381,6 +381,8 @@ GitHub Actions presents that unchanged canonical report in three immediate place
 
 `tools/render_action_report.py` is presentation-only. Each workflow saves the gate exit before invoking it, so renderer failure produces a warning and cannot alter deterministic exit `0`, `1`, or `2`. Canonical JSON and raw evidence remain the deeper inspection source in the artifact. Rejected model text, credentials, private paths, raw exceptions, and revision values are not presented.
 
+Experiment 14's hosted PluginTest run verified the failure path at `11.619 ms > 2 ms`: the step printed all three budget results, GitHub created the named process-rule annotation, accepted AI was reported as non-authoritative, and artifact upload succeeded. The renderer emitted no presentation warning; because it appends the summary before printing the log, this proves the summary-file write completed. GitHub's public REST/check-run response and unsigned web view did not expose the custom Markdown body, so direct visual inspection of that body remains pending from a signed-in Actions UI.
+
 A separate hosted consumer `never` run completed all three 600-sample captures, validated all three files, and passed both configured budgets at `0.093 ms <= 2 ms` process p95 and `12 <= 100` peak nodes, returning authoritative exit `0`. The later corrected artifact contained nine entries: three capture JSON files, three sanitized Godot logs, the internal capture manifest, the runner manifest, and canonical Guardian report. Experiment 13 subsequently verified the paired path through PluginTest PR #2: three protected-base and three candidate captures validated, count/process budgets failed as intended, the 17-entry artifact preserved both sides, and one `gpt-4.1-mini` contribution was accepted. No private path or credential pattern was detected in either inspected artifact.
 
 For pull-request regression comparison, use the safe two-step migration:
@@ -720,6 +722,8 @@ Experiment 12 added opt-in protected-base comparison. The tracked unchanged pair
 
 Experiment 13 corrected PluginTest's clean-checkout scene loading and made script/load errors fatal to capture authority. The final hosted PR produced three baseline and three candidate files with 600 samples each and clean logs. Median peak nodes rose from `2,289` to `26,366` (`1,051.857%`), objects from `5,608` to `49,511` (`782.864%`), and process p95 from `14.169 ms` to `224.999 ms` (`1,487.967%`). The deterministic gate returned `1`. Exactly one `gpt-4.1-mini` request produced an accepted locally rendered report with citations for all three rules, all limitations, no root-cause claim, and read-only recommendations; no fallback was used.
 
+Experiment 14 added safe Actions presentation without changing calculations or canonical JSON. The complete local suite passed 160 tests. Hosted PluginTest run `33286227714` validated three clean 600-sample captures and returned the expected exit `1`: process p95 failed at `11.619 ms > 2 ms`, while peak nodes and objects passed. The log named the measurement and threshold, the check run contained one corresponding named rule annotation, optional `gpt-4.1-mini` investigation was accepted, and the nine-entry artifact retained three captures, three logs, two manifests, and canonical JSON with no detected private-path or credential pattern. No second workflow or model request was made.
+
 ## 13. Reproducibility notes
 
 - Use unchanged scenarios for baseline and final comparisons.
@@ -744,7 +748,7 @@ Experiment 13 corrected PluginTest's clean-checkout scene loading and made scrip
 - There is no committed golden baseline or baseline/iteration/final result organization.
 - There is no reusable editor dock or repair workflow. The investigator receives only validator-produced synthetic or generic evidence and cannot establish root cause by itself.
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
-- The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow's absolute-only nine-entry artifact and paired 17-entry PluginTest artifact are both hosted-verified.
+- The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow's absolute-only nine-entry artifact, paired 17-entry PluginTest artifact, and actionable hosted failure log/annotation are verified. Direct visual reading of the custom job-summary body remains pending from a signed-in UI because public/API inspection does not expose it.
 - The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Portable capture is verified only for the included independent project on Godot 4.5.1. One tracked capture and its calibrated policy do not prove universal project, platform, or timing compatibility.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
