@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "budgets": [
+    {
+      "id": "main-scene-peak-nodes",
+      "profile": "main_scene",
+      "metric": "median_peak_node_count",
+      "maximum": 2,
+      "unit": "nodes",
+      "description": "Evaluation rule that intentionally rejects the tracked three-node peak."
+    }
+  ]
+}

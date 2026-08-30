@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "primary_metric": "correct_actionable_outcomes",
+  "baseline_revision": "22af3b44962517b0f1d7ac0b7499f724f2e2cb34",
+  "final_revision": "2bf5ff6efbedb44a8ac0370b686554a5a4ac4e40",
+  "cases": [
+    {
+      "id": "synthetic-suite-pass",
+      "title": "Validate the accepted nine-run synthetic suite",
+      "baseline": {"runner": "synthetic_validator"},
+      "final": {"runner": "synthetic_validator"},
+      "inputs": {"results": "evaluation/fixtures/synthetic"},
+      "expected": {
+        "exit_code": 0,
+        "outcome": "passed",
+        "checks": [
+          {"path": ["validated_file_count"], "equals": 9},
+          {"path": ["workload_ratio"], "equals": 68.78}
+        ]
+      }
+    },
+    {
+      "id": "generic-capture-pass",
+      "title": "Validate a portable generic capture",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 supports only synthetic scenario results."},
+      "final": {"runner": "generic_validator"},
+      "inputs": {"results": "evaluation/fixtures/generic/single"},
+      "expected": {
+        "exit_code": 0,
+        "outcome": "passed",
+        "checks": [
+          {"path": ["validated_file_count"], "equals": 1},
+          {"path": ["process_p95_ms"], "equals": 0.5},
+          {"path": ["peak_nodes"], "equals": 3}
+        ]
+      }
+    },
+    {
+      "id": "v2-policy-pass",
+      "title": "Apply a passing portable-project policy",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 has no configurable budget interface."},
+      "final": {"runner": "guardian"},
+      "inputs": {
+        "results": "evaluation/fixtures/generic/single",
+        "budget": "evaluation/fixtures/budgets/v2-pass.json"
+      },
+      "expected": {
+        "exit_code": 0,
+        "outcome": "passed",
+        "checks": [
+          {"path": ["failed_rule_count"], "equals": 0},
+          {"path": ["rules", "main-scene-process-p95", "measured"], "equals": 0.5},
+          {"path": ["rules", "main-scene-process-p95", "maximum"], "equals": 1.1},
+          {"path": ["rules", "main-scene-peak-nodes", "measured"], "equals": 3},
+          {"path": ["rules", "main-scene-peak-nodes", "maximum"], "equals": 3}
+        ]
+      }
+    },
+    {
+      "id": "absolute-process-failure",
+      "title": "Identify an absolute process-time budget failure",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 has no configurable budget interface."},
+      "final": {"runner": "guardian"},
+      "inputs": {
+        "results": "evaluation/fixtures/generic/single",
+        "budget": "evaluation/fixtures/budgets/v2-process-fail.json"
+      },
+      "expected": {
+        "exit_code": 1,
+        "outcome": "budget_failed",
+        "checks": [
+          {"path": ["failed_rule_count"], "equals": 1},
+          {"path": ["rules", "main-scene-process-p95", "status"], "equals": "failed"},
+          {"path": ["rules", "main-scene-process-p95", "measured"], "equals": 0.5},
+          {"path": ["rules", "main-scene-process-p95", "maximum"], "equals": 0.4}
+        ]
+      }
+    },
+    {
+      "id": "absolute-node-failure",
+      "title": "Identify an absolute node-count budget failure",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 has no configurable budget interface."},
+      "final": {"runner": "guardian"},
+      "inputs": {
+        "results": "evaluation/fixtures/generic/single",
+        "budget": "evaluation/fixtures/budgets/v2-node-fail.json"
+      },
+      "expected": {
+        "exit_code": 1,
+        "outcome": "budget_failed",
+        "checks": [
+          {"path": ["failed_rule_count"], "equals": 1},
+          {"path": ["rules", "main-scene-peak-nodes", "status"], "equals": "failed"},
+          {"path": ["rules", "main-scene-peak-nodes", "measured"], "equals": 3},
+          {"path": ["rules", "main-scene-peak-nodes", "maximum"], "equals": 2}
+        ]
+      }
+    },
+    {
+      "id": "multiple-budget-failures",
+      "title": "Report multiple deterministic budget failures",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 has no configurable budget interface."},
+      "final": {"runner": "guardian"},
+      "inputs": {
+        "results": "evaluation/fixtures/generic/single",
+        "budget": "evaluation/fixtures/budgets/v2-multiple-fail.json"
+      },
+      "expected": {
+        "exit_code": 1,
+        "outcome": "budget_failed",
+        "checks": [
+          {"path": ["failed_rule_count"], "equals": 2},
+          {"path": ["rules", "main-scene-process-p95", "status"], "equals": "failed"},
+          {"path": ["rules", "main-scene-peak-nodes", "status"], "equals": "failed"}
+        ]
+      }
+    },
+    {
+      "id": "unchanged-comparison-pass",
+      "title": "Accept an unchanged protected-base comparison",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 has no paired-comparison interface."},
+      "final": {"runner": "guardian_comparison"},
+      "inputs": {
+        "baseline_results": "evaluation/fixtures/comparison/baseline",
+        "results": "evaluation/fixtures/comparison/candidate",
+        "budget": "evaluation/fixtures/budgets/v3-comparison.json"
+      },
+      "expected": {
+        "exit_code": 0,
+        "outcome": "passed",
+        "checks": [
+          {"path": ["failed_rule_count"], "equals": 0},
+          {"path": ["comparison_rules", "main-scene-process-p95", "increase_percent"], "equals": 0},
+          {"path": ["comparison_rules", "main-scene-peak-nodes", "increase_percent"], "equals": 0}
+        ]
+      }
+    },
+    {
+      "id": "relative-only-process-regression",
+      "title": "Catch a relative regression that passes its absolute limit",
+      "challenging": true,
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 has no paired-comparison interface."},
+      "final": {"runner": "guardian_comparison"},
+      "inputs": {
+        "baseline_results": "evaluation/fixtures/comparison/baseline",
+        "results": "evaluation/fixtures/comparison/regression",
+        "budget": "evaluation/fixtures/budgets/v3-comparison.json"
+      },
+      "expected": {
+        "exit_code": 1,
+        "outcome": "budget_failed",
+        "checks": [
+          {"path": ["failed_rule_count"], "equals": 1},
+          {"path": ["comparison_rules", "main-scene-process-p95", "baseline"], "equals": 0.5},
+          {"path": ["comparison_rules", "main-scene-process-p95", "candidate"], "equals": 0.61},
+          {"path": ["comparison_rules", "main-scene-process-p95", "delta"], "equals": 0.11},
+          {"path": ["comparison_rules", "main-scene-process-p95", "increase_percent"], "equals": 22},
+          {"path": ["comparison_rules", "main-scene-process-p95", "absolute_status"], "equals": "passed"},
+          {"path": ["comparison_rules", "main-scene-process-p95", "relative_status"], "equals": "failed"},
+          {"path": ["comparison_rules", "main-scene-process-p95", "relative_maximum"], "equals": 20}
+        ]
+      }
+    },
+    {
+      "id": "malformed-evidence-error",
+      "title": "Reject malformed evidence with a safe diagnostic",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 cannot classify portable generic evidence."},
+      "final": {"runner": "generic_validator"},
+      "inputs": {"results": "evaluation/fixtures/malformed"},
+      "expected": {
+        "exit_code": 1,
+        "outcome": "safe_error",
+        "checks": [
+          {"path": ["validated_file_count"], "equals": 0},
+          {"path": ["error_markers", "missing_schema_version"], "equals": true}
+        ]
+      }
+    },
+    {
+      "id": "calibration-proposal",
+      "title": "Generate a reviewable three-capture calibration proposal",
+      "baseline": {"runner": "unsupported", "reason": "Baseline 0 has no calibration interface."},
+      "final": {"runner": "calibration"},
+      "inputs": {"results": "evaluation/fixtures/generic/three_runs"},
+      "expected": {
+        "exit_code": 0,
+        "outcome": "proposal_generated",
+        "checks": [
+          {"path": ["validated_file_count"], "equals": 3},
+          {"path": ["recommendations", "main_scene-process-p95", "observed"], "equals": 0.5},
+          {"path": ["recommendations", "main_scene-process-p95", "proposed_maximum"], "equals": 0.8},
+          {"path": ["recommendations", "main_scene-process-p95", "relative_allowance_percent"], "equals": 20},
+          {"path": ["recommendations", "main_scene-peak-nodes", "observed"], "equals": 3},
+          {"path": ["recommendations", "main_scene-peak-nodes", "proposed_maximum"], "equals": 4},
+          {"path": ["recommendations", "main_scene-peak-objects", "observed"], "equals": 21},
+          {"path": ["recommendations", "main_scene-peak-objects", "proposed_maximum"], "equals": 24}
+        ]
+      }
+    }
+  ]
+}

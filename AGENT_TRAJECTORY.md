@@ -2041,3 +2041,51 @@ The tracked-fixture gate command was exercised during planning and returned exit
 The first official skill-validator invocation failed because the repository environment does not permanently include PyYAML. PyYAML 6.0.3 was then installed into a uniquely named system-temporary directory, the validator printed `Skill is valid!`, and the temporary directory was removed. One composite read-only inspection wrapper also had a JavaScript quoting error before executing any nested command; its two checks were rerun successfully. The initially inserted trajectory block preceded the earlier manual-acceptance follow-up, so it was moved to the true chronological end before delivery.
 
 README retained numbered sections 1 through 17, the judge section occupied the requested position, all checked relative links resolved, and all three evidence documents retained final newlines. The focused key-pattern scan found no matching filename, `IMPROVEMENT_CHANGELOG.md` had no diff, and `git diff --check` reported no whitespace error. Final diff inspection, commit, push, and remote verification followed this pre-delivery checkpoint.
+
+## 2026-08-30 — Experiment 18: Final ten-case competition evaluation
+
+### Original request and approved boundary
+
+The user requested a reproducible final competition evaluation comparing the accepted Baseline 0 implementation at commit `22af3b44962517b0f1d7ac0b7499f724f2e2cb34` with the current product at commit `2bf5ff6efbedb44a8ac0370b686554a5a4ac4e40`. The primary metric was fixed in advance as **correct actionable outcomes** over ten shared cases. The task required a frozen baseline package, tracked fixtures, a standard-library evaluator, canonical deterministic output, `FINAL_EVALUATION.md`, synchronized repository documentation, and tests for integrity, safety, containment, exit codes, score recomputation, and byte stability.
+
+The approved boundary excluded Godot execution, OpenAI requests, commits, and pushes. Unsupported Baseline 0 interfaces had to remain visibly `unsupported` rather than being simulated or counted as tool failures. The result had to describe expanded workflow coverage, not game-speed improvement.
+
+### Skill use and repository inspection
+
+The complete repository-local `$godot-performance-guardian-docs` skill and requirements reference were read before documentation changes. The supplied `$agent-trajectory` instructions governed this chronological record. Inspection covered the clean Git state, configured public remote, both comparison revisions, Baseline 0 source, current validator/checker/gate/calibration interfaces, existing fixed fixtures, ignored historical evidence, README status claims, experiment history, and the hackathon reproduction requirements already summarized in the repository documentation.
+
+The first candidate historical suite tested with the frozen baseline validator was not the accepted Baseline 0 evidence: it produced `143 usec` healthy workload p95, `5,091 usec` CPU-spike workload p95, and a `35.60x` ratio. All available nine-file suites were then evaluated consistently. Suite `20260828T193246205Z` reproduced the documented accepted measurements: `185 usec`, `12,725 usec`, and `68.78x`, with all nine files valid. That suite was selected and frozen rather than changing the documented baseline to fit the first available files.
+
+### Evaluation package and implementation
+
+`evaluation/` now contains the frozen Baseline 0 validator, source revision, SHA-256 integrity manifest, accepted nine-file synthetic suite, compact generic/comparison/malformed/calibration fixtures, strict policies, a shared ten-case manifest, and canonical output. The frozen validator hash is `6277baaacfc9a62734e3b72d94fa4fe03e742c5a78fd8b40d52b2f0c3226d412`.
+
+`tools/run_submission_evaluation.py` uses only the Python standard library. It resolves repository-contained paths, verifies fixture and implementation hashes, launches fixed argument-list subprocesses with `shell=False`, captures their output under bounded timeouts, normalizes only safe facts, recalculates both scores from raw case results, and provides exit `0`, `1`, or `2` for complete success, missed final oracle, or integrity/configuration/operational failure. Its canonical JSON excludes timestamps and observed runtime so repeated inputs remain byte-identical.
+
+The same manifest defines all ten cases for both implementations: the accepted synthetic suite, generic validation, a passing v2 policy, process failure, node failure, multiple failures, unchanged v3 comparison, a relative-only regression, malformed evidence, and three-capture calibration. The challenge fixture deliberately measures baseline `0.5 ms` and candidate `0.61 ms`: the candidate passes the `1.1 ms` absolute ceiling but its `22%` increase fails the `20%` relative allowance.
+
+### Failures encountered and corrections
+
+The first complete evaluator run exposed two implementation/oracle mismatches. Absolute fixture paths were passed to `run_guardian.py`, whose public containment contract requires repository-relative inputs; those cases safely exited `2`. The evaluator was corrected to pass paths relative to the already validated workspace root. The calibration oracle also expected hyphenated IDs, while the real deterministic generator correctly preserved the safe profile identifier `main_scene`; the manifest was corrected to match the tool's actual IDs. The initial partial score was not retained as product evidence. After correction, the complete final side passed all ten oracles.
+
+Focused testing also exercised deliberate negative paths: integrity mismatch, unsafe containment, malformed manifest, subprocess timeout and operating-system errors, output collision, and CLI exits `0`, `1`, and `2`. No raw subprocess output, private absolute path, credential-shaped value, source-revision value, or unsupported causal claim is preserved in the canonical result.
+
+### Measured results and verification
+
+The focused evaluator suite passed 19 tests in `10.045` seconds. Two consecutive real evaluator runs were byte-identical with SHA-256 `d88261711f9fa836903137d5a9099a5102691a08ff7e2b59cb29518119d2e453`; one observed run took `3.515` seconds. Baseline 0 produced one correct actionable outcome from ten (`10%`) and nine honest `unsupported` results. The final product produced ten from ten (`100%`), a gain of nine cases or **90 percentage points**. Deterministic API cost was `$0`, and human review time was not measured.
+
+The complete repository suite passed 199 tests in `15.052` seconds with one environment-dependent directory-symlink test skipped. Python byte compilation completed, `pip check` reported no broken requirements, and the existing tracked deterministic gate returned exit `0` with `0.5 ms <= 1.1 ms` and `3 <= 3` nodes. No Godot process, benchmark, OpenAI request, commit, or push occurred.
+
+### Documentation result and remaining boundary
+
+`FINAL_EVALUATION.md` records the intended user, bottleneck, fairness and resource difference, fixed rubric, full ten-case table, challenging-case evidence, observed runtime, deterministic cost, supporting-but-secondary AI evidence, failed-model lesson, remaining failure mode, hot take, and conclusion. README keeps its existing reproduction instructions and adds the one-command final comparison, tracked package links, updated roadmap/evidence status, and correct 199-test expectation. The documentation requirements now preserve the fixed-manifest, revision, integrity, score, and scope-warning contract. Experiment 18 was appended to `IMPROVEMENT_CHANGELOG.md` without rewriting prior experiments.
+
+The remaining submission deliverable is the five-minute solution video. Fixed fixtures establish reproducible tool decisions, not universal project compatibility, GPU behavior, project-owned object attribution, threshold quality, or long-run model reliability.
+
+### Final documentation and integrity checks
+
+A final canonical check first piped evaluator text through PowerShell `Set-Content`; that text round trip changed the file bytes and therefore was not a valid byte-stability comparison. A second attempt correctly used the evaluator's atomic `--output` option but supplied a system-temporary absolute path, which the containment contract rejected with exit `2`. The final check used a unique repository-relative output, returned exit `0`, matched the tracked canonical SHA-256 exactly, and removed the temporary file. These rejected attempts changed no tracked evidence and confirmed that output containment is enforced.
+
+The official skill validator initially failed because PyYAML is not a permanent project dependency. A sandboxed temporary installation could not reach the package index. The same temporary-only procedure was then authorized with normal network access, installed cached PyYAML 6.0.3, printed `Skill is valid!`, and removed the temporary directory. No dependency was added to the repository environment.
+
+All checked Markdown links resolved, README retained numbered sections 1 through 17, every updated evidence/requirements document ended with a newline, and `git diff --check` reported no whitespace error. The workspace plus reachable-history high-confidence key-pattern scan returned no matching filename or commit identifier. Final Git status contained only the intended evaluation implementation, tracked fixtures/result, tests, final report, and synchronized documentation; no commit or push was performed.

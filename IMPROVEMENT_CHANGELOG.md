@@ -688,3 +688,31 @@ Guardian implementation commit `80ba5d6fa829b4e947eff8e4aee0f540727aa58a` was pu
 ### Experiment 17 clarification — manual editor acceptance completed
 
 The user opened the updated PluginTest project and reported that the main-screen editor workspace works. This closes the pending visual acceptance check: **Guardian** is usable from the workspace selector without the previous side-dock interference with Inspector and Node access. This is user-reported manual evidence from PluginTest, not an automated cross-platform UI test.
+
+## 2026-08-30 — Experiment 18: Final ten-case competition evaluation
+
+**Status:** Retained; deterministic final comparison verified
+
+### Hypothesis and reason
+
+The experiment history contained strong individual results but no single fair, rerunnable Baseline 0/final comparison. A frozen baseline, fixed case manifest, objective oracle, and canonical result should make the product's overall improvement understandable without asking judges to reconstruct it from hundreds of tests or many chronological entries.
+
+### Change and evaluation method
+
+The accepted Baseline 0 validator from commit `22af3b44962517b0f1d7ac0b7499f724f2e2cb34` and its documented nine-run suite were frozen with SHA-256 integrity metadata. The compared final product revision is `2bf5ff6efbedb44a8ac0370b686554a5a4ac4e40`. Both sides receive the same ten case definitions. Unsupported baseline capabilities remain `unsupported`; the evaluator does not simulate interfaces that did not exist.
+
+The primary metric is **correct actionable outcomes**. A case counts only when its exit/status, required numerical evidence, and safe actionable detail match a predefined oracle. The cases cover the accepted synthetic suite, generic validation, passing policy, process failure, node failure, multiple failures, unchanged comparison, relative-only regression, malformed evidence, and three-capture calibration. The relative-only case is the challenge: `0.61 ms` passes the absolute `1.1 ms` ceiling but its `22%` increase fails the protected-base `20%` allowance.
+
+The evaluation is standard-library-only, uses bounded argument-list subprocesses with `shell=False`, reads no API key, makes no network or model request, and records no nondeterministic runtime field in canonical JSON. This method evaluates deterministic workflow coverage and evidence quality, not game-frame speed.
+
+### Observed result
+
+Baseline 0 produced one correct actionable outcome from ten cases (`10%`); its other nine user workflows were unsupported. The final product produced ten from ten (`100%`), a gain of nine cases or 90 percentage points. Every intended pass, budget failure, comparison detail, safe malformed-input rejection, and balanced calibration value matched its oracle.
+
+Two consecutive real runs produced byte-identical canonical output with SHA-256 `d88261711f9fa836903137d5a9099a5102691a08ff7e2b59cb29518119d2e453`. One observed complete run took `3.515` seconds on the verified Windows/Python environment. Deterministic API cost was `$0`; human review time was not measured. The focused evaluator suite passed 19 tests. The complete repository suite passed 199 tests in 15.052 seconds with one environment-dependent directory-symlink test skipped. Byte compilation, `pip check`, and the existing tracked deterministic gate also passed.
+
+### Decision and next step
+
+Retain the ten-case package as the final measured comparison and use `FINAL_EVALUATION.md` as the factual source for submission claims. Describe the result as a 90-percentage-point increase in correct actionable workflow coverage, never as a 90% game-performance improvement. Fixed fixtures do not prove universal Godot compatibility, GPU behavior, threshold quality, long-run model reliability, or project-specific root cause.
+
+The next submission deliverable is the five-minute solution video. It should show the problem, Baseline 0, one complete challenging-case execution, the final comparison, the most important retained change, and the failed model-upgrade lesson without introducing unsupported measurements.

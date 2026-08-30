@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "budgets": [
+    {
+      "id": "main-scene-process-p95",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "maximum": 0.4,
+      "unit": "ms",
+      "description": "Evaluation rule that intentionally rejects the tracked 0.5 ms process p95."
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 3,
+  "budgets": [
+    {
+      "id": "main-scene-peak-nodes",
+      "profile": "main_scene",
+      "metric": "median_peak_node_count",
+      "maximum": 3,
+      "maximum_increase_percent": 0,
+      "unit": "nodes",
+      "description": "The tracked comparison fixture must not increase its peak node count."
+    },
+    {
+      "id": "main-scene-process-p95",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "maximum": 1.1,
+      "maximum_increase_percent": 20,
+      "unit": "ms",
+      "description": "The tracked comparison fixture permits at most a 20 percent process-p95 increase."
+    }
+  ]
+}

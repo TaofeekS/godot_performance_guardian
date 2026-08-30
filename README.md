@@ -45,15 +45,23 @@ Package installation requires internet access. The deterministic gate, tests, an
 
 Expected result: exit `0`, `deterministic_status` is `passed`, and both tracked budgets pass (`0.5 ms <= 1.1 ms` process p95 and `3 <= 3` peak nodes).
 
-### 4. Run all tests
+### 4. Reproduce the final baseline comparison
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\run_submission_evaluation.py --json
+```
+
+Expected result: exit `0`, Baseline 0 completes `1/10` correct actionable outcomes, the final product completes `10/10`, and the recorded change is `+90` percentage points. See [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) for the rubric, complete case table, fairness statement, and limitations.
+
+### 5. Run all tests
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Expected result: exit `0` after running 180 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
+Expected result: exit `0` after running 199 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
 
-### 5. Produce fresh Godot measurements
+### 6. Produce fresh Godot measurements
 
 Point `$Godot` at the downloaded Godot 4.5.1 executable, then run the complete benchmark harness:
 
@@ -75,10 +83,10 @@ For a real consumer integration, see the public [PluginTest example](https://git
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; a read-only Godot main-screen evidence workspace verified through Godot 4.5.1 helper/editor-lifecycle checks and a user-completed PluginTest visual walkthrough; repeated headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a deterministic five-run calibration assistant verified locally; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
-| Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; a read-only Godot main-screen evidence workspace verified through Godot 4.5.1 helper/editor-lifecycle checks and a user-completed PluginTest visual walkthrough; repeated headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a deterministic five-run calibration assistant verified locally; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; a ten-case Baseline 0/final evaluation package; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
+| Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live capture. The ten-case competition evaluation covers deterministic workflow behavior with fixed fixtures, not ten independent real games or GPU workloads, and synthetic integrity assertions remain embedded in code. |
 | Unverified | Direct visual inspection of the hosted custom job-summary body remains unavailable from the current automation environment. Synthetic fallback behavior remains locally verified but not live-tested. |
-| Planned | Nine additional evaluation fixtures, broader budget coverage, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
+| Planned | Broader real-project and GPU evaluation, experimental repair and verification, the five-minute solution video, and the final submission assembly. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
 
@@ -114,6 +122,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |-- .github/workflows/reusable-performance-guardian.yml
 |-- LICENSE
 |-- README.md
+|-- FINAL_EVALUATION.md
 |-- AGENT_TRAJECTORY.md
 |-- IMPROVEMENT_CHANGELOG.md
 |-- requirements-agent.txt
@@ -127,6 +136,12 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |       `-- README.md
 |-- budgets/
 |   `-- example_budgets.json
+|-- evaluation/
+|   |-- baseline/validate_results.py
+|   |-- fixtures/{synthetic,generic,comparison,malformed,budgets}/
+|   |-- cases.json
+|   |-- integrity.json
+|   `-- results/final-evaluation.json
 |-- agent/
 |   |-- __init__.py
 |   `-- investigator.py
@@ -147,6 +162,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |   |-- test_portable_addon.py
 |   |-- test_action_report.py
 |   |-- test_run_guardian.py
+|   |-- test_submission_evaluation.py
 |   `-- test_capture_project.py
 |-- examples/
 |   |-- fixtures/main_scene-godot-4.5.1.json
@@ -179,6 +195,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
     |-- comparison_evidence.py
     |-- render_action_report.py
     |-- run_guardian.py
+    |-- run_submission_evaluation.py
     |-- validate_results.py
     `-- workspace_paths.py
 ```
@@ -193,6 +210,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`tools/comparison_evidence.py`](tools/comparison_evidence.py) emits schema-v2 comparison evidence for the optional investigator without exposing revision values.
 - [`tools/render_action_report.py`](tools/render_action_report.py) turns canonical gate JSON into safe GitHub logs, annotations, and a Markdown job summary without changing the verdict.
 - [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs one validator call for absolute mode or exactly two for paired mode, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
+- [`tools/run_submission_evaluation.py`](tools/run_submission_evaluation.py) verifies the frozen evaluation package and scores Baseline 0 and the final product against the same ten deterministic case oracles.
 - [`tools/capture_project.py`](tools/capture_project.py) preflights a consumer project and runs isolated, collision-safe Godot captures with sanitized logs and a canonical manifest.
 - [`tools/workspace_paths.py`](tools/workspace_paths.py) centralizes symlink-aware containment for explicit consumer workspaces.
 - [`.github/workflows/performance-guardian.yml`](.github/workflows/performance-guardian.yml) runs the tracked fixture and policy on pull requests to `main` and through manual dispatch.
@@ -208,6 +226,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, and v2 budgets against tracked test fixtures.
 - [`tests/test_editor_main_screen.py`](tests/test_editor_main_screen.py) verifies the exact Godot 4.5 main-screen lifecycle, read-only boundary, evidence fixtures, containment, and timestamp policy.
 - [`tests/test_run_guardian.py`](tests/test_run_guardian.py) verifies orchestration, containment, exit preservation, output stability, optional-investigation safety, and the workflow contract without an API request.
+- [`tests/test_submission_evaluation.py`](tests/test_submission_evaluation.py) verifies frozen-fixture integrity, all ten case oracles, score recomputation, subprocess safety, canonical stability, and evaluator exits.
 - [`tests/test_capture_project.py`](tests/test_capture_project.py) verifies isolated capture commands, collisions, stop-on-failure, sanitized manifests/logs, and the reusable workflow contract.
 - [`tests/test_calibrate_budgets.py`](tests/test_calibrate_budgets.py) verifies calibration formulas, semantic evidence, safe IDs, atomic output, explicit replacement, and deterministic reports.
 - [`tests/test_comparison.py`](tests/test_comparison.py) verifies schema v3, paired semantic matching, zero baselines, deterministic comparison evidence, and exits.
@@ -215,6 +234,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`requirements-agent.txt`](requirements-agent.txt) pins the optional investigator and OpenAI SDK versions used by the clean test environment.
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record, beginning with the accepted current-state baseline.
+- [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) is the judge-facing Baseline 0/final comparison, backed by the tracked [`evaluation/results/final-evaluation.json`](evaluation/results/final-evaluation.json) result.
 - [`.agents/skills/godot-performance-guardian-docs/SKILL.md`](.agents/skills/godot-performance-guardian-docs/SKILL.md) defines the repository-local documentation workflow.
 
 Godot-generated `.uid` files are present beside the GDScript sources. The `.godot/` cache and generated result JSON files are intentionally ignored.
@@ -814,6 +834,8 @@ Benchmark suite passed.
 
 This is evidence from one machine, not a portable performance promise. The same scenarios and validator logic are deterministic enough for controlled comparisons, while timing values remain noisy.
 
+The final competition evaluation freezes Baseline 0 from commit `22af3b44962517b0f1d7ac0b7499f724f2e2cb34` and compares it with product revision `2bf5ff6efbedb44a8ac0370b686554a5a4ac4e40` using the same ten-case manifest. A case counts only when its exit/status, required numerical evidence, and safe actionable detail match the predefined oracle. Baseline 0 completed `1/10` cases; the final deterministic product completed `10/10`, a gain of 90 percentage points of workflow coverage. The challenging case correctly passed an absolute process limit at `0.61 ms <= 1.1 ms` while failing the protected-base relative rule at `22% > 20%`. Two runs produced byte-identical canonical output. This comparison measures expanded workflow coverage and evidence quality, not faster game execution. See [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) and the canonical [`final-evaluation.json`](evaluation/results/final-evaluation.json).
+
 The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. The tool invokes the validator's `--evidence-json` mode, which returns a deterministic JSON-compatible packet containing explicit evidence kind, validation status, a repository-relative result directory, opaque evidence IDs, and explicit limitations. Synthetic packets contain scenario comparisons, cleanup evidence, and allowlisted controller behavior. Generic packets contain profile-scoped engine aggregates plus memory and source-revision availability. The normal validator command and human-readable output remain unchanged.
 
 SDK configuration requires the validator tool on the first model turn, followed by a strict typed contribution rather than model-authored Markdown. The model may return zero to three bounded non-causal hypotheses and must return one to three recommendations. Each item carries one to four unique opaque evidence IDs. Recommendation behavior is selected from the enum `compare`, `inspect`, `measure`, `profile`, `validate`, `capture`, or `repeat_capture`; the model cannot supply free-form action text. Local validation rejects unknown or duplicate IDs, causal conclusions, Markdown, newlines, measurements, paths, embedded citations, and credential-shaped text.
@@ -889,7 +911,7 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 - Evidence focuses on CPU work and object/node growth, not rendering or GPU performance.
 - Configurable policy supports four synthetic metrics and seven generic engine metrics; the validator's synthetic integrity assertions and controller tolerances remain embedded in code.
 - Paired comparison doubles capture work. Same-runner sequential execution reduces variation but does not guarantee identical thermal, scheduling, or system-load conditions.
-- There is no committed golden baseline or baseline/iteration/final result organization.
+- The committed final-evaluation package uses fixed synthetic and small generic fixtures. It is reproducible evidence of deterministic tool behavior, not ten independent customer games or a universal performance baseline.
 - The editor workspace is read-only: it cannot launch captures, calculate budgets, access CI artifacts that have not been copied under `res://`, show live capture progress, or repair a project. The investigator receives only validator-produced evidence and cannot establish root cause by itself.
 - Calibration proposes host-specific thresholds from engine-global metrics; it does not identify project-owned objects, measure GPU work, edit policy automatically, or establish that a threshold is appropriate without human review.
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
@@ -905,21 +927,22 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 | --- | --- | --- |
 | 1. Deterministic baseline | Completed | Three synthetic scenarios, raw samples, summaries, repeated runs, and objective validation. |
 | 2. Configurable budgets | Completed (v1/v2/v3) | Apply scenario, profile, or protected-base comparison policies through deterministic human/JSON tools and a unified Windows CI gate with exit codes `0`/`1`/`2`. |
-| 3. Ten evaluation fixtures | Partial | One sanitized live generic fixture is tracked; nine broader objective fixtures remain planned. |
+| 3. Ten evaluation fixtures | Completed (fixed workflow cases) | Ten tracked cases cover synthetic validation, generic evidence, passing and failing policy, protected-base comparison, malformed evidence, and calibration. Broader real-game coverage remains a limitation. |
 | 4. Reusable Godot editor workspace | Completed (read-only v2) | The addon presents active-scene probe readiness, recent contained evidence, deterministic failed rules, safe details, and local evidence navigation in a selectable main-screen workspace without occupying a side dock. PluginTest placement and interaction were manually confirmed by the user. |
 | 5. Agent-assisted investigation | Partial | A read-only command-line investigator handles synthetic scenarios, generic profiles, and paired comparisons, filters typed model contributions, and recovers failures with deterministic fallback; limited live Mini responses, including one hosted comparison, have passed, but broader model/report evaluation remains planned. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
-| 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
+| 7. Final baseline comparison and submission package | Partial | A frozen Baseline 0 snapshot, ten-case manifest, integrity metadata, canonical result, and judge-facing final evaluation are tracked. The five-minute solution video and final submission assembly remain. |
 
 ## 16. Hackathon evidence
 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, portable-capture, CI, calibration, and editor-workspace experiments.
+- [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) compares frozen Baseline 0 with the final product across ten predefined deterministic cases. The tracked [`case manifest`](evaluation/cases.json), [`integrity metadata`](evaluation/integrity.json), raw fixtures, and canonical [`evaluation result`](evaluation/results/final-evaluation.json) make the primary `1/10` versus `10/10` result independently rerunnable without Godot or an API key.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - The [`Performance Guardian` workflow](.github/workflows/performance-guardian.yml) is the first automated deterministic gate; its tracked fixture output is uploaded as a JSON artifact, while broader categorized evidence packages remain planned.
 - The [`reusable consumer workflow`](.github/workflows/reusable-performance-guardian.yml) adds fresh capture, validation, policy enforcement, sanitized logs, manifests, and canonical gate output for another Godot repository. Hosted absolute-only and paired runs are verified: the latter preserved three baseline plus three candidate captures and logs, both capture manifests, and canonical report, while returning the intended deterministic budget failure.
-- Dedicated versioned baseline, iteration, and final result packages are planned and do not yet exist.
+- The final baseline-comparison package is tracked. A narrated solution video and final submission assembly remain outstanding.
 
 The trajectory explains how an agent performed work. The improvement changelog explains how the product changes across evidence-backed experiments, including unsuccessful or removed approaches.
 

@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "budgets": [
+    {
+      "id": "main-scene-peak-nodes",
+      "profile": "main_scene",
+      "metric": "median_peak_node_count",
+      "maximum": 3,
+      "unit": "nodes",
+      "description": "The tracked generic fixture must remain at or below three peak nodes."
+    },
+    {
+      "id": "main-scene-process-p95",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "maximum": 1.1,
+      "unit": "ms",
+      "description": "The tracked generic fixture must remain at or below 1.1 ms process p95."
+    }
+  ]
+}

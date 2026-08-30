@@ -1,0 +1,114 @@
+{
+  "addon": {
+    "name": "Performance Budget Guardian",
+    "version": "1.0.1"
+  },
+  "ended_at_utc": "2026-08-29T00:00:01Z",
+  "environment": {
+    "debug_build": true,
+    "display_driver": "headless",
+    "os_name": "FixtureOS",
+    "os_version": "1"
+  },
+  "godot_version": "4.5.1.stable.official.fixture",
+  "headless": true,
+  "known_limitations": [
+    "Global object, node, memory, and timing monitors include engine and addon activity; they are not owned solely by this profile.",
+    "Because the probe accumulates raw samples during capture, static-memory growth includes probe storage overhead and cannot by itself prove a project memory leak.",
+    "Process and physics timing include engine scheduling and probe overhead; no project workload timer is claimed.",
+    "Measurements depend on the recorded host and runtime configuration and are not portable performance guarantees.",
+    "Headless capture does not establish rendering or GPU performance.",
+    "No source revision was supplied; the exact source revision is unknown."
+  ],
+  "measured_frames": 3,
+  "measurement_configuration": {
+    "auto_quit": true,
+    "auto_start": true,
+    "output_path": "res://results"
+  },
+  "metric_availability": {
+    "memory_static_bytes": {
+      "available": true,
+      "debug_only": true,
+      "reason": "fixture memory is available"
+    }
+  },
+  "percentile_definition": "nearest-rank: sort ascending; select one-based rank ceil(p * N), clamped to 1..N",
+  "profile": "main_scene",
+  "project_name": "Tracked Generic Test Fixture",
+  "result_type": "performance_budget_guardian_capture",
+  "run_id": "tracked-generic-fixture-001",
+  "samples": [
+    {
+      "elapsed_measurement_usec": 2000,
+      "measured_frame": 2,
+      "memory_static_bytes": 1000,
+      "node_count": 3,
+      "object_count": 20,
+      "orphan_node_count": 0,
+      "physics_process_time_ms": 0.1,
+      "process_time_ms": 0.4,
+      "sample_index": 1
+    },
+    {
+      "elapsed_measurement_usec": 3000,
+      "measured_frame": 3,
+      "memory_static_bytes": 1100,
+      "node_count": 3,
+      "object_count": 21,
+      "orphan_node_count": 0,
+      "physics_process_time_ms": 0.2,
+      "process_time_ms": 0.5,
+      "sample_index": 2
+    }
+  ],
+  "sampling_interval_frames": 2,
+  "schema_version": 1,
+  "source_revision": null,
+  "started_at_utc": "2026-08-29T00:00:00Z",
+  "summary": {
+    "capture_duration_ms": 4.0,
+    "counts": {
+      "memory_static_bytes": {
+        "delta": 100.0,
+        "final": 1100,
+        "initial": 1000,
+        "peak": 1100.0
+      },
+      "node_count": {
+        "delta": 0.0,
+        "final": 3,
+        "initial": 3,
+        "peak": 3.0
+      },
+      "object_count": {
+        "delta": 1.0,
+        "final": 21,
+        "initial": 20,
+        "peak": 21.0
+      },
+      "orphan_node_count": {
+        "delta": 0.0,
+        "final": 0,
+        "initial": 0,
+        "peak": 0.0
+      }
+    },
+    "measurement_duration_ms": 3.0,
+    "timing": {
+      "physics_process_time_ms": {
+        "max": 0.2,
+        "mean": 0.15,
+        "p50": 0.1,
+        "p95": 0.2
+      },
+      "process_time_ms": {
+        "max": 0.5,
+        "mean": 0.45,
+        "p50": 0.4,
+        "p95": 0.5
+      }
+    }
+  },
+  "warmup_frames": 1
+}
