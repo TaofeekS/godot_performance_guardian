@@ -2285,3 +2285,19 @@ Four short trajectories link accepted investigation, rejected-model fallback and
 This was documentation maintenance rather than a product experiment, so the existing `IMPROVEMENT_CHANGELOG.md` content was inspected and not changed by this navigation task. Verification follows this entry; no Godot process, OpenAI request, or full test-suite rerun is required.
 
 All 33 internal trajectory links resolved against unique headings or explicit anchors, and all checked relative file links existed. The canonical result independently confirmed `1/10`, `10/10`, `+90` percentage points, and API cost `$0`. Source inspection confirmed the investigator's exact name and sole function tool plus the deterministic validator, checker, calibration, and runner boundaries. The official documentation-skill validator printed `Skill is valid!` using temporary cached PyYAML removed immediately afterward. README retained sections 1 through 17, the single disclosure block was balanced, all documentation files ended with a newline, `git diff --check` passed, and working-tree plus reachable-history credential-pattern scans found no matching filename or commit identifier. No product test, Godot process, OpenAI request, commit, or push occurred.
+
+## 2026-08-30 — Multi-scene roadmap documentation
+
+### Request and evidence inspection
+
+The user proposed testing additional scenes alongside the main scene and approved documenting first-class multi-scene testing as a future step. They also asked to remove the obsolete media-deliverable wording from current-facing documentation while preserving append-only history.
+
+Inspection confirmed that `.github/workflows/reusable-performance-guardian.yml` currently exposes one required `profile` and one optional `scene-path` per invocation. The generic validator already groups validated captures by profile, and the v2/v3 budget checker matches profile-scoped evidence semantically. Therefore the missing capability is customer-facing multi-scene capture and workflow orchestration, not basic multi-profile aggregation. The included independent example currently contains only `main.tscn`.
+
+### Documentation decision
+
+README now labels manifest-driven multi-scene orchestration as planned, records separate workflow jobs as the current workaround, proposes main, object-heavy, and physics-heavy example scenes, and explains that capture processes scale as scenes multiplied by runs and double during protected-base comparison. No implementation or verification claim was added.
+
+Current-facing README and final-evaluation wording now treats final submission assembly generically. Older trajectory and improvement-changelog statements remain unchanged as historical evidence. The documentation-skill requirements preserve both the multi-scene implementation boundary and this current-versus-historical distinction. This was documentation maintenance, so no product experiment was appended to `IMPROVEMENT_CHANGELOG.md`. No Godot process, product test, workflow, capture, or OpenAI request was run.
+
+Verification confirmed that README and `FINAL_EVALUATION.md` contain no remaining obsolete media-deliverable reference, README retains numbered sections 1 through 17, every checked relative Markdown link resolves, and all maintained documentation files end with a newline. The official documentation-skill validator printed `Skill is valid!` using temporary PyYAML 6.0.3, which was removed afterward without changing project dependencies. The checked documentation contained no high-confidence credential pattern, and `git diff --check` reported no whitespace error. Final status contained only the four intended documentation files.

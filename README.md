@@ -88,7 +88,7 @@ For a real consumer integration, see the public [PluginTest example](https://git
 | Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; a read-only Godot main-screen evidence workspace verified through Godot 4.5.1 helper/editor-lifecycle checks and a user-completed PluginTest visual walkthrough; repeated headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a deterministic five-run calibration assistant verified locally; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; a ten-case Baseline 0/final evaluation package; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live capture. The ten-case competition evaluation covers deterministic workflow behavior with fixed fixtures, not ten independent real games or GPU workloads, and synthetic integrity assertions remain embedded in code. |
 | Unverified | Direct visual inspection of the hosted custom job-summary body remains unavailable from the current automation environment. Synthetic fallback behavior remains locally verified but not live-tested. |
-| Planned | Broader real-project and GPU evaluation, experimental repair and verification, the five-minute solution video, and the final submission assembly. |
+| Planned | Broader real-project, multi-scene, and GPU evaluation; experimental repair and verification; and final submission assembly. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
 
@@ -933,7 +933,15 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 | 4. Reusable Godot editor workspace | Completed (read-only v2) | The addon presents active-scene probe readiness, recent contained evidence, deterministic failed rules, safe details, and local evidence navigation in a selectable main-screen workspace without occupying a side dock. PluginTest placement and interaction were manually confirmed by the user. |
 | 5. Agent-assisted investigation | Partial | A read-only command-line investigator handles synthetic scenarios, generic profiles, and paired comparisons, filters typed model contributions, and recovers failures with deterministic fallback; limited live Mini responses, including one hosted comparison, have passed, but broader model/report evaluation remains planned. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
-| 7. Final baseline comparison and submission package | Partial | A frozen Baseline 0 snapshot, ten-case manifest, integrity metadata, canonical result, and judge-facing final evaluation are tracked. The five-minute solution video and final submission assembly remain. |
+| 7. Final baseline comparison and submission package | Partial | A frozen Baseline 0 snapshot, ten-case manifest, integrity metadata, canonical result, and judge-facing final evaluation are tracked. Final submission assembly remains. |
+
+### Planned multi-scene project gate
+
+The reusable consumer workflow currently accepts one `profile` and one optional `scene-path` per invocation. A customer can test multiple scenes today by defining separate reusable-workflow jobs for each scene/profile, but Guardian does not yet provide a first-class combined multi-scene capture interface.
+
+A planned project-level scene manifest would list multiple profile and `res://` scene-path entries. One workflow invocation would then preserve separate captures and sanitized logs for every scene, apply one project budget containing profile-specific rules, produce one combined deterministic verdict and artifact, and make the validated multi-profile evidence available to the optional investigator. The independent example should expand from its current main scene to include an object-heavy scene and a physics-heavy scene.
+
+Multi-scene coverage increases CI cost: the number of Godot processes is `scenes x capture runs`, and protected-base comparison doubles that total because it captures both baseline and candidate scenes. Projects should therefore select representative performance-critical scenes rather than automatically capturing every scene.
 
 ## 16. Hackathon evidence
 
@@ -944,7 +952,7 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - The [`Performance Guardian` workflow](.github/workflows/performance-guardian.yml) is the first automated deterministic gate; its tracked fixture output is uploaded as a JSON artifact, while broader categorized evidence packages remain planned.
 - The [`reusable consumer workflow`](.github/workflows/reusable-performance-guardian.yml) adds fresh capture, validation, policy enforcement, sanitized logs, manifests, and canonical gate output for another Godot repository. Hosted absolute-only and paired runs are verified: the latter preserved three baseline plus three candidate captures and logs, both capture manifests, and canonical report, while returning the intended deterministic budget failure.
-- The final baseline-comparison package is tracked. A narrated solution video and final submission assembly remain outstanding.
+- The final baseline-comparison package is tracked. Final submission assembly remains outstanding.
 
 The trajectory explains how an agent performed work. The improvement changelog explains how the product changes across evidence-backed experiments, including unsuccessful or removed approaches.
 

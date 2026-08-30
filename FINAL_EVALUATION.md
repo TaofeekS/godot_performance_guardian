@@ -102,4 +102,4 @@ The remaining failure mode is mistaking engine-global, headless, fixed-fixture e
 
 The final product met the predefined competition target: all ten fixed cases produced the required safe, evidence-complete outcome, compared with one case for Baseline 0. The measured gain is 90 percentage points of correct actionable workflow coverage. This does not claim that game performance became 90% faster or that all Godot projects are covered. It demonstrates that the project evolved from one synthetic validator into a reproducible performance gate that can validate portable evidence, enforce absolute and relative policy, reject malformed inputs, and propose reviewable budgets.
 
-The next submission deliverable is the five-minute solution video. It should use this report as its factual source rather than introducing new measurements or claims.
+The remaining submission assembly should use this report as its factual source rather than introducing new measurements or claims.
