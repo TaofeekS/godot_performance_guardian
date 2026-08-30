@@ -61,7 +61,7 @@ The integrity manifest hashes canonical UTF-8 text after normalizing CRLF and lo
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Expected result: exit `0` after running 202 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
+Expected result: exit `0` after running 218 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
 
 ### 6. Produce fresh Godot measurements
 
@@ -125,6 +125,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |-- LICENSE
 |-- README.md
 |-- FINAL_EVALUATION.md
+|-- AGENT_EVALUATION.md
 |-- AGENT_TRAJECTORY.md
 |-- IMPROVEMENT_CHANGELOG.md
 |-- requirements-agent.txt
@@ -140,6 +141,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |   `-- example_budgets.json
 |-- evaluation/
 |   |-- baseline/validate_results.py
+|   |-- agent/{config,cases,integrity,packets,prompts,results}/
 |   |-- fixtures/{synthetic,generic,comparison,malformed,budgets}/
 |   |-- cases.json
 |   |-- integrity.json
@@ -165,6 +167,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |   |-- test_action_report.py
 |   |-- test_run_guardian.py
 |   |-- test_submission_evaluation.py
+|   |-- test_agent_evaluation.py
 |   `-- test_capture_project.py
 |-- examples/
 |   |-- fixtures/main_scene-godot-4.5.1.json
@@ -197,6 +200,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
     |-- comparison_evidence.py
     |-- render_action_report.py
     |-- run_guardian.py
+    |-- run_agent_evaluation.py
     |-- run_submission_evaluation.py
     |-- validate_results.py
     `-- workspace_paths.py
@@ -213,6 +217,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`tools/render_action_report.py`](tools/render_action_report.py) turns canonical gate JSON into safe GitHub logs, annotations, and a Markdown job summary without changing the verdict.
 - [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs one validator call for absolute mode or exactly two for paired mode, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
 - [`tools/run_submission_evaluation.py`](tools/run_submission_evaluation.py) verifies canonical UTF-8/LF hashes for the frozen evaluation package and scores Baseline 0 and the final product against the same ten deterministic case oracles.
+- [`tools/run_agent_evaluation.py`](tools/run_agent_evaluation.py) runs or locally re-grades the frozen twenty-run typed-versus-free-form investigator evaluation with a total cost ceiling, zero retries, disabled tracing, and rejected-text suppression.
 - [`tools/capture_project.py`](tools/capture_project.py) preflights a consumer project and runs isolated, collision-safe Godot captures with sanitized logs and a canonical manifest.
 - [`tools/workspace_paths.py`](tools/workspace_paths.py) centralizes symlink-aware containment for explicit consumer workspaces.
 - [`.github/workflows/performance-guardian.yml`](.github/workflows/performance-guardian.yml) runs the tracked fixture and policy on pull requests to `main` and through manual dispatch.
@@ -229,6 +234,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`tests/test_editor_main_screen.py`](tests/test_editor_main_screen.py) verifies the exact Godot 4.5 main-screen lifecycle, read-only boundary, evidence fixtures, containment, and timestamp policy.
 - [`tests/test_run_guardian.py`](tests/test_run_guardian.py) verifies orchestration, containment, exit preservation, output stability, optional-investigation safety, and the workflow contract without an API request.
 - [`tests/test_submission_evaluation.py`](tests/test_submission_evaluation.py) verifies frozen-fixture integrity, all ten case oracles, score recomputation, subprocess safety, canonical stability, and evaluator exits.
+- [`tests/test_agent_evaluation.py`](tests/test_agent_evaluation.py) verifies frozen agent packets, cost accounting, the two-turn token boundary, failed-rule grading, fallbacks, atomic output, and API-free result re-grading.
 - [`tests/test_capture_project.py`](tests/test_capture_project.py) verifies isolated capture commands, collisions, stop-on-failure, sanitized manifests/logs, and the reusable workflow contract.
 - [`tests/test_calibrate_budgets.py`](tests/test_calibrate_budgets.py) verifies calibration formulas, semantic evidence, safe IDs, atomic output, explicit replacement, and deterministic reports.
 - [`tests/test_comparison.py`](tests/test_comparison.py) verifies schema v3, paired semantic matching, zero baselines, deterministic comparison evidence, and exits.
@@ -237,6 +243,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) records the evidence-based history of the documentation task.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record, beginning with the accepted current-state baseline.
 - [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) is the judge-facing Baseline 0/final comparison, backed by the tracked [`evaluation/results/final-evaluation.json`](evaluation/results/final-evaluation.json) result.
+- [`AGENT_EVALUATION.md`](AGENT_EVALUATION.md) is the controlled ten-packet comparison of the shipped grounded typed investigator with a matched free-form baseline, backed by the tracked [`agent-evaluation.json`](evaluation/agent/results/agent-evaluation.json).
 - [`.agents/skills/godot-performance-guardian-docs/SKILL.md`](.agents/skills/godot-performance-guardian-docs/SKILL.md) defines the repository-local documentation workflow.
 
 Godot-generated `.uid` files are present beside the GDScript sources. The `.godot/` cache and generated result JSON files are intentionally ignored.
@@ -840,7 +847,16 @@ The final competition evaluation freezes Baseline 0 from commit `22af3b44962517b
 
 The optional investigator exposes that same program as its only function tool, `validate_benchmark_results`. The tool invokes the validator's `--evidence-json` mode, which returns a deterministic JSON-compatible packet containing explicit evidence kind, validation status, a repository-relative result directory, opaque evidence IDs, and explicit limitations. Synthetic packets contain scenario comparisons, cleanup evidence, and allowlisted controller behavior. Generic packets contain profile-scoped engine aggregates plus memory and source-revision availability. The normal validator command and human-readable output remain unchanged.
 
-SDK configuration requires the validator tool on the first model turn, followed by a strict typed contribution rather than model-authored Markdown. The model may return zero to three bounded non-causal hypotheses and must return one to three recommendations. Each item carries one to four unique opaque evidence IDs. Recommendation behavior is selected from the enum `compare`, `inspect`, `measure`, `profile`, `validate`, `capture`, or `repeat_capture`; the model cannot supply free-form action text. Local validation rejects unknown or duplicate IDs, causal conclusions, Markdown, newlines, measurements, paths, embedded citations, and credential-shaped text.
+SDK configuration requires the validator tool on the first model turn, followed by a strict typed contribution rather than model-authored Markdown. The model may return zero to three bounded non-causal hypotheses and must return one to five recommendations. Each item carries one to four unique opaque evidence IDs. Recommendation behavior is selected from the enum `compare`, `inspect`, `measure`, `profile`, `validate`, `capture`, or `repeat_capture`; the model cannot supply free-form action text. Local validation rejects unknown or duplicate IDs, causal conclusions, Markdown, newlines, measurements, paths, embedded citations, and credential-shaped text. Accepted actions are rendered into profile/metric-specific controlled investigations rather than generic advice.
+
+Experiment 19 freezes ten performance-policy failure packets and compares this typed design with a matched free-form agent using the same pinned `gpt-4.1-mini-2025-04-14` snapshot, packet tool, requirements, 2,000-output-token allowance, and one paired run per case. The observed typed design was directly accepted on `10/10` cases; free-form was accepted on `0/10`. Every run used exactly one packet-tool call and two model requests. Total observed cost was `$0.0237344`; median run latency was `7.402 s` and nearest-rank p95 was `12.508 s`. No typed fallback was needed, while rejected free-form text was retained only as hashes and safe rule IDs. This is a controlled ten-packet result, not long-run model reliability. See [`AGENT_EVALUATION.md`](AGENT_EVALUATION.md) and the canonical [`agent-evaluation.json`](evaluation/agent/results/agent-evaluation.json).
+
+Re-grade that stored result without an API key or model request:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\run_agent_evaluation.py `
+  --verify .\evaluation\agent\results\agent-evaluation.json
+```
 
 Application code renders the five sections—Validation status, Verified facts, Possible explanations, Recommended next investigation, and Remaining uncertainty—from semantic packet evidence plus accepted model choices. Measurements, availability wording, limitations, citations, and recommendation sentences are local and deterministic. Synthetic matching uses metric, scenario, source type, unit, and value shape. Generic matching uses metric, profile, source type, unit, and availability state. IDs may be renumbered without changing selection; missing, duplicate, mixed-identity, or malformed matches fail safely. At least one model-selected recommendation must survive local validation before a report counts as model-contributed.
 
@@ -931,7 +947,7 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 | 2. Configurable budgets | Completed (v1/v2/v3) | Apply scenario, profile, or protected-base comparison policies through deterministic human/JSON tools and a unified Windows CI gate with exit codes `0`/`1`/`2`. |
 | 3. Ten evaluation fixtures | Completed (fixed workflow cases) | Ten tracked cases cover synthetic validation, generic evidence, passing and failing policy, protected-base comparison, malformed evidence, and calibration. Broader real-game coverage remains a limitation. |
 | 4. Reusable Godot editor workspace | Completed (read-only v2) | The addon presents active-scene probe readiness, recent contained evidence, deterministic failed rules, safe details, and local evidence navigation in a selectable main-screen workspace without occupying a side dock. PluginTest placement and interaction were manually confirmed by the user. |
-| 5. Agent-assisted investigation | Partial | A read-only command-line investigator handles synthetic scenarios, generic profiles, and paired comparisons, filters typed model contributions, and recovers failures with deterministic fallback; limited live Mini responses, including one hosted comparison, have passed, but broader model/report evaluation remains planned. |
+| 5. Agent-assisted investigation | Completed (controlled evaluation) | A read-only command-line investigator handles synthetic scenarios, generic profiles, and paired comparisons, filters typed model contributions, and recovers failures with deterministic fallback. In Experiment 19 it directly passed all ten frozen failure packets versus zero for the matched free-form baseline; broader real-project and repeated-run reliability remain limitations. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Partial | A frozen Baseline 0 snapshot, ten-case manifest, integrity metadata, canonical result, and judge-facing final evaluation are tracked. Final submission assembly remains. |
 
@@ -948,6 +964,7 @@ Multi-scene coverage increases CI cost: the number of Godot processes is `scenes
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md#judge-navigation) begins with a judge navigation guide, actor/authority boundaries, representative trajectories, and milestone links, followed by the complete chronological audit of requests, decisions, inspections, edits, issues, and verification.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, portable-capture, CI, calibration, and editor-workspace experiments.
 - [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) compares frozen Baseline 0 with the final product across ten predefined deterministic cases. The tracked [`case manifest`](evaluation/cases.json), [`integrity metadata`](evaluation/integrity.json), raw fixtures, and canonical [`evaluation result`](evaluation/results/final-evaluation.json) make the primary `1/10` versus `10/10` result independently rerunnable without Godot or an API key.
+- [`AGENT_EVALUATION.md`](AGENT_EVALUATION.md) separately evaluates the optional runtime agent across ten fixed failure packets. Its frozen [controls](evaluation/agent/config.json), [case manifest](evaluation/agent/cases.json), [integrity metadata](evaluation/agent/integrity.json), packets, prompts, and canonical [result](evaluation/agent/results/agent-evaluation.json) preserve the observed `10/10` typed versus `0/10` free-form comparison and allow API-free re-grading.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - The [`Performance Guardian` workflow](.github/workflows/performance-guardian.yml) is the first automated deterministic gate; its tracked fixture output is uploaded as a JSON artifact, while broader categorized evidence packages remain planned.

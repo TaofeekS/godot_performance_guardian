@@ -900,7 +900,7 @@ class TypedContributionTests(unittest.TestCase):
                 self.contribution(
                     recommendations=[
                         {"action": "compare", "evidence_ids": ["PX_BP"]}
-                        for _ in range(4)
+                        for _ in range(6)
                     ]
                 )
             )
@@ -990,7 +990,7 @@ class InvestigatorConfigurationTests(unittest.TestCase):
         for requirement in (
             "opaque evidence ID",
             "typed contribution",
-            "three recommendations",
+            "five recommendations",
             "three hypotheses",
             "schema enum",
             "memory leak",

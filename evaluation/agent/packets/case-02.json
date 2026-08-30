@@ -1,0 +1,65 @@
+{
+  "packet_type": "godot_performance_evidence",
+  "schema_version": 2,
+  "evidence_kind": "comparison",
+  "validation": {
+    "status": "passed",
+    "exit_code": 0,
+    "candidate_file_count": 3,
+    "validated_file_count": 3,
+    "baseline_file_count": 3,
+    "policy_status": "failed",
+    "errors": [],
+    "timed_out": false,
+    "error_type": null
+  },
+  "results_directory": "evaluation/agent/candidate/case-02",
+  "baseline_results_directory": "evaluation/agent/baseline/case-02",
+  "evidence": [
+    {
+      "id": "R2_1",
+      "claim": "main_scene median_p95_process_time comparison policy result.",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "source_type": "validated_comparison",
+      "unit": "ms",
+      "value": {
+        "baseline": 1.9,
+        "candidate": 2.1,
+        "delta": 0.20000000000000018,
+        "increase_percent": 10.526315789473696,
+        "maximum": 2,
+        "maximum_increase_percent": 20,
+        "absolute_status": "failed",
+        "relative_status": "passed",
+        "status": "failed"
+      },
+      "baseline_evidence_id": "B2_1",
+      "candidate_evidence_id": "C2_1",
+      "source": "evaluation/agent/packets/case-02.json",
+      "baseline_source": "evaluation/agent/packets/case-02.json"
+    }
+  ],
+  "limitations": [
+    {
+      "id": "L2_1",
+      "statement": "Sequential captures reduce host variation but do not prove identical execution conditions."
+    },
+    {
+      "id": "L2_2",
+      "statement": "Global engine metrics are not owned solely by the measured project profile."
+    },
+    {
+      "id": "L2_3",
+      "statement": "Headless evidence does not establish rendering or GPU performance."
+    },
+    {
+      "id": "L2_4",
+      "statement": "A policy failure identifies a threshold breach but does not establish its cause."
+    }
+  ],
+  "errors": [],
+  "timeout": false,
+  "error_category": null
+}
+

@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "HypothesisContribution": {
+      "additionalProperties": false,
+      "properties": {
+        "explanation": {
+          "maxLength": 240,
+          "minLength": 1,
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "explanation",
+        "evidence_ids"
+      ],
+      "type": "object"
+    },
+    "RecommendationAction": {
+      "enum": [
+        "compare",
+        "inspect",
+        "measure",
+        "profile",
+        "validate",
+        "capture",
+        "repeat_capture"
+      ],
+      "type": "string"
+    },
+    "RecommendationContribution": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/RecommendationAction"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "action",
+        "evidence_ids"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "hypotheses": {
+      "items": {
+        "$ref": "#/$defs/HypothesisContribution"
+      },
+      "maxItems": 3,
+      "type": "array"
+    },
+    "recommendations": {
+      "items": {
+        "$ref": "#/$defs/RecommendationContribution"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "hypotheses",
+    "recommendations"
+  ],
+  "title": "InvestigatorContribution",
+  "type": "object"
+}
+

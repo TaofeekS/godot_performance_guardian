@@ -43,7 +43,7 @@ For comparison packets, cite semantic baseline/candidate policy items and never
 reveal, compare, or claim equality of source-revision values.
 
 Return only the typed contribution requested by the response schema. Supply one
-to three recommendations and zero to three hypotheses. Each item must cite one
+to five recommendations and zero to three hypotheses. Each item must cite one
 to four unique opaque evidence IDs from the tool packet. Select recommendation
 actions only from the schema enum. Hypothesis explanations are plain text of at
 most 240 characters and must remain non-causal.
@@ -152,7 +152,7 @@ class InvestigatorContribution(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     hypotheses: list[HypothesisContribution] = Field(min_length=0, max_length=3)
-    recommendations: list[RecommendationContribution] = Field(min_length=1, max_length=3)
+    recommendations: list[RecommendationContribution] = Field(min_length=1, max_length=5)
 
 
 class EvidenceSchemaError(ValueError):
@@ -1222,18 +1222,46 @@ def accepted_model_contribution(
 
 
 RECOMMENDATION_TEMPLATES = {
-    RecommendationAction.COMPARE: "Compare a controlled repeat against the cited evidence",
-    RecommendationAction.INSPECT: "Inspect the collection conditions represented by the cited evidence",
-    RecommendationAction.MEASURE: "Measure the cited metrics again under controlled conditions",
-    RecommendationAction.PROFILE: "Profile the execution interval represented by the cited evidence",
-    RecommendationAction.VALIDATE: "Validate a comparable result set against the same configured checks",
-    RecommendationAction.CAPTURE: "Capture another comparable run for the cited evidence",
-    RecommendationAction.REPEAT_CAPTURE: "Re-run a comparable capture with identical settings",
+    RecommendationAction.COMPARE: "Compare a controlled repeat of {subjects} against the cited values while holding capture settings constant",
+    RecommendationAction.INSPECT: "Inspect the collection conditions for {subjects} and record whether the same configured conditions were used",
+    RecommendationAction.MEASURE: "Measure {subjects} again with identical warmup, frame count, sampling interval, and host conditions",
+    RecommendationAction.PROFILE: "Profile the execution interval associated with {subjects} and compare the resulting trace with the cited capture",
+    RecommendationAction.VALIDATE: "Validate a fresh result set containing {subjects} against the same deterministic policy",
+    RecommendationAction.CAPTURE: "Capture another isolated run for {subjects} with the same scene, profile, and measurement settings",
+    RecommendationAction.REPEAT_CAPTURE: "Repeat the paired capture for {subjects} on the same runner and compare the new baseline and candidate values",
 }
 
 
 def _item_citations(evidence_ids: list[str]) -> str:
     return " ".join(f"[{identifier}]" for identifier in evidence_ids)
+
+
+def _recommendation_subjects(
+    packet: dict[str, Any], evidence_ids: list[str]
+) -> str:
+    """Describe cited semantic evidence without trusting model-authored prose."""
+
+    by_id = {
+        item.get("id"): item
+        for item in [*packet.get("evidence", []), *packet.get("limitations", [])]
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    subjects: list[str] = []
+    for identifier in evidence_ids:
+        item = by_id.get(identifier, {})
+        identity = item.get("profile", item.get("scenario"))
+        metric = item.get("metric")
+        if isinstance(identity, str) and isinstance(metric, str):
+            subject = f"profile {identity} metric {metric}"
+        elif isinstance(identity, str):
+            subject = f"profile {identity}"
+        elif isinstance(metric, str):
+            subject = f"metric {metric}"
+        else:
+            subject = f"evidence {identifier}"
+        if subject not in subjects:
+            subjects.append(subject)
+    return ", ".join(subjects)
 
 
 def render_model_contribution(
@@ -1260,7 +1288,8 @@ def render_model_contribution(
     else:
         explanations = "No model-authored hypothesis was accepted."
     recommendations = "\n".join(
-        f"- {RECOMMENDATION_TEMPLATES[item.action]} {_item_citations(item.evidence_ids)}."
+        f"- {RECOMMENDATION_TEMPLATES[item.action].format(subjects=_recommendation_subjects(packet, item.evidence_ids))} "
+        f"{_item_citations(item.evidence_ids)}."
         for item in contribution.recommendations
     )
     return f"""## Validation status

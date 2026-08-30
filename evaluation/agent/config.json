@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "model_snapshot": "gpt-4.1-mini-2025-04-14",
+  "max_output_tokens_per_run": 2000,
+  "output_token_split": [
+    256,
+    1744
+  ],
+  "request_timeout_seconds": 120,
+  "protocol_input_margin_tokens": 4096,
+  "estimated_cost_ceiling_usd": 2,
+  "rate_card_usd_per_million_tokens": {
+    "uncached_input_per_million": 0.4,
+    "cached_input_per_million": 0.1,
+    "output_per_million": 1.6
+  },
+  "success_criteria": {
+    "typed_minimum_direct_passes": 8,
+    "minimum_typed_advantage": 3,
+    "typed_rejections_require_grounded_fallback": true
+  },
+  "execution_order": [
+    {
+      "case_id": "case-01",
+      "variants": [
+        "free_form",
+        "typed"
+      ]
+    },
+    {
+      "case_id": "case-02",
+      "variants": [
+        "typed",
+        "free_form"
+      ]
+    },
+    {
+      "case_id": "case-03",
+      "variants": [
+        "free_form",
+        "typed"
+      ]
+    },
+    {
+      "case_id": "case-04",
+      "variants": [
+        "typed",
+        "free_form"
+      ]
+    },
+    {
+      "case_id": "case-05",
+      "variants": [
+        "free_form",
+        "typed"
+      ]
+    },
+    {
+      "case_id": "case-06",
+      "variants": [
+        "typed",
+        "free_form"
+      ]
+    },
+    {
+      "case_id": "case-07",
+      "variants": [
+        "free_form",
+        "typed"
+      ]
+    },
+    {
+      "case_id": "case-08",
+      "variants": [
+        "typed",
+        "free_form"
+      ]
+    },
+    {
+      "case_id": "case-09",
+      "variants": [
+        "free_form",
+        "typed"
+      ]
+    },
+    {
+      "case_id": "case-10",
+      "variants": [
+        "typed",
+        "free_form"
+      ]
+    }
+  ]
+}
+

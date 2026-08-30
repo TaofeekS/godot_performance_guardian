@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "case-01",
+      "title": "Process relative-only failure",
+      "packet_path": "evaluation/agent/packets/case-01.json"
+    },
+    {
+      "id": "case-02",
+      "title": "Process absolute-only failure",
+      "packet_path": "evaluation/agent/packets/case-02.json"
+    },
+    {
+      "id": "case-03",
+      "title": "Process absolute and relative failure",
+      "packet_path": "evaluation/agent/packets/case-03.json"
+    },
+    {
+      "id": "case-04",
+      "title": "Peak-node relative-only failure",
+      "packet_path": "evaluation/agent/packets/case-04.json"
+    },
+    {
+      "id": "case-05",
+      "title": "Peak-object absolute-only failure",
+      "packet_path": "evaluation/agent/packets/case-05.json"
+    },
+    {
+      "id": "case-06",
+      "title": "Physics-process absolute and relative failure",
+      "packet_path": "evaluation/agent/packets/case-06.json"
+    },
+    {
+      "id": "case-07",
+      "title": "Positive duration from a zero baseline",
+      "packet_path": "evaluation/agent/packets/case-07.json"
+    },
+    {
+      "id": "case-08",
+      "title": "Static-memory relative-only failure",
+      "packet_path": "evaluation/agent/packets/case-08.json"
+    },
+    {
+      "id": "case-09",
+      "title": "Multiple failures in one profile",
+      "packet_path": "evaluation/agent/packets/case-09.json"
+    },
+    {
+      "id": "case-10",
+      "title": "Failures across two profiles",
+      "packet_path": "evaluation/agent/packets/case-10.json"
+    }
+  ]
+}
+

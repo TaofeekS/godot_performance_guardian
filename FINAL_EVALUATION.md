@@ -85,8 +85,9 @@ AI behavior is deliberately excluded from the primary score because model respon
 - Experiment 9: one `gpt-4.1-mini` typed contribution supplied two accepted evidence-linked recommendations without fallback; an invalid optional hypothesis was discarded locally.
 - Experiment 10: one live unified Mini run supplied three accepted recommendations while the deterministic gate remained authoritative.
 - Experiment 13: one hosted paired comparison produced an accepted Mini contribution covering all three failed rules, limitations, and read-only next steps without a causal claim.
+- Experiment 19: a frozen, controlled twenty-run evaluation compared the grounded typed investigator with a matched free-form baseline on ten identical failure packets. Typed reports were directly accepted on `10/10` cases versus `0/10` free-form, with no typed fallback, exactly twenty packet-tool calls, and `$0.0237344` total estimated API cost. See [`AGENT_EVALUATION.md`](AGENT_EVALUATION.md) for the rubric, paired outcomes, cost, latency, and limitations.
 
-These are individual observations, not a model ranking or long-run reliability estimate. Full experiment evidence remains in [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md).
+The first four bullets are individual observations. Experiment 19 is controlled but still uses one run per variant per fixed packet, so it is neither a general model ranking nor a long-run reliability estimate. Full experiment evidence remains in [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md).
 
 ## Failed or removed direction and lesson
 

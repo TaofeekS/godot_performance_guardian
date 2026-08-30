@@ -1,0 +1,6 @@
+# Frozen Experiment 19 text preserves the exact bytes used by the live run.
+evaluation/agent/cases.json whitespace=-blank-at-eof
+evaluation/agent/config.json whitespace=-blank-at-eof
+evaluation/agent/packets/*.json whitespace=-blank-at-eof
+evaluation/agent/prompts/*.txt whitespace=-blank-at-eof
+evaluation/agent/typed-schema.json whitespace=-blank-at-eof

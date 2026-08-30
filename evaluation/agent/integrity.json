@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "hash_mode": "sha256_utf8_lf",
+  "files": {
+    "agent/investigator.py": "1d4dc9cae1089cb26cbe415ab548174e884fe7916dd6e014162cf0e982cf8ff4",
+    "tools/run_agent_evaluation.py": "6e07c36c4f266aef6c155e0364dcc3d3c433db6bc2e6bce7c5eaf8843b47a00e",
+    "evaluation/agent/config.json": "f5aa962027f410980a54c530d4347f6e60adb5112cb9a1dfcea6ef6b8a63462e",
+    "evaluation/agent/cases.json": "53cb8cb6ae3c6fd6014ceb4ad025975a3cba1c928c41b994dced3c48ef5e6e6d",
+    "evaluation/agent/prompts/typed.txt": "1bc648242d39fd98a89507030c86d5e1e8cab12f7718e31639e66593043df902",
+    "evaluation/agent/prompts/free_form.txt": "aaa618747e07c7d3fc67e30b6ae13139e8bc2f89b50440ac516c730e05c4c59a",
+    "evaluation/agent/typed-schema.json": "d71f548c570e9987c3b8605073735b0d130ee52e14afffcc41cb6add77ca20e0",
+    "evaluation/agent/packets/case-01.json": "244edebcff9efe1bcc22ab6725406e86d54ea14edcd75f61f03ea406f4c2ec8e",
+    "evaluation/agent/packets/case-02.json": "d6240e5b3dec9aef17c0f1301fa1ee58a9a246ae6eccf78e19c02cfcce62f489",
+    "evaluation/agent/packets/case-03.json": "a7b7434f73f4c356543da472444a8dbe0ceee95b0896affd5184de52c78dc065",
+    "evaluation/agent/packets/case-04.json": "5c7c58f281981ab751749c2fe7856c0071ba4b5bc8fe40059c6596f9fc45b8bb",
+    "evaluation/agent/packets/case-05.json": "f539a7c69ba287bddefb5b430346bb9b1eade54e5ade4d26e9910b99ca550ef9",
+    "evaluation/agent/packets/case-06.json": "3c2cfdbfa70dd1c056204901eaa6d63d87cba084a194b183fc000b26a271c2cb",
+    "evaluation/agent/packets/case-07.json": "95022b301e0dca68311c5a34fbb7f146f8f49308515e0cdfdb8b3bd46361e28e",
+    "evaluation/agent/packets/case-08.json": "831dae8e3857169f7057b7e771c7fc45a9b99aa8a7b1bd43b968615d9de5d15d",
+    "evaluation/agent/packets/case-09.json": "08c47e47d72765249b6940734a35be05bd4313df372baaddfdff8d2c6b2d6c95",
+    "evaluation/agent/packets/case-10.json": "67a18d3e693de4176443852ad1cd2512940308c5814db48f21fb2d42c77b1802"
+  }
+}

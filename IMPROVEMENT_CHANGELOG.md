@@ -722,3 +722,38 @@ The next submission deliverable is the five-minute solution video. It should sho
 A clean checkout reported `EvaluationError: integrity mismatch for evaluation/baseline/validate_results.py`. The frozen file was unchanged and its Git blob still matched Baseline 0, but the original manifest had hashed Windows CRLF working-tree bytes. The same source checked out with LF therefore received a different raw-byte digest.
 
 Integrity schema v2 now hashes canonical UTF-8/LF text: CRLF and lone CR are normalized to LF, while every other content difference remains significant. The canonical validator hash is `d4c99669b2b2ef20ede75944a0445d915802d4a25060c81c2dfbcbbf86016d96`, matching the frozen Baseline 0 Git blob. Current-checkout and explicit LF-export evaluations both returned exit `0`; two current runs retained the existing canonical result hash `d88261711f9fa836903137d5a9099a5102691a08ff7e2b59cb29518119d2e453`. The complete suite passed 202 tests with one environment-dependent skip. Retain normalized text integrity because line-ending policy is not an evidence change; continue rejecting malformed UTF-8 and substantive source changes.
+
+
+## 2026-08-30 — Experiment 19: Controlled grounded-agent evaluation
+
+**Status:** Retained; predefined controlled-agent target passed
+
+### Hypothesis and reason
+
+The API-free final evaluation established deterministic workflow coverage but deliberately excluded the optional investigator. A fair paired evaluation should determine whether constraining the model to typed evidence selection actually produces safer, more actionable reports than asking the same model to author complete Markdown.
+
+The hypothesis was fixed before the live run: the grounded typed investigator would achieve at least eight direct passes from ten and exceed a matched free-form baseline by at least three, while every typed rejection would receive grounded fallback and no rejected text would be exposed.
+
+### Change and controlled evaluation
+
+A frozen package now contains ten comparison-policy failure packets: relative-only and absolute-only process failures, combined process failure, node and object failures, physics failure, zero-baseline duration growth, static-memory growth, multiple failures in one profile, and failures across two profiles.
+
+Both variants received the pinned gpt-4.1-mini-2025-04-14 snapshot, identical packet tool, report requirements, safety rules, 2,000-output-token allowance, and one run per case. Odd cases ran free-form first and even cases ran typed first. The dedicated client and model used zero retries; tracing and storage were disabled. Every run was limited to two model requests with a 256/1,744 token split and exactly one packet-tool call. Preflight bounded cumulative cost against a frozen $2.00 ceiling.
+
+The typed schema now allows zero to three hypotheses and one to five enum actions. Local rendering turns accepted action/evidence choices into profile- and metric-specific controlled investigations. A supplemental deterministic grader requires every failed rule in verified facts and at least one specific, read-only, failed-rule-linked recommendation. The production grounding gate still enforces citations, numbers, limitations, uncertainty, causal safety, revision privacy, and sensitive-output suppression.
+
+### Observed result
+
+The one authorized paired run completed all twenty agent runs with forty model requests and exactly twenty packet-tool calls. Typed contributions were directly accepted on **10/10** cases; free-form reports were directly accepted on **0/10**. All ten paired outcomes were typed-pass/free-form-fail. No typed fallback was required.
+
+Every typed run included valid recommendations and an invalid optional hypothesis; the hypothesis was discarded under C03_HYPOTHESIS_TEXT while the safe contribution survived. Across the matched free-form reports, recurring failures included uncited measurements, missing failed-rule recommendations, incomplete limitations, unsupported causal language, and untestable recommendations. Rejected text was never printed or stored; only SHA-256 hashes and deterministic rule IDs remain. Grounded fallback was stored for each rejected free-form response so API-free verification could re-grade safe output.
+
+The run used 35,045 total tokens: 26,948 input, zero cached input, and 8,097 output. Estimated cost was **$0.0237344** under the frozen rate card, far below the $2 ceiling. Median agent-run latency was 7.402 seconds and nearest-rank p95 was 12.508 seconds. Typed used $0.0087608 and 17,216 tokens; free-form used $0.0149736 and 17,829 tokens.
+
+The live command first exposed a pre-request SDK integration error: the two-turn wrapper implemented the model methods but did not inherit the SDK Model interface. Agent construction rejected it before any model request, tool call, result file, or billed evaluation run occurred. The wrapper was corrected, focused tests and integrity were rerun, and the still-unused single paired evaluation then completed. This operational failure was not counted as a model attempt or replaced outcome.
+
+### Decision and next step
+
+Retain typed evidence selection plus deterministic rendering as the shipped investigator design and mark the controlled agent-evaluation roadmap target complete. The result supports the limited headline in [AGENT_EVALUATION.md](AGENT_EVALUATION.md), not a claim about all models, prompts, games, or repeated reliability.
+
+The next useful evaluation is repetition on new, independently defined customer failure packets without changing this frozen result. Deterministic validation and budgets remain authoritative; calibration proposes; AI explains.

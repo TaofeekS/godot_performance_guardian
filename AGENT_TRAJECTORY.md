@@ -6,9 +6,10 @@
 
 1. Follow the [judge reproduction commands](README.md#judge-reproduction).
 2. Read the [final ten-case comparison](FINAL_EVALUATION.md) and its canonical [`final-evaluation.json`](evaluation/results/final-evaluation.json).
-3. Use the [representative trajectories](#representative-trajectories) below to see accepted AI, rejected AI, invalid evidence, and human usability feedback.
-4. Inspect the complete [Experiment 18 execution history](#trajectory-experiment-18) and its [cross-platform integrity correction](#trajectory-experiment-18-integrity).
-5. Read [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) for the product story rather than the command-by-command audit.
+3. Read the [controlled ten-packet agent evaluation](AGENT_EVALUATION.md) and its canonical [`agent-evaluation.json`](evaluation/agent/results/agent-evaluation.json).
+4. Use the [representative trajectories](#representative-trajectories) below to see accepted AI, rejected AI, invalid evidence, and human usability feedback.
+5. Inspect the complete [Experiment 18 execution history](#trajectory-experiment-18), its [cross-platform integrity correction](#trajectory-experiment-18-integrity), and [Experiment 19](#trajectory-experiment-19).
+6. Read [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) for the product story rather than the command-by-command audit.
 
 ### Primary outcome
 
@@ -25,6 +26,7 @@ This result measures deterministic workflow coverage and evidence quality. It do
 | --- | --- |
 | [`README.md`](README.md) | How do I install, run, reproduce, and use the product? |
 | [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) | Did the final solution meet the predefined competition target? |
+| [`AGENT_EVALUATION.md`](AGENT_EVALUATION.md) | Did the grounded runtime agent outperform a matched free-form baseline safely? |
 | [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) | Why did the product change, and what did each experiment teach? |
 | `AGENT_TRAJECTORY.md` | What did the development agent inspect, change, test, reject, and verify? |
 
@@ -92,6 +94,7 @@ In [Experiment 16](#trajectory-experiment-16), the first editor surface used a s
 | Experiment 16 | First read-only editor evidence surface | [Open](#trajectory-experiment-16) |
 | Experiment 17 | Main-screen Guardian workspace | [Open](#trajectory-experiment-17) |
 | Experiment 18 | Reproducible ten-case Baseline 0/final comparison | [Open](#trajectory-experiment-18) |
+| Experiment 19 | Controlled grounded-agent versus free-form evaluation | [Open](#trajectory-experiment-19) |
 
 ## Failure-and-correction index
 
@@ -2301,3 +2304,74 @@ README now labels manifest-driven multi-scene orchestration as planned, records 
 Current-facing README and final-evaluation wording now treats final submission assembly generically. Older trajectory and improvement-changelog statements remain unchanged as historical evidence. The documentation-skill requirements preserve both the multi-scene implementation boundary and this current-versus-historical distinction. This was documentation maintenance, so no product experiment was appended to `IMPROVEMENT_CHANGELOG.md`. No Godot process, product test, workflow, capture, or OpenAI request was run.
 
 Verification confirmed that README and `FINAL_EVALUATION.md` contain no remaining obsolete media-deliverable reference, README retains numbered sections 1 through 17, every checked relative Markdown link resolves, and all maintained documentation files end with a newline. The official documentation-skill validator printed `Skill is valid!` using temporary PyYAML 6.0.3, which was removed afterward without changing project dependencies. The checked documentation contained no high-confidence credential pattern, and `git diff --check` reported no whitespace error. Final status contained only the four intended documentation files.
+
+
+<a id="trajectory-experiment-19"></a>
+
+## 2026-08-30 — Experiment 19: Controlled grounded-agent evaluation
+
+### Request and approved controls
+
+The user identified agent engineering as the largest remaining competition-scoring vulnerability because the primary ten-case evaluation deliberately excluded AI. They approved a matched evaluation between a free-form report author and the shipped grounded typed investigator, with ten fixed failure packets and exactly one paired run per case.
+
+The approved request fixed these requirements before results were inspected:
+
+> Primary success remains:
+>
+> - Typed direct acceptance on at least `8/10`.
+> - Typed exceeds free-form by at least three direct passes.
+> - Every rejected typed response receives a grounded fallback.
+> - Rejected text never reaches output, repository artifacts, or SDK traces.
+
+It also fixed the pinned `gpt-4.1-mini-2025-04-14` snapshot, a total `$2.00` ceiling, equal 2,000-output-token allowances, 256/1,744 turn split, one required packet-tool call, zero client/model retries, global and per-run tracing disablement, one alternating paired run per case, cost rates, observed-usage accounting, frozen hashes, no result-driven prompt/rubric changes, and no replacement live attempt. Godot execution, benchmark/policy changes, commits, and pushes were outside scope.
+
+### Skills, official documentation, and inspection
+
+The agent used the official OpenAI documentation skill first. The fetched official GPT-4.1 mini model page confirmed the requested snapshot and rates: `$0.40` per million uncached input tokens, `$0.10` cached input, and `$1.60` output. The official Responses API reference confirmed per-response output limits and usage fields.
+
+The complete repository documentation and trajectory skills were then read. Repository inspection covered the existing typed contribution schema, semantic comparison parser, deterministic fallback, grounding rules, SDK configuration, current tests, final evaluation, README status, changelog history, Git state, and configured public remote. The implementation reused `agent/investigator.py` semantics instead of copying policy or benchmark calculations.
+
+### Implementation
+
+The production typed contribution limit expanded from three to five recommendation actions while retaining zero to three bounded hypotheses and one to four unique evidence IDs per item. Deterministic recommendation rendering now names cited profiles and metrics and describes a controlled, read-only, comparable measurement.
+
+`evaluation/agent/` contains frozen configuration, prompts, typed schema, alternating execution order, integrity metadata, ten separate comparison packets, and the canonical observed result. The cases cover process absolute/relative combinations, node, object, physics, zero-baseline duration, static memory, multiple rules, and two profiles.
+
+`tools/run_agent_evaluation.py` verifies canonical UTF-8/LF hashes before constructing an API client. Each fresh agent run receives a dedicated two-request model wrapper, one frozen packet tool, zero retries, disabled tracing and storage, and the exact output split. Before every run it checks cumulative observed cost plus a conservative next-run maximum. It records usage and latency from returned model responses while keeping rejected content only long enough to hash it.
+
+The evaluation grader runs the shipped grounding gate and additionally requires every failed rule in verified facts plus a specific, controlled, read-only recommendation that cites a failed rule and names its profile and metric. Accepted and fallback reports are stored for API-free re-grading. Incomplete, collision, integrity, missing-usage, cost, API, and operational paths remain nonzero.
+
+### Test and operational failures
+
+The first focused run found two expected test updates after the typed limit changed: a four-item invalid-bound fixture had become valid, and an instruction assertion still expected “three recommendations.” Both were updated to the new five-item contract. A new grounding test initially replaced the first failed-rule citation in Validation status rather than Verified facts; it was corrected to mutate the intended section.
+
+The first live command failed before any API request, agent run, tool call, result file, or billed evaluation. The local two-turn wrapper implemented the required methods but did not inherit the Agents SDK `Model` interface, so `Agent` construction raised a type error. The wrapper was changed to subclass `Model`, focused tests and frozen integrity were rerun, and the output path was confirmed absent. Because no request occurred, the single authorized paired evaluation was still unused; it then ran once without replacement attempts.
+
+### Local verification before live evaluation
+
+The complete suite passed **218 tests** in `14.796` seconds with one environment-dependent directory-symlink test skipped. `pip check` reported no broken requirements, Python byte compilation succeeded, the API-free final evaluation retained Baseline 0 `1/10` versus final `10/10`, and the no-AI deterministic gate returned authoritative exit `0` with `0.5 ms <= 1.1 ms` and `3 <= 3` nodes.
+
+The frozen conservative cost estimate for all twenty runs was approximately `$0.124054`, below the `$2.00` ceiling. The API key check reported presence without reading or printing its value.
+
+### Observed live result
+
+The one completed paired evaluation returned exit `0`. It performed exactly twenty agent runs, forty model requests, and twenty packet-tool calls. The grounded typed investigator was directly accepted on **10/10** cases; the matched free-form baseline was directly accepted on **0/10**. All ten paired outcomes were typed-pass/free-form-fail. No typed fallback was needed.
+
+Each typed response contained valid recommendations and an invalid optional hypothesis. Local validation discarded the hypothesis under `C03_HYPOTHESIS_TEXT` while preserving the accepted contribution. Free-form failures included uncited measurements, missing failed-rule facts or recommendations, untestable recommendations, incomplete limitations, unsupported numbers, missing uncertainty, and unsupported causal language. Rejected response text was not emitted or persisted; only SHA-256 hashes and safe grader IDs were stored. Safe deterministic fallback reports were retained for rejected free-form responses and passed re-grading.
+
+Observed usage was 26,948 input tokens, zero cached input, 8,097 output tokens, and 35,045 total tokens. Estimated cost was `$0.0237344`: `$0.0087608` typed and `$0.0149736` free-form. Overall median agent-run latency was `7.402` seconds and nearest-rank p95 was `12.508` seconds. Typed median/p95 were `3.819`/`11.670` seconds; free-form were `9.281`/`20.882` seconds. The result SHA-256 was `67f2730095ee4406a9e08d50372bce59e42801bea9db52004cbf904a7b953b2e`.
+
+The API-free `--verify` command re-graded every stored accepted/fallback report, recalculated cost and paired summaries, and returned exit `0`.
+
+### Documentation and remaining limits
+
+`AGENT_EVALUATION.md` records the fairness contract, ten cases, rubric dimensions, paired outcomes, token/cost/latency evidence, reproduction commands, and limitations. README links the frozen package and upgrades the agent roadmap stage to completed only for this controlled evaluation. `FINAL_EVALUATION.md` keeps AI secondary to the deterministic primary score. Experiment 19 is appended to the improvement changelog, and the documentation requirements preserve the frozen contract.
+
+This is one response per variant per fixed packet. It is not a general model ranking, ten independent-game evaluation, GPU measurement, long-run reliability estimate, or transfer of deterministic authority to AI. Final documentation, skill, link, secret, newline, whitespace, and Git-state verification follows this entry.
+
+
+Final verification completed after documentation synchronization. The complete suite passed 218 tests in 14.796 seconds with one environment-dependent symlink skip. Python byte compilation, dependency checking, API-free agent-result re-grading, the deterministic final evaluation, and the no-AI tracked gate all returned success. The documentation skill validator printed `Skill is valid!` using temporary PyYAML 6.0.3, which was removed without changing project dependencies.
+
+During the final audit, a general catch-all operational-error handler and its test were briefly drafted after the live result had already been inspected. Because the approved protocol freezes the evaluator and grader after observation, that draft and its manifest change were fully reverted rather than altering the evaluated implementation. Integrity and API-free re-grading then passed against the exact evaluator used for the completed live run.
+
+README retained all 17 numbered sections, every checked relative Markdown link resolved, and current-facing README/final-evaluation text contained no obsolete media-deliverable wording. The canonical agent result contained no rejected report text, private absolute path, credential-shaped value, or revision value. Working-tree and reachable-history high-confidence key-pattern scans returned no filename or commit identifier. All maintained text files retained final newlines, `git diff --check` reported no whitespace error, and final status contained only the intended Experiment 19 implementation, frozen package/result, tests, report, documentation, and skill-reference changes. No Godot process, benchmark, commit, or push occurred.
