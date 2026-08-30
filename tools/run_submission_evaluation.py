@@ -20,6 +20,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASES = Path("evaluation/cases.json")
 DEFAULT_INTEGRITY = Path("evaluation/integrity.json")
 TIMEOUT_SECONDS = 30
+INTEGRITY_HASH_MODE = "sha256_utf8_lf"
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 SECRET_PATTERNS = (
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
@@ -71,23 +72,24 @@ def _load_json(path: Path, *, label: str) -> dict[str, Any]:
     return value
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
+def _sha256_utf8_lf(path: Path) -> str:
     try:
-        with path.open("rb") as stream:
-            for block in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(block)
-    except OSError as error:
-        raise EvaluationError("an integrity file could not be read") from error
-    return digest.hexdigest()
+        text = path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeError) as error:
+        raise EvaluationError("an integrity file could not be read as UTF-8 text") from error
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 def verify_integrity(path: Path) -> dict[str, Any]:
     manifest = _load_json(path, label="integrity manifest")
-    if set(manifest) != {"baseline_revision", "files", "final_revision", "schema_version"}:
+    required = {"baseline_revision", "files", "final_revision", "hash_mode", "schema_version"}
+    if set(manifest) != required:
         raise EvaluationError("integrity manifest fields are invalid")
-    if manifest["schema_version"] != 1:
+    if manifest["schema_version"] != 2:
         raise EvaluationError("integrity manifest schema is unsupported")
+    if manifest["hash_mode"] != INTEGRITY_HASH_MODE:
+        raise EvaluationError("integrity manifest hash mode is unsupported")
     files = manifest.get("files")
     if not isinstance(files, list) or not files:
         raise EvaluationError("integrity manifest files are invalid")
@@ -103,7 +105,7 @@ def verify_integrity(path: Path) -> dict[str, Any]:
             raise EvaluationError("integrity hash is malformed")
         seen.add(relative)
         member = _repository_member(relative, kind="integrity file")
-        if _sha256(member) != expected:
+        if _sha256_utf8_lf(member) != expected:
             raise EvaluationError(f"integrity mismatch for {relative}")
     return manifest
 

@@ -1,9 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "hash_mode": "sha256_utf8_lf",
   "baseline_revision": "22af3b44962517b0f1d7ac0b7499f724f2e2cb34",
   "final_revision": "2bf5ff6efbedb44a8ac0370b686554a5a4ac4e40",
   "files": [
-    {"path": "evaluation/baseline/validate_results.py", "sha256": "6277baaacfc9a62734e3b72d94fa4fe03e742c5a78fd8b40d52b2f0c3226d412"},
+    {"path": "evaluation/baseline/validate_results.py", "sha256": "d4c99669b2b2ef20ede75944a0445d915802d4a25060c81c2dfbcbbf86016d96"},
     {"path": "evaluation/cases.json", "sha256": "5198c16cb9fe9d253f1c165a7bfd7bda9574de550e945639332e542951f2d61a"},
     {"path": "evaluation/fixtures/budgets/v2-multiple-fail.json", "sha256": "5b9e9889c037f895022fc8ee423200e6eb5fac9715e94fceed97df681381049e"},
     {"path": "evaluation/fixtures/budgets/v2-node-fail.json", "sha256": "84b153513fcb96a511a74b1004ba1f18648773f05412237cea0bbb3863a3a010"},

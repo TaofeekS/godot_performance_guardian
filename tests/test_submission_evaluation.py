@@ -24,17 +24,54 @@ class SubmissionEvaluationContractTests(unittest.TestCase):
     def test_integrity_manifest_verifies_frozen_baseline_and_final_tools(self) -> None:
         manifest = evaluation.verify_integrity(evaluation.REPOSITORY_ROOT / evaluation.DEFAULT_INTEGRITY)
         entries = {item["path"]: item["sha256"] for item in manifest["files"]}
+        self.assertEqual(manifest["schema_version"], 2)
+        self.assertEqual(manifest["hash_mode"], "sha256_utf8_lf")
         self.assertEqual(
             entries["evaluation/baseline/validate_results.py"],
-            "6277baaacfc9a62734e3b72d94fa4fe03e742c5a78fd8b40d52b2f0c3226d412",
+            "d4c99669b2b2ef20ede75944a0445d915802d4a25060c81c2dfbcbbf86016d96",
         )
         self.assertIn("tools/run_guardian.py", entries)
         self.assertIn("evaluation/fixtures/synthetic/healthy-20260828T193246205Z-run-01.json", entries)
 
     def test_integrity_mismatch_fails_safely(self) -> None:
-        with patch.object(evaluation, "_sha256", return_value="0" * 64):
+        with patch.object(evaluation, "_sha256_utf8_lf", return_value="0" * 64):
             with self.assertRaisesRegex(evaluation.EvaluationError, "integrity mismatch"):
                 evaluation.verify_integrity(evaluation.REPOSITORY_ROOT / evaluation.DEFAULT_INTEGRITY)
+
+    def test_integrity_hash_normalizes_text_line_endings_only(self) -> None:
+        variants = (b"first\nsecond\n", b"first\r\nsecond\r\n", b"first\rsecond\r")
+        hashes: list[str] = []
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "fixture.txt"
+            for content in variants:
+                path.write_bytes(content)
+                hashes.append(evaluation._sha256_utf8_lf(path))
+            path.write_bytes(b"first\nchanged\n")
+            changed = evaluation._sha256_utf8_lf(path)
+        self.assertEqual(len(set(hashes)), 1)
+        self.assertNotEqual(changed, hashes[0])
+
+    def test_integrity_manifest_rejects_wrong_schema_and_hash_mode(self) -> None:
+        source = json.loads((evaluation.REPOSITORY_ROOT / evaluation.DEFAULT_INTEGRITY).read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "integrity.json"
+            for field, value, message in (
+                ("schema_version", 1, "schema is unsupported"),
+                ("hash_mode", "sha256_bytes", "hash mode is unsupported"),
+            ):
+                with self.subTest(field=field):
+                    manifest = copy.deepcopy(source)
+                    manifest[field] = value
+                    path.write_text(json.dumps(manifest), encoding="utf-8")
+                    with self.assertRaisesRegex(evaluation.EvaluationError, message):
+                        evaluation.verify_integrity(path)
+
+    def test_integrity_hash_rejects_malformed_utf8(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "invalid.py"
+            path.write_bytes(b"\xff\xfe")
+            with self.assertRaisesRegex(evaluation.EvaluationError, "UTF-8 text"):
+                evaluation._sha256_utf8_lf(path)
 
     def test_repository_member_rejects_absolute_and_traversal_paths(self) -> None:
         for value in (str(evaluation.REPOSITORY_ROOT), "../outside.json"):

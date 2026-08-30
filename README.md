@@ -53,13 +53,15 @@ Expected result: exit `0`, `deterministic_status` is `passed`, and both tracked 
 
 Expected result: exit `0`, Baseline 0 completes `1/10` correct actionable outcomes, the final product completes `10/10`, and the recorded change is `+90` percentage points. See [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) for the rubric, complete case table, fairness statement, and limitations.
 
+The integrity manifest hashes canonical UTF-8 text after normalizing CRLF and lone CR line endings to LF. This preserves substantive SHA-256 integrity checks while making the command independent of Git's checkout line-ending policy.
+
 ### 5. Run all tests
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Expected result: exit `0` after running 199 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
+Expected result: exit `0` after running 202 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
 
 ### 6. Produce fresh Godot measurements
 
@@ -210,7 +212,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`tools/comparison_evidence.py`](tools/comparison_evidence.py) emits schema-v2 comparison evidence for the optional investigator without exposing revision values.
 - [`tools/render_action_report.py`](tools/render_action_report.py) turns canonical gate JSON into safe GitHub logs, annotations, and a Markdown job summary without changing the verdict.
 - [`tools/run_guardian.py`](tools/run_guardian.py) loads policy, runs one validator call for absolute mode or exactly two for paired mode, applies existing budget semantics, and optionally launches the investigator without changing deterministic exits.
-- [`tools/run_submission_evaluation.py`](tools/run_submission_evaluation.py) verifies the frozen evaluation package and scores Baseline 0 and the final product against the same ten deterministic case oracles.
+- [`tools/run_submission_evaluation.py`](tools/run_submission_evaluation.py) verifies canonical UTF-8/LF hashes for the frozen evaluation package and scores Baseline 0 and the final product against the same ten deterministic case oracles.
 - [`tools/capture_project.py`](tools/capture_project.py) preflights a consumer project and runs isolated, collision-safe Godot captures with sanitized logs and a canonical manifest.
 - [`tools/workspace_paths.py`](tools/workspace_paths.py) centralizes symlink-aware containment for explicit consumer workspaces.
 - [`.github/workflows/performance-guardian.yml`](.github/workflows/performance-guardian.yml) runs the tracked fixture and policy on pull requests to `main` and through manual dispatch.

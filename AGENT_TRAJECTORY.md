@@ -2089,3 +2089,31 @@ A final canonical check first piped evaluator text through PowerShell `Set-Conte
 The official skill validator initially failed because PyYAML is not a permanent project dependency. A sandboxed temporary installation could not reach the package index. The same temporary-only procedure was then authorized with normal network access, installed cached PyYAML 6.0.3, printed `Skill is valid!`, and removed the temporary directory. No dependency was added to the repository environment.
 
 All checked Markdown links resolved, README retained numbered sections 1 through 17, every updated evidence/requirements document ended with a newline, and `git diff --check` reported no whitespace error. The workspace plus reachable-history high-confidence key-pattern scan returned no matching filename or commit identifier. Final Git status contained only the intended evaluation implementation, tracked fixtures/result, tests, final report, and synchronized documentation; no commit or push was performed.
+
+## 2026-08-30 — Experiment 18 cross-platform integrity correction
+
+### Reported failure and diagnosis
+
+The user reported the exact reproduction failure:
+
+> EvaluationError: integrity mismatch for evaluation/baseline/validate_results.py
+
+Inspection found a clean working tree at commit `5b8c7689147e5741054be2e5090e3c0942964e07`. The frozen validator's Git index and Baseline 0 source were byte-identical LF text with SHA-256 `d4c99669b2b2ef20ede75944a0445d915802d4a25060c81c2dfbcbbf86016d96`. The Windows working copy used CRLF and matched the manifest's old hash `6277baaacfc9a62734e3b72d94fa4fe03e742c5a78fd8b40d52b2f0c3226d412`. Auditing every manifest member showed this was the only working-tree/index mismatch. The evidence was not corrupted; schema v1 had accidentally made Git line-ending policy part of the integrity verdict.
+
+The approved correction rejected a raw-byte LF-only manifest because an existing Windows checkout could still retain CRLF after pulling it. Instead, integrity schema v2 declares `sha256_utf8_lf`: each member must decode as UTF-8, CRLF and lone CR become LF, and SHA-256 is calculated over the normalized UTF-8 bytes. All non-line-ending content remains significant.
+
+### Implementation and tests
+
+The evaluator now strictly requires integrity schema v2 and the declared hash mode, safely rejects malformed UTF-8, and reports genuine mismatches without exposing raw content. The manifest records the canonical Baseline 0 hash `d4c99669b2b2ef20ede75944a0445d915802d4a25060c81c2dfbcbbf86016d96`. The frozen validator, fixtures, case manifest, expected outcomes, compared revisions, and canonical result were not changed.
+
+Four focused behaviors were added: LF/CRLF/lone-CR equivalence, substantive-change detection, strict schema/hash-mode rejection, and invalid-UTF-8 rejection. The focused evaluator suite passed 22 tests in `10.100` seconds. Two real current-checkout evaluations returned exit `0` and exactly matched the existing canonical SHA-256 `d88261711f9fa836903137d5a9099a5102691a08ff7e2b59cb29518119d2e453`.
+
+A Git archive of the committed repository was expanded into a unique temporary directory and overlaid only with the pending evaluator and manifest correction. The first extraction retained CRLF on this Windows host, so it did not exercise the failing representation. The frozen validator in a second export was explicitly converted to LF, its raw hash matched `d4c99669...`, and the complete ten-case evaluator returned exit `0`. Both temporary exports and archives were removed.
+
+The complete repository suite passed 202 tests in `14.962` seconds with one environment-dependent directory-symlink test skipped. `pip check`, Python byte compilation, and the existing no-AI deterministic gate passed; the gate again measured `0.5 ms <= 1.1 ms` and `3 <= 3` nodes. No test failed, no Godot process or OpenAI request ran, and no commit or push was performed.
+
+### Documentation result
+
+README and `FINAL_EVALUATION.md` now define the portable UTF-8/LF integrity rule. The Experiment 18 changelog history retains the original result and adds this portability clarification. The repository documentation requirements preserve the schema-v2 contract. Final documentation-skill, link, secret, newline, and whitespace verification follows this entry.
+
+The official documentation-skill validator printed `Skill is valid!` using temporary cached PyYAML 6.0.3, which was removed immediately afterward. Every checked relative Markdown link resolved, README retained numbered sections 1 through 17, all documentation files ended with a newline, and `git diff --check` reported no whitespace error. The workspace and reachable-history high-confidence credential-pattern scan found no matching filename or commit identifier. Final status contained only the eight intended correction files.

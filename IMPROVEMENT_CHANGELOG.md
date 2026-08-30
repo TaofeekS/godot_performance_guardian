@@ -716,3 +716,9 @@ Two consecutive real runs produced byte-identical canonical output with SHA-256 
 Retain the ten-case package as the final measured comparison and use `FINAL_EVALUATION.md` as the factual source for submission claims. Describe the result as a 90-percentage-point increase in correct actionable workflow coverage, never as a 90% game-performance improvement. Fixed fixtures do not prove universal Godot compatibility, GPU behavior, threshold quality, long-run model reliability, or project-specific root cause.
 
 The next submission deliverable is the five-minute solution video. It should show the problem, Baseline 0, one complete challenging-case execution, the final comparison, the most important retained change, and the failed model-upgrade lesson without introducing unsupported measurements.
+
+### Experiment 18 clarification — portable integrity hashing
+
+A clean checkout reported `EvaluationError: integrity mismatch for evaluation/baseline/validate_results.py`. The frozen file was unchanged and its Git blob still matched Baseline 0, but the original manifest had hashed Windows CRLF working-tree bytes. The same source checked out with LF therefore received a different raw-byte digest.
+
+Integrity schema v2 now hashes canonical UTF-8/LF text: CRLF and lone CR are normalized to LF, while every other content difference remains significant. The canonical validator hash is `d4c99669b2b2ef20ede75944a0445d915802d4a25060c81c2dfbcbbf86016d96`, matching the frozen Baseline 0 Git blob. Current-checkout and explicit LF-export evaluations both returned exit `0`; two current runs retained the existing canonical result hash `d88261711f9fa836903137d5a9099a5102691a08ff7e2b59cb29518119d2e453`. The complete suite passed 202 tests with one environment-dependent skip. Retain normalized text integrity because line-ending policy is not an evidence change; continue rejecting malformed UTF-8 and substantive source changes.
