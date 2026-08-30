@@ -62,7 +62,8 @@ CONTROLLER_RELATIVE_PATH = "demo_project/scripts/benchmark_controller.gd"
 CONTROLLER_PATH = REPOSITORY_ROOT / CONTROLLER_RELATIVE_PATH
 GENERIC_RESULT_TYPE = "performance_budget_guardian_capture"
 GENERIC_ADDON_NAME = "Performance Budget Guardian"
-GENERIC_ADDON_VERSION = "1.0.1"
+GENERIC_ADDON_VERSION = "1.1.0"
+GENERIC_COMPATIBLE_ADDON_VERSIONS = {"1.0.1", GENERIC_ADDON_VERSION}
 GENERIC_MEMORY_STORAGE_LIMITATION = (
     "Because the probe accumulates raw samples during capture, static-memory growth includes probe storage overhead "
     "and cannot by itself prove a project memory leak."
@@ -233,7 +234,7 @@ def validate_generic_result(data: Any, path: Path, validation: Validation) -> No
     addon = require_mapping(data, "addon", source, validation)
     if addon.get("name") != GENERIC_ADDON_NAME:
         validation.fail(source, "addon identity is unsupported")
-    if addon.get("version") != GENERIC_ADDON_VERSION:
+    if addon.get("version") not in GENERIC_COMPATIBLE_ADDON_VERSIONS:
         validation.fail(
             source,
             f"addon version {addon.get('version')!r} is unsupported; expected {GENERIC_ADDON_VERSION!r}; "

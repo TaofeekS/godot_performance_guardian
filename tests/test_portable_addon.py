@@ -106,11 +106,14 @@ class AddonStructureTests(unittest.TestCase):
             "addons/performance_budget_guardian/plugin.cfg",
             "addons/performance_budget_guardian/plugin.gd",
             "addons/performance_budget_guardian/performance_probe.gd",
+            "addons/performance_budget_guardian/evidence_reader.gd",
+            "addons/performance_budget_guardian/performance_guardian_dock.gd",
             "addons/performance_budget_guardian/README.md",
             "examples/minimal_project/project.godot",
             "examples/minimal_project/main.tscn",
             "examples/minimal_project/main.gd",
             "examples/minimal_project/test_probe.gd",
+            "examples/minimal_project/test_editor_dock.gd",
         )
         for relative in paths:
             self.assertTrue((ROOT / relative).is_file(), relative)
@@ -167,10 +170,17 @@ class GenericValidationTests(unittest.TestCase):
         capture["addon"]["version"] = "1.0.0"
         errors = self.validate(capture).errors
         self.assertIn(
-            "capture.json: addon version '1.0.0' is unsupported; expected '1.0.1'; "
+            "capture.json: addon version '1.0.0' is unsupported; expected '1.1.0'; "
             "recapture with the current addon and a new run ID",
             errors,
         )
+
+    def test_compatible_1_0_1_and_current_1_1_0_captures_validate(self) -> None:
+        historical = generic_capture()
+        current = generic_capture()
+        current["addon"]["version"] = "1.1.0"
+        self.assertEqual(self.validate(historical).errors, [])
+        self.assertEqual(self.validate(current).errors, [])
 
     def test_invalid_profile_numeric_path_samples_and_summary_fail(self) -> None:
         variants = []

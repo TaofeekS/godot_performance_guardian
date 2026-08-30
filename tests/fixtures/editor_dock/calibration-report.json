@@ -1,0 +1,19 @@
+{
+  "report_type": "performance_budget_calibration",
+  "schema_version": 1,
+  "status": "proposal_generated",
+  "validator": {"status": "passed", "validated_file_count": 5},
+  "calibration": {"preset": "balanced", "proposal_authoritative": false},
+  "recommendations": [
+    {
+      "budget_id": "main-process-p95",
+      "profile": "main_scene",
+      "metric": "median_p95_process_time",
+      "unit": "ms",
+      "observed_value": 1.25,
+      "proposed_maximum": 1.9,
+      "relative_allowance_percent": 20
+    }
+  ],
+  "limitations": [{"id": "CL1", "statement": "Proposal only."}]
+}

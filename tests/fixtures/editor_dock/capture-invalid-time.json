@@ -1,0 +1,15 @@
+{
+  "result_type": "performance_budget_guardian_capture",
+  "schema_version": 1,
+  "addon": {"name": "Performance Budget Guardian", "version": "1.1.0"},
+  "profile": "main_scene",
+  "run_id": "dock-invalid",
+  "godot_version": "4.5.1.stable.official.f62fdbde1",
+  "ended_at_utc": "2026-02-31T12:00:00Z",
+  "metric_availability": {"memory_static_bytes": {"available": false}},
+  "samples": [],
+  "summary": {
+    "timing": {"process_time_ms": {"p95": 1.0}},
+    "counts": {"object_count": {"peak": 1}, "node_count": {"peak": 1}}
+  }
+}

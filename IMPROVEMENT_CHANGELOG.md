@@ -640,3 +640,25 @@ Retain proposal-only calibration. The measurements and thresholds are host-speci
 Guardian commit `a1d0cfd02cffbc626884454cdcd4341dd1c2bd24` and PluginTest caller commit `5dde4ee3b4614d1d9aa208ecddbc29fcd9b16c72` were pushed. Exactly one PluginTest default-branch calibration ran as Actions run `33288045948`. Optional investigator installation, enforcement, comparison, and AI were all skipped. Five clean 600-sample captures validated and yielded medians of `11.62 ms`, `2,281` peak nodes, and `5,580` peak objects; the proposal was `17.5 ms`, `2,510` nodes, and `6,138` objects. Evaluating the proposal against the same captures passed all three absolute rules.
 
 The artifact contained the expected fourteen files: five captures, five sanitized logs, the internal and runner manifests, calibration report, and proposed policy. Scans found no private path or credential-shaped value. The proposal remains unapplied in PluginTest. The next step is customer review of that policy, followed by an explicit commit with comparison disabled; enabling protected-base comparison remains a later pull request.
+
+## 2026-08-30 — Experiment 16: Read-only Godot editor evidence dock
+
+**Status:** Retained; parser, helper, and editor lifecycle verified locally
+
+### Hypothesis and reason
+
+Customers should be able to understand whether a scene is configured for capture and inspect recent evidence without leaving Godot. A read-only dock can improve discoverability without weakening the existing boundary in which deterministic tools—not the editor UI—calculate policy verdicts.
+
+### Change and evaluation method
+
+Addon `1.1.0` registers a **Performance Guardian** dock with Godot 4.5's exact `add_control_to_dock(...)` and `remove_control_from_docks(...)` APIs. It shows every probe in the active scene, validates its visible configuration, scans bounded project-contained evidence, presents the latest 20 recognized files, lists deterministic failed rules from canonical Guardian reports, labels calibration as proposal-only, and provides in-editor details, FileSystem navigation, and portable-path copying. It launches no capture, subprocess, validator, budget checker, network request, or AI call.
+
+Ordering is evidence-based rather than filesystem-based. Generic captures require canonical `ended_at_utc` and sort newest first. Guardian v1/v2 and calibration v1 currently have no canonical generation timestamp, so they remain valid but follow timestamped captures in deterministic type/path order. Invalid capture timestamps are rejected. Historical `1.0.1` captures remain compatible while new captures identify `1.1.0`; unsupported `1.0.0` evidence still requires recapture.
+
+Evaluation used tracked capture, Guardian, calibration, and invalid-time fixtures; a Godot helper covering parsing, ordering, failed-rule merging, proposal labeling, and unsafe paths; the enabled minimal-project plugin; and the complete repository suite. No performance benchmark, hosted workflow, or API request was run.
+
+### Observed result, decision, and next step
+
+The focused dock/addon suite passed 19 tests. The final complete suite passed 180 tests in 4.932 seconds with one environment-dependent directory-symlink test skipped. The Godot `4.5.1.stable.official.f62fdbde1` helper produced its synchronized `passed` marker, and a three-second headless editor lifecycle completed with exit `0` and no script parse/load diagnostic. An initial sandboxed editor run crashed before parsing because Godot could not create its `user://` directory; rerunning with normal local access exposed two compile errors, both corrected before the successful checks. A later helper check exposed and corrected JSON integral-number handling for `authoritative_exit_code`.
+
+Retain the dock as the first editor-facing product surface. Its rendered visual layout was not directly inspected in the current automation environment, so appearance and interactive usability remain unverified; a human editor walkthrough is the next evaluation step. Live progress, capture launching, policy execution, and repair remain intentionally outside this version.

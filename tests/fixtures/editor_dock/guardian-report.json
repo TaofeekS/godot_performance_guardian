@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "deterministic_status": "budget_failed",
+  "validator": {"status": "passed"},
+  "budget": {
+    "status": "failed",
+    "results": [
+      {
+        "budget_id": "main-process-p95",
+        "profile": "main_scene",
+        "metric": "median_p95_process_time",
+        "measured_value": 2.5,
+        "maximum_value": 2.0,
+        "unit": "ms",
+        "status": "failed"
+      }
+    ],
+    "limitations": [{"id": "L1", "statement": "Host-specific measurements."}]
+  },
+  "comparison": {
+    "status": "failed",
+    "results": [
+      {
+        "budget_id": "main-process-p95",
+        "profile": "main_scene",
+        "metric": "median_p95_process_time",
+        "unit": "ms",
+        "baseline_value": 1.5,
+        "candidate_value": 2.5,
+        "delta": 1.0,
+        "increase_percent": 66.6666667,
+        "absolute": {"maximum": 2.0, "status": "failed"},
+        "relative": {"maximum_increase_percent": 20.0, "status": "failed"},
+        "status": "failed"
+      }
+    ]
+  },
+  "authoritative_exit_code": 1,
+  "authoritative_exit_reason": "Validation passed, but one or more configured budgets failed."
+}

@@ -1901,3 +1901,61 @@ The downloaded Actions log contained the proposal-only warning, the five-capture
 The complete final suite passed 173 tests in 4.994 seconds with one environment-dependent symlink test skipped because directory symlink creation was unavailable. Python byte compilation succeeded, `pip check` reported no broken requirements, both workflows parsed, and the official documentation-skill validator printed `Skill is valid!`. README retained numbered sections 1 through 17, every checked relative Markdown link resolved, all evidence documents had final newlines, and `git diff --check` reported no whitespace error. Key-shaped working-tree and tracked-file scans returned no filename, and no reachable commit identifier matched the key-shape patterns.
 
 The initial dirty temporary consumer, clean local consumer, temporary PyYAML target, PluginTest clone, and downloaded hosted artifact were each resolved beneath the system temporary directory and required an expected unique Guardian prefix before recursive removal. All five exact targets were removed; no remote repository, workflow artifact, committed fixture, or local historical benchmark result was deleted. Final Guardian documentation commit, push, remote SHA check, and Git state follow this entry.
+
+## 2026-08-30 — Experiment 16 editor evidence dock
+
+### Request, planning, and corrections
+
+The user first requested:
+
+> Editor dock\
+> Display probe status, recent captures, failed rules, and links to evidence inside Godot.
+
+Repository inspection established that the addon registered only `PerformanceBudgetProbe`, raw captures contained measurements but not verdicts, and failed rules existed only in canonical Guardian reports. The user selected the recommended read-only scope, automatic project scanning plus project-contained import, and setup-readiness status without live-progress claims. The approved plan was titled **Experiment 16: Godot Editor Evidence Dock**.
+
+The user then corrected two implementation details:
+
+> Godot 4.5 documents:
+>
+> add_control_to_dock(...)
+> remove_control_from_docks(...)
+>
+> It does not document a method simply called add_dock. Use the exact API names in the implementation plan and tests.
+
+and required schema-specific evidence time, explicitly prohibiting filesystem modification time. Inspection confirmed generic capture v1 contains required `ended_at_utc`, while Guardian report v1/v2 and calibration report v1 currently contain no canonical report timestamp. The final approved plan therefore placed valid untimestamped reports after timestamped captures and treated an invalid capture timestamp as invalid evidence.
+
+### Skill use and inspection
+
+The complete repository-local documentation skill, its `references/readme-requirements.md`, and the complete `agent-trajectory` skill were read before documentation work. Inspection included Git status/history, `git remote -v`, the addon entrypoint and manifest, runtime probe, validator addon identity, canonical capture and report shapes, tracked fixtures, portable-addon tests, both evidence documents, root/addon READMEs, local tool versions, and Godot 4.5 editor documentation. The configured fetch/push remote remained the public `https://github.com/TaofeekS/godot_performance_guardian.git`; Python was 3.14.6, PowerShell was 7.6.4, and the required local Godot executable reported `4.5.1.stable.official.f62fdbde1`.
+
+### Implementation
+
+`evidence_reader.gd` was added as a bounded read-only presentation parser. It accepts project-contained JSON only, rejects lexical traversal and traversed links, limits scans to 1,000 JSON files and individual files to 8 MiB, redacts unsafe display text, recognizes generic capture v1, Guardian report v1/v2, and calibration report v1, and never exposes revision values. Captures require a valid calendar-aware canonical `ended_at_utc` and sort newest first; untimestamped reports sort afterward by type and normalized `res://` path; invalid evidence sorts last. Failed absolute and relative results are merged by rule ID for presentation without recomputing policy.
+
+`performance_guardian_dock.gd` was added as a read-only editor `VBoxContainer`. It displays active-scene probe readiness, configured frames/output, latest matching capture, up to 20 recognized evidence files, invalid-file warnings, deterministic failed rules, safe details, proposal-only calibration recommendations, FileSystem navigation, and path copying. It scans probe outputs, `res://results`, `res://.performance-guardian`, and session-selected project JSON. It launches no process, validator, budget checker, network request, or AI operation.
+
+`plugin.gd` now creates the dock with exact `add_control_to_dock(DOCK_SLOT_RIGHT_BL, _dock)`, refreshes it through debounced scene/filesystem signals, removes it with exact `remove_control_from_docks(_dock)`, then frees it. Addon and capture metadata advanced to `1.1.0`. Because the dock does not change capture schema or the mandatory limitation, the validator now accepts historical `1.0.1` and current `1.1.0` captures; `1.0.0` remains rejected with an actionable current-version diagnostic.
+
+Five compact tracked editor fixtures, a Godot helper, and `tests/test_editor_dock.py` were added. Existing addon tests now require the new files and verify both compatible addon versions. Documentation was synchronized across the root README, addon README, documentation-skill requirements, and append-only Experiment 16 changelog.
+
+### Failures and responses
+
+The first Godot editor attempt ran under restricted filesystem access, could not create its `user://` directory, and crashed with signal 11 before a meaningful addon result. It was rerun with normal local access as an environment correction, not treated as product evidence.
+
+The first meaningful editor parse found two new-code compile errors: the dock attempted to read a preloaded script's resource path as a static member, and a nullable latest-capture value lacked an explicit type. The comparison now uses the canonical script path constant and the nullable value is explicitly typed.
+
+The first explicit helper check then rejected a valid Guardian report because Godot JSON may materialize an integral JSON number without static `int` type. The parser now accepts only finite integral numeric exit codes and normalizes them to `int`; the helper was also changed to prevent a rejected report from causing a secondary property-access error.
+
+Direct Godot invocation on this Windows executable returned control before the child finished, causing the first pass-marker check to race. Delayed output still printed `PBG_EDITOR_DOCK_TESTS=passed`. Verification was corrected to use hidden `Start-Process -Wait`, after which the marker was read as `passed` and removed. A check-only wrapper also produced an unusable null `$LASTEXITCODE`; synchronized process waiting replaced that wrapper.
+
+The first official skill-validator attempt failed only because PyYAML was absent. PyYAML 6.0.3 was installed into a unique temporary target, the validator printed `Skill is valid!`, and the target was removed. Two exploratory verification commands had command-expression issues—one malformed search regex and one root-relative Markdown-link base calculation. Both were corrected; neither changed repository files or implementation behavior.
+
+Godot editor initialization rewrote `examples/minimal_project/project.godot` formatting and added an engine feature line. That unrelated generated edit was removed with a focused patch, restoring the tracked file byte-for-byte.
+
+### Verification evidence and remaining gap
+
+The focused dock/addon suite passed 19 tests. The final complete repository suite passed 180 tests in 4.932 seconds with one environment-dependent directory-symlink test skipped. Python byte compilation succeeded, `pip check` reported no broken requirements, and the tracked generic fixture plus historical canonical `1.0.1` fixture both validated successfully after the compatibility update.
+
+The synchronized Godot 4.5.1 helper produced its ignored `passed` marker, which was immediately removed. A synchronized three-second headless editor lifecycle exited `0`; its temporary stdout/stderr logs contained no `SCRIPT ERROR`, `Parse Error`, invalid-call, or failed-script-load diagnostic and were removed. No performance capture, original synthetic benchmark, hosted workflow, or OpenAI request ran.
+
+The editor process exercised plugin parsing and lifecycle but the current automation environment could not directly inspect the rendered dock visually. Layout appearance and hands-on interaction therefore remain unverified and are documented as the next evaluation step. No commit or push was requested or performed during Experiment 16.
