@@ -2,11 +2,41 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import os
+from pathlib import Path, PureWindowsPath
 
 
 class WorkspacePathError(ValueError):
     """A workspace or repository-relative path is unsafe or invalid."""
+
+
+def _is_workspace_ancestor(root: Path, resolved: Path) -> bool:
+    """Compare existing ancestors by identity, including Windows path aliases."""
+
+    existing = resolved
+    while not existing.exists():
+        parent = existing.parent
+        if parent == existing:
+            return False
+        existing = parent
+
+    while True:
+        try:
+            if os.path.samefile(existing, root):
+                return True
+        except OSError:
+            pass
+        parent = existing.parent
+        if parent == existing:
+            return False
+        existing = parent
+
+
+def _normalized_relative_path(supplied: Path) -> str:
+    """Return a stable relative path without deriving it from an absolute path."""
+
+    normalized = Path(os.path.normpath(str(supplied)))
+    return normalized.as_posix()
 
 
 def resolve_workspace_root(value: str | Path | None, default: Path) -> Path:
@@ -35,13 +65,21 @@ def resolve_workspace_member(
     if not isinstance(value, str) or not value.strip():
         raise WorkspacePathError(f"{label} path is required")
     supplied = Path(value)
-    if supplied.is_absolute() or supplied.drive or supplied.anchor or ".." in supplied.parts:
+    windows_supplied = PureWindowsPath(value)
+    if (
+        supplied.is_absolute()
+        or supplied.drive
+        or supplied.anchor
+        or windows_supplied.is_absolute()
+        or windows_supplied.drive
+        or windows_supplied.anchor
+        or ".." in supplied.parts
+        or ".." in windows_supplied.parts
+    ):
         raise WorkspacePathError(f"{label} path must be workspace-relative")
     resolved = (root / supplied).resolve()
-    try:
-        relative = resolved.relative_to(root)
-    except ValueError as error:
-        raise WorkspacePathError(f"{label} path must remain inside the workspace") from error
+    if not _is_workspace_ancestor(root, resolved):
+        raise WorkspacePathError(f"{label} path must remain inside the workspace")
 
     if expected is not None and not resolved.exists():
         raise WorkspacePathError(f"{label} does not exist")
@@ -51,4 +89,4 @@ def resolve_workspace_member(
         raise WorkspacePathError(f"{label} is not a file")
     if require_json and resolved.suffix.lower() != ".json":
         raise WorkspacePathError(f"{label} must use the .json extension")
-    return resolved, relative.as_posix()
+    return resolved, _normalized_relative_path(supplied)

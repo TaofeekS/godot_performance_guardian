@@ -474,6 +474,10 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("actions/upload-artifact@v7", self.workflow)
         self.assertIn('python-version: "3.14"', self.workflow)
         self.assertIn("contents: read", self.workflow)
+        self.assertIn("repository-tests:", self.workflow)
+        self.assertIn("performance-guardian:", self.workflow)
+        self.assertEqual(self.workflow.count("runs-on: windows-latest"), 2)
+        self.assertNotRegex(self.workflow, r"(?m)^\s+needs:")
 
     def test_workflow_uses_only_tracked_stable_inputs(self) -> None:
         self.assertIn(RESULTS_DIRECTORY.replace("/", "\\"), self.workflow)
@@ -483,6 +487,11 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("python -m unittest discover -s tests -v", self.workflow)
         self.assertIn("python -m pip install -r requirements-agent.txt", self.workflow)
         self.assertIn("python -m pip check", self.workflow)
+        self.assertIn("Install optional investigator dependencies", self.workflow)
+        self.assertIn(
+            "if: github.event_name == 'workflow_dispatch' && inputs.investigate != 'never'",
+            self.workflow,
+        )
 
     def test_workflow_ai_is_manual_optional_and_secret_safe(self) -> None:
         self.assertIn("--investigate never", self.workflow)
@@ -491,6 +500,8 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("${{ vars.OPENAI_MODEL || 'gpt-4.1-mini' }}", self.workflow)
         self.assertNotRegex(self.workflow, r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}")
         self.assertIn("if: always()", self.workflow)
+        self.assertIn("if-no-files-found: warn", self.workflow)
+        self.assertNotIn("if-no-files-found: error", self.workflow)
         self.assertIn("%GUARDIAN_EXIT%", self.workflow)
 
     def test_workflow_renders_actionable_report_without_changing_gate_exit(self) -> None:

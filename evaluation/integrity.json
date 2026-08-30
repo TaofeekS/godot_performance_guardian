@@ -33,6 +33,6 @@
     {"path": "tools/comparison_evidence.py", "sha256": "f79c67b691049b0431fff0f50734afc4164c619f5faa9ee30a56a19c8e2139b3"},
     {"path": "tools/run_guardian.py", "sha256": "7cba6ec6d91a2f9fe994592c72b633c550275a8ccb9d6a8529d375ee232e627c"},
     {"path": "tools/validate_results.py", "sha256": "551a233277689a0a0f79f20613d1c1e5da27af32c67d811bb1fe16c816d6fc95"},
-    {"path": "tools/workspace_paths.py", "sha256": "c4d1b4c2a915a2505d2b3193a2e2a62bc7f3932622fe1aab519b58f2ae60a0cd"}
+    {"path": "tools/workspace_paths.py", "sha256": "7be051091f319ee499a8bf70de4aa8762c2d222c76bb2f9f65473de1a1643a37"}
   ]
 }
