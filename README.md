@@ -61,7 +61,7 @@ The integrity manifest hashes canonical UTF-8 text after normalizing CRLF and lo
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Expected result: exit `0` after running 218 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
+Expected result: exit `0` after running 223 tests. Two environment-dependent directory-symlink tests may be reported as skipped when Windows does not permit symlink creation.
 
 ### 6. Produce fresh Godot measurements
 
@@ -439,9 +439,9 @@ The key is read only from the process environment. Do not place it in source fil
 
 ### GitHub Actions gate
 
-The `Performance Guardian` workflow runs on pull requests targeting `main` and on manual dispatch. Both paths install only `requirements-agent.txt`, run `pip check` and the complete test suite, then evaluate the tracked generic fixture and its v2 policy through `run_guardian.py`. Pull requests always use `--investigate never`, so they need no credential and make no API request.
+The `Performance Guardian` workflow runs on pull requests targeting `main` and on manual dispatch. Its independent `repository-tests` job installs `requirements-agent.txt`, runs `pip check`, and runs the complete suite. Its separate `performance-guardian` job evaluates the tracked generic fixture and v2 policy through `run_guardian.py`, so a test failure cannot suppress the deterministic report. Pull requests always use `--investigate never`, so they need no credential and make no API request.
 
-Manual dispatch exposes `never`, `on-failure`, and `always`. To enable the optional modes, configure an Actions repository secret named `OPENAI_API_KEY`; an optional repository variable named `OPENAI_MODEL` overrides the default `gpt-4.1-mini`. The secret is scoped only to the manual gate step. The workflow writes canonical JSON beneath the runner's temporary directory, preserves the Python exit status, and uploads `performance-guardian-report` with `if: always()`, including deterministic failures. GitHub now recognizes the corrected definition as active, but an actual hosted job remains unverified.
+Manual dispatch exposes `never`, `on-failure`, and `always`. To enable the optional modes, configure an Actions repository secret named `OPENAI_API_KEY`; an optional repository variable named `OPENAI_MODEL` overrides the default `gpt-4.1-mini`. The secret is scoped only to the manual gate step. The workflow writes canonical JSON beneath the runner's temporary directory, preserves the Python exit status, and uploads `performance-guardian-report` with `if: always()`, including deterministic failures. [Hosted run 33336400657](https://github.com/TaofeekS/godot_performance_guardian/actions/runs/33336400657) verified both independent jobs and the report artifact on Windows for commit `fe72c6083c44a5323523d066e0ef9a7f4b308caf`.
 
 ### Turnkey CI for another Godot project
 
@@ -455,7 +455,7 @@ on:
 
 jobs:
   performance:
-    uses: TaofeekS/godot_performance_guardian/.github/workflows/reusable-performance-guardian.yml@<guardian-commit-sha>
+    uses: TaofeekS/godot_performance_guardian/.github/workflows/reusable-performance-guardian.yml@fe72c6083c44a5323523d066e0ef9a7f4b308caf
     with:
       project-path: .
       profile: main_scene
@@ -569,7 +569,7 @@ permissions:
 
 jobs:
   performance:
-    uses: TaofeekS/godot_performance_guardian/.github/workflows/reusable-performance-guardian.yml@<guardian-commit-sha>
+    uses: TaofeekS/godot_performance_guardian/.github/workflows/reusable-performance-guardian.yml@fe72c6083c44a5323523d066e0ef9a7f4b308caf
     with:
       project-path: .
       profile: main_scene
@@ -596,6 +596,7 @@ The investigator exits nonzero when it cannot obtain a model response. Its messa
 | Unified outcome `api_error` | The investigator timed out, could not launch, returned an API/model-access error, or emitted unrecognized output. Only a safe category is retained; deterministic exit is unchanged. |
 | The gate ends with `Process completed with exit code 1` | Read the measured/threshold lines earlier in that step, select the failed-rule annotation, or open the job **Summary** tab. Download the named artifact for canonical JSON and raw captures. |
 | Upload error reporting an invalid pattern such as `base-source/./.performance-guardian` | An older reusable-workflow revision interpolated `project-path: .` directly into the baseline artifact pattern. The green authoritative-gate step still records the deterministic verdict, but the job is incomplete because evidence preservation failed. Update the caller to a Guardian revision containing normalized artifact staging and rerun. |
+| A Windows runner says a contained temporary path under `RUNNER~1` is outside the equivalent `runneradmin` workspace | Update the caller/tooling reference to `fe72c6083c44a5323523d066e0ef9a7f4b308caf` or later. Containment now compares filesystem identity for short/long aliases; customers do not need to rename paths or weaken traversal and symlink checks. |
 
 The installed OpenAI Python client already retries HTTP 429 twice. The investigator deliberately does not wrap the entire agent run in another retry loop, which avoids duplicate tool execution and additional requests when quota is exhausted. A request ID is printed when available so it can support diagnosis without exposing request content.
 
@@ -933,7 +934,7 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 - The editor workspace is read-only: it cannot launch captures, calculate budgets, access CI artifacts that have not been copied under `res://`, show live capture progress, or repair a project. The investigator receives only validator-produced evidence and cannot establish root cause by itself.
 - Calibration proposes host-specific thresholds from engine-global metrics; it does not identify project-owned objects, measure GPU work, edit policy automatically, or establish that a threshold is appropriate without human review.
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
-- The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow's absolute-only nine-entry artifact, paired 17-entry PluginTest artifact, and actionable hosted failure log/annotation are verified. Direct visual reading of the custom job-summary body remains pending from a signed-in UI because public/API inspection does not expose it.
+- The repository workflow is hosted-verified on Windows with both independent jobs green. The reusable workflow's absolute-only nine-entry artifact, paired 17-entry PluginTest artifact, actionable hosted failure reporting, and the `fe72c608...` enforcement canary are verified. Direct visual reading of the custom job-summary body remains pending from a signed-in UI because public/API inspection does not expose it.
 - The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
 - Portable capture and calibration are verified only for the included independent project and PluginTest on Godot 4.5.1. These host-specific runs do not prove universal project, platform, or timing compatibility.
 - Windows is the only verified operating system; the harness is PowerShell-specific.
