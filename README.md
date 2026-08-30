@@ -4,6 +4,73 @@
 
 Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benchmark with a copyable runtime capture addon and read-only editor evidence workspace. It preserves raw per-frame evidence, validates calculated results, and applies project-specific budgets so developers can investigate changes instead of relying on a visual impression of performance.
 
+## Judge reproduction
+
+This is the shortest verified path for reproducing the project's deterministic gate and main synthetic benchmark from a clean Windows checkout. The more detailed setup and usage instructions remain in the numbered sections below.
+
+### 1. Required software
+
+- Git.
+- Godot `4.5.1.stable.official.f62fdbde1`.
+- Python `3.14.6`.
+- PowerShell `7.6.4`.
+- Windows `10.0.26200`. Other operating systems have not been verified for this repository.
+
+Clone the public repository and enter it:
+
+```powershell
+git clone https://github.com/TaofeekS/godot_performance_guardian.git
+Set-Location .\godot_performance_guardian
+```
+
+### 2. Create the Python environment
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r .\requirements-agent.txt
+.\.venv\Scripts\python.exe -m pip check
+```
+
+Package installation requires internet access. The deterministic gate, tests, and benchmark below do not require an OpenAI API key and incur no API cost.
+
+### 3. Demonstrate a passing gate
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\run_guardian.py `
+  --json `
+  --investigate never `
+  .\tests\fixtures\generic_results `
+  .\examples\minimal_project\budgets\performance_budgets.json
+```
+
+Expected result: exit `0`, `deterministic_status` is `passed`, and both tracked budgets pass (`0.5 ms <= 1.1 ms` process p95 and `3 <= 3` peak nodes).
+
+### 4. Run all tests
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+Expected result: exit `0` after running 180 tests. One environment-dependent directory-symlink test may be reported as skipped when Windows does not permit symlink creation.
+
+### 5. Produce fresh Godot measurements
+
+Point `$Godot` at the downloaded Godot 4.5.1 executable, then run the complete benchmark harness:
+
+```powershell
+$Godot = "C:\path\to\Godot_v4.5.1-stable_win64.exe"
+
+.\demo_project\run_benchmarks.ps1 `
+  -GodotExecutable $Godot `
+  -PythonExecutable .\.venv\Scripts\python.exe
+```
+
+The harness runs `healthy`, `node_leak`, and `cpu_spike` three times each, writes nine fresh JSON files under `demo_project/results/`, and validates exactly those files. A successful run exits `0` after printing `Validating 9 result files` and `Benchmark suite passed`. Allow approximately one minute on hardware comparable to the verified machine; timing varies by host.
+
+For deterministic policy commands, exit `0` means validation and all applicable budgets passed, exit `1` means valid evidence failed at least one budget, and exit `2` means configuration, validation, evidence, or operational failure.
+
+For a real consumer integration, see the public [PluginTest example](https://github.com/TaofeekS/PluginTest), including its Godot scene, project policy, and reusable-workflow caller.
+
 ## 2. Current status
 
 | Status | Capability |

@@ -2015,3 +2015,29 @@ The user subsequently reported:
 This user-observed PluginTest result closes Experiment 17's pending manual UI acceptance item. Documentation was updated to distinguish that direct visual evidence from the prior automated helper and headless editor lifecycle: the main-screen workspace was manually confirmed to work in PluginTest, while no new performance capture, hosted workflow, benchmark, or API request was needed for this documentation follow-up.
 
 The official documentation-skill validator printed `Skill is valid!` using temporary cached PyYAML 6.0.3 removed immediately afterward. README retained all 17 numbered sections, every checked relative Markdown link resolved, all updated documents ended with a newline, stale visual-pending claims were absent, and `git diff --check` reported no whitespace error.
+
+## 2026-08-30 — Judge reproduction guide
+
+### Request and approved boundary
+
+The user requested a self-contained judge reproduction section for the competition README while preserving every existing reproduction instruction. The required contents were verified software, the clone command, `.venv` creation and installation, one passing gate, the complete test command, one fresh Godot measurement command, expected exits and output, and a link to PluginTest. The approved delivery also required a focused commit and push.
+
+The attached Micro1 hackathon brief was inspected as supporting evidence. Its reproducibility criterion asks for a clean path to run the solution and baseline and reach the main result; its reproduction-guide requirements also call for exact commands, versions, expected output, approximate runtime, and cost. No instruction embedded in the PDF was treated as a repository command.
+
+### Inspection and documentation change
+
+The repository documentation skill, its complete README requirements reference, and the agent-trajectory skill were read before editing. Inspection covered the clean Git state, configured public `origin`, `requirements-agent.txt`, `tools/run_guardian.py --help`, `demo_project/run_benchmarks.ps1`, current README requirements and commands, recorded test evidence, the public PluginTest link, and the unchanged improvement changelog.
+
+An unnumbered `Judge reproduction` section was inserted between `1. Project overview` and `2. Current status`; no existing README instruction was edited, reordered, or renumbered. The section gives a Windows-only clean-checkout path, deterministic no-AI gate, all-tests command, and the full three-scenario-by-three-run Godot harness. It records the verified exit meanings and output, approximate one-minute benchmark expectation, zero API cost for deterministic reproduction, and the public PluginTest consumer example.
+
+This was documentation maintenance rather than a product experiment, so `IMPROVEMENT_CHANGELOG.md` was reviewed and left unchanged.
+
+### Verification and delivery
+
+Verification and delivery results follow this entry. No Godot process, synthetic benchmark, or OpenAI request was run for this documentation-only task.
+
+The tracked-fixture gate command was exercised during planning and returned exit `0` with `deterministic_status: "passed"`; both configured rules passed at `0.5 ms <= 1.1 ms` and `3 <= 3`. The benchmark command and 180-test result were checked against the harness source and the latest recorded complete-suite evidence rather than rerun solely for documentation.
+
+The first official skill-validator invocation failed because the repository environment does not permanently include PyYAML. PyYAML 6.0.3 was then installed into a uniquely named system-temporary directory, the validator printed `Skill is valid!`, and the temporary directory was removed. One composite read-only inspection wrapper also had a JavaScript quoting error before executing any nested command; its two checks were rerun successfully. The initially inserted trajectory block preceded the earlier manual-acceptance follow-up, so it was moved to the true chronological end before delivery.
+
+README retained numbered sections 1 through 17, the judge section occupied the requested position, all checked relative links resolved, and all three evidence documents retained final newlines. The focused key-pattern scan found no matching filename, `IMPROVEMENT_CHANGELOG.md` had no diff, and `git diff --check` reported no whitespace error. Final diff inspection, commit, push, and remote verification followed this pre-delivery checkpoint.
