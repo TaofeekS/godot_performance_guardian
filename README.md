@@ -937,7 +937,7 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 
 ## 16. Hackathon evidence
 
-- [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
+- [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md#judge-navigation) begins with a judge navigation guide, actor/authority boundaries, representative trajectories, and milestone links, followed by the complete chronological audit of requests, decisions, inspections, edits, issues, and verification.
 - [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, portable-capture, CI, calibration, and editor-workspace experiments.
 - [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) compares frozen Baseline 0 with the final product across ten predefined deterministic cases. The tracked [`case manifest`](evaluation/cases.json), [`integrity metadata`](evaluation/integrity.json), raw fixtures, and canonical [`evaluation result`](evaluation/results/final-evaluation.json) make the primary `1/10` versus `10/10` result independently rerunnable without Godot or an API key.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.

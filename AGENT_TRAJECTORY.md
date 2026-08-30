@@ -1,5 +1,110 @@
 # Agent Trajectory: Repository Documentation and Skill
 
+## Judge navigation
+
+### Two-minute route
+
+1. Follow the [judge reproduction commands](README.md#judge-reproduction).
+2. Read the [final ten-case comparison](FINAL_EVALUATION.md) and its canonical [`final-evaluation.json`](evaluation/results/final-evaluation.json).
+3. Use the [representative trajectories](#representative-trajectories) below to see accepted AI, rejected AI, invalid evidence, and human usability feedback.
+4. Inspect the complete [Experiment 18 execution history](#trajectory-experiment-18) and its [cross-platform integrity correction](#trajectory-experiment-18-integrity).
+5. Read [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) for the product story rather than the command-by-command audit.
+
+### Primary outcome
+
+| Metric | Baseline 0 | Final product | Change |
+| --- | ---: | ---: | ---: |
+| Correct actionable outcomes | 1/10 | 10/10 | **+90 percentage points** |
+| Deterministic ten-case evaluation API cost | $0 | $0 | No API required |
+
+This result measures deterministic workflow coverage and evidence quality. It does **not** mean that game execution became 90% faster. The compared revisions, scoring rubric, limitations, and all ten cases are in [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md).
+
+### Which document answers which question?
+
+| Document | Use it to answer |
+| --- | --- |
+| [`README.md`](README.md) | How do I install, run, reproduce, and use the product? |
+| [`FINAL_EVALUATION.md`](FINAL_EVALUATION.md) | Did the final solution meet the predefined competition target? |
+| [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) | Why did the product change, and what did each experiment teach? |
+| `AGENT_TRAJECTORY.md` | What did the development agent inspect, change, test, reject, and verify? |
+
+## Actors, tools, and authority
+
+### Godot Performance Investigator — shipped runtime agent
+
+- **Tool:** exactly one function tool, `validate_benchmark_results`.
+- **Input:** validator-produced structured evidence and explicit limitations.
+- **Contribution:** bounded evidence-linked hypotheses and recommendations that must pass local validation.
+- **Authority boundary:** it cannot capture measurements, modify a project, recalculate validator facts, alter budgets, or decide the authoritative exit. Its explanation is optional and non-authoritative.
+
+### Codex development agent — build-time implementation and evaluation agent
+
+- **Tools:** repository inspection and editing, bounded local commands and tests, Git operations when explicitly authorized, and repository documentation/trajectory skills.
+- **Contribution:** implements user-approved changes, evaluates them, records failures, and preserves verification evidence.
+- **Authority boundary:** it is not shipped with the runtime product and cannot override deterministic results. Human approval controls material scope changes and explicitly requested commit, push, workflow, or external-delivery operations.
+
+### Validator, budget checker, and calibration assistant — deterministic tools, not agents
+
+- `validate_results.py` decides whether evidence satisfies its schema and integrity rules.
+- `check_budgets.py` applies project-owned thresholds and returns deterministic policy pass or failure.
+- `calibrate_budgets.py` proposes reviewable thresholds but cannot enforce, apply, commit, or authorize them automatically.
+- The validator, checker, and calibration assistant use no LLM, make no causal inference, and do not change policy by themselves.
+- `run_guardian.py` orchestrates those deterministic results and may invoke the optional investigator without transferring authority to AI.
+
+## Representative trajectories
+
+### Grounded accepted investigation
+
+In [Experiment 13](#trajectory-experiment-13), a hosted regression supplied structured baseline/candidate evidence. `gpt-4.1-mini` produced evidence-linked recommendations that survived local validation. The optional explanation was accepted, but all three deterministic rules still failed and the authoritative exit remained `1`. The model explained an already-made decision; it did not change it.
+
+### Rejected model output and deterministic fallback
+
+In [Experiment 8](#trajectory-experiment-8), Terra and Sol each produced output that failed the grounding contract, so rejected text was suppressed and deterministic fallback supplied the usable report. The human then approved [Experiment 9's typed-output redesign](#trajectory-experiment-9). Mini later produced an accepted evidence-linked contribution while local code retained control of facts, measurements, citations, and report rendering.
+
+### Invalid capture evidence discovered and corrected
+
+In [Experiment 13](#trajectory-experiment-13), six JSON captures initially appeared schema-valid, but their sanitized Godot logs exposed script-load failures. Guardian rejected the evidence even though JSON existed and Godot had exited successfully. The consumer script was corrected, captures were repeated, and the intended 2,000-versus-25,000 object/node regression was then measured and failed deterministic policy.
+
+### Human usability checkpoint
+
+In [Experiment 16](#trajectory-experiment-16), the first editor surface used a side dock. The user reported that it covered important Inspector and Node workspace areas. The development agent moved Guardian into Godot's main workspace in [Experiment 17](#trajectory-experiment-17); automated parser, helper, and lifecycle checks passed, and the user then manually confirmed that the corrected interface worked.
+
+## Milestone index
+
+| Stage | Main contribution | Direct trajectory |
+| --- | --- | --- |
+| Baseline 0 | Deterministic synthetic benchmark and evidence-based documentation | [Baseline and task identity](#trajectory-baseline) |
+| Experiment 1 | Validator-gated read-only investigator | [Open](#trajectory-experiment-1) |
+| Experiment 2 | Actionable, secret-safe rate-limit diagnosis | [Open](#trajectory-experiment-2) |
+| Experiment 3 | Deterministic evidence citations and grounding gate | [Open](#trajectory-experiment-3) |
+| Experiment 4 | Schema-driven deterministic fallback | [Open](#trajectory-experiment-4) |
+| Experiment 5 | Configurable performance budgets | [Open](#trajectory-experiment-5) |
+| Experiment 6 | Portable Godot performance-capture addon | [Open](#trajectory-experiment-6) |
+| Experiment 7 | Generic-profile investigator support | [Open](#trajectory-experiment-7) |
+| Experiment 8 | Stronger free-form models rejected by grounding | [Open](#trajectory-experiment-8) |
+| Experiment 9 | Typed model contribution with deterministic rendering | [Open](#trajectory-experiment-9) |
+| Experiment 10 | Unified deterministic CI gate with optional AI | [Open](#trajectory-experiment-10) |
+| Experiment 11 | Turnkey reusable consumer workflow | [Open](#trajectory-experiment-11) |
+| Experiment 12 | Protected-base pull-request comparison | [Open](#trajectory-experiment-12) |
+| Experiment 13 | Script-error rejection and valid object-count regression | [Open](#trajectory-experiment-13) |
+| Experiment 14 | Actionable logs, annotations, and job summaries | [Open](#trajectory-experiment-14) |
+| Experiment 15 | Deterministic budget calibration proposals | [Open](#trajectory-experiment-15) |
+| Experiment 16 | First read-only editor evidence surface | [Open](#trajectory-experiment-16) |
+| Experiment 17 | Main-screen Guardian workspace | [Open](#trajectory-experiment-17) |
+| Experiment 18 | Reproducible ten-case Baseline 0/final comparison | [Open](#trajectory-experiment-18) |
+
+## Failure-and-correction index
+
+| Failure or correction | What changed | Evidence |
+| --- | --- | --- |
+| Free-form model output failed grounding | Rejected Terra/Sol text led to typed, locally rendered contributions | [Experiments 8–9](#trajectory-experiment-8) |
+| Hosted workflow, Godot path, and hidden-artifact defects | The reusable workflow gained valid YAML, the setup-provided executable, and complete artifact retention | [Experiment 11 and corrections](#trajectory-experiment-11-corrections) |
+| JSON existed while the measured scene script had failed | Capture logs became mandatory evidence and script diagnostics invalidate JSON | [Experiment 13](#trajectory-experiment-13) |
+| Side dock harmed editor usability | Guardian moved into the main workspace and received manual user acceptance | [Experiments 16–17](#trajectory-experiment-16) |
+| Raw-byte integrity depended on Git line endings | Integrity schema v2 canonicalizes UTF-8 line endings before SHA-256 | [Experiment 18 correction](#trajectory-experiment-18-integrity) |
+
+<a id="trajectory-baseline"></a>
+
 ## Task identity
 
 - **Task:** Rewrite the Godot Performance Budget Guardian README from repository evidence, record the documentation work, and package the workflow as a repository-local Codex skill.
@@ -8,6 +113,9 @@
 - **Scope boundary:** This trajectory covers the documentation task. Earlier benchmark implementation work is referenced only where its files or verified outputs were used as documentation evidence.
 
 ## Original request
+
+<details>
+<summary>Verbatim original documentation request</summary>
 
 The documentation request was available in the supplied attachment. It is quoted below with one unrelated private-project name redacted to honor the request's own exclusion constraint:
 
@@ -270,6 +378,8 @@ After writing the README:
 * Verified commands and remaining limitations are clearly documented.
 ```
 
+</details>
+
 The user then added:
 
 > also turn this to a skill
@@ -507,6 +617,8 @@ The final text audit checked six documentation and skill files, found README sec
 
 No benchmark, documentation, or skill test failed during this follow-up. No Godot process was started. The changelog remains at Baseline 0 because documentation and skill edits are not product-performance experiments.
 
+<a id="trajectory-experiment-1"></a>
+
 ## 2026-08-29 follow-up: Read-only performance investigator
 
 ### Original request, safety correction, and approval
@@ -673,6 +785,8 @@ As in the preceding documentation task, PyYAML 6.0.3 was supplied only in a uniq
 
 No clone, commit, push, Godot run, benchmark validation, or OpenAI API request occurred. `IMPROVEMENT_CHANGELOG.md` was inspected and deliberately left unchanged.
 
+<a id="trajectory-experiment-2"></a>
+
 ## 2026-08-29 follow-up: Actionable rate-limit diagnosis
 
 ### Reported failure and approved response
@@ -733,6 +847,8 @@ The documentation audit found README sections 1 through 17 in order, resolved al
 The final key-pattern scan found no match in repository-owned working-tree files, tracked `HEAD`, the staged index, or any reachable commit. `git diff --check` reported no whitespace error beyond Git's existing Windows line-ending warnings. All user changes remained uncommitted for review.
 
 No test failed. No application-level retry, automatic model fallback, live API request, Godot run, commit, or push occurred. A successful investigator response still depends on a newly issued key whose API project has available quota and access to the selected model.
+
+<a id="trajectory-experiment-3"></a>
 
 ## 2026-08-29 — Experiment 3: Deterministic investigator evidence grounding
 
@@ -831,6 +947,8 @@ The documentation audit resolved all 15 README links, found every required sourc
 
 No Godot run, post-change live API request, commit, or push occurred. The implementation and deterministic local controls are verified; the quality and 4/4 rubric result of a future grounded live report remain unverified.
 
+<a id="trajectory-experiment-4"></a>
+
 ## 2026-08-29 — Experiment 4: Schema-driven deterministic fallback
 
 ### Reported live failure and planning
@@ -902,6 +1020,8 @@ The documentation skill's official validator printed `Skill is valid!`. PyYAML 6
 The final README audit found all 17 numbered sections, resolved all 15 Markdown links, confirmed the clone URL still matches the configured `origin` fetch URL, and found no trailing whitespace or missing final newline. Filename-only secret-pattern scans found no match in the working tree, tracked files, staged content, or reachable history. `git diff --check` reported no whitespace error; Git emitted only its existing Windows line-ending notices.
 
 Five repository files were modified for Experiment 4: the investigator, its tests, README, improvement changelog, and trajectory. The benchmark controller and validator were unchanged. No Godot run, live API request, commit, or push occurred.
+
+<a id="trajectory-experiment-5"></a>
 
 ## 2026-08-29 — Experiment 5: Configurable performance budgets
 
@@ -988,6 +1108,8 @@ The first README audit command incorrectly collected only the first numbered hea
 The final documentation audit resolved all 20 relative README links, confirmed all 17 numbered sections in order, found every required artifact, verified final newlines and no trailing whitespace, and reconfirmed that the documented clone URL matches both configured `origin` URLs. Filename-only secret-pattern scans found no match in the working tree, tracked files, staged content, or reachable Git history. `git diff --check` returned zero; Git printed only its existing Windows line-ending notices.
 
 Git status contained only the three synchronized documentation files and the three intended Experiment 5 additions. No validator, investigator, Godot project, stored result, documentation-skill source, or dependency file changed. No Godot run, API-key value access, API request, added permanent dependency, commit, or push occurred.
+
+<a id="trajectory-experiment-6"></a>
 
 ## 2026-08-29 — Experiment 6: Portable Godot 4.5 performance capture addon
 
@@ -1202,6 +1324,8 @@ The final audit found both new fixtures tracked, no ignored-results path or dire
 
 The staged set contains only this trajectory, README, the dependency pin, two tracked fixtures, and the two fixture-refactored test modules. The requested single commit uses subject `Make investigator tests reproducible from clean environment`; its identifier is reported in the task handoff. No push is performed.
 
+<a id="trajectory-experiment-7"></a>
+
 ## 2026-08-29 — Experiment 7 portable generic investigator
 
 ### Original request, correction, and approval
@@ -1279,6 +1403,8 @@ The final test-source audit found no dependency on ignored `demo_project/results
 
 The final working tree contains the Experiment 7 changes to the validator, investigator, tracked fixtures, tests, README, changelog, and this trajectory. `tools/check_budgets.py`, the addon, Godot projects, stored results, and dependency manifests remain unchanged. No commit or push was performed.
 
+<a id="trajectory-experiment-8"></a>
+
 ## 2026-08-29 — Experiment 8 grounded model upgrade evaluation
 
 ### Request and approved decision
@@ -1312,6 +1438,8 @@ No Godot process, benchmark, fixture/result/budget change, dependency change, co
 The official skill validator printed `Skill is valid!`. Its PyYAML dependency was installed only into a uniquely named system-temporary directory; path validation preceded recursive cleanup, and the directory was confirmed absent afterward. README retained 17 numbered headings, all 29 links resolved, and all three evidence documents ended with newlines.
 
 An initial combined audit harness exited without output, so the read-only checks were split into smaller commands. A later combined final check also had a Python quoting error; its repository checks still ran, and the link/headings/newline portion was rerun separately. The corrected checks found 29 resolvable README links, 17 numbered headings, final newlines, and no key-shaped value in working-tree, tracked, staged, or reachable-history content. `git diff --check` passed with only informational LF-to-CRLF warnings. The final status still contains the pre-existing uncommitted Experiment 7 implementation plus the three Experiment 8 documentation updates; no code default or test expectation changed for Experiment 8. The public `origin` fetch and push URL remained unchanged. No commit or push was performed.
+
+<a id="trajectory-experiment-9"></a>
 
 ## 2026-08-29 — Experiment 9 typed model contribution
 
@@ -1382,6 +1510,8 @@ The first official skill-validator attempt failed because the project environmen
 README retained all 17 numbered sections, all 29 relative links resolved, and README plus both evidence documents ended with final newlines. Tests still contain zero references to ignored `demo_project/results` data. Filename-only scans found zero key-shaped matches in working-tree, tracked, staged, or reachable-history content. `git diff --check` returned `0` with only informational LF-to-CRLF warnings.
 
 The final working tree contains five focused Experiment 9 files: the investigator, its tests, README, improvement changelog, and this trajectory. The branch remains `main` with the documented public `origin`; no commit or push was performed.
+
+<a id="trajectory-experiment-10"></a>
 
 ## 2026-08-29 — Experiment 10 CI performance gate
 
@@ -1457,6 +1587,8 @@ The first skill-validator invocation failed with `ModuleNotFoundError: No module
 
 The final post-documentation suite passed all 120 tests in 0.592 seconds; `pip check`, byte compilation, and `git diff --check` also passed. README retained all 17 numbered sections, all 33 relative-link occurrences resolved, and README plus both evidence documents ended with final newlines. Tests contained zero references to the ignored `demo_project/results` path. Filename-only credential-pattern scans found zero matching working-tree, tracked, staged, or reachable-history files/commits. Final status contained the three documentation files plus the new workflow, unified runner, and runner tests. The branch remained `main` at `f177009`; no commit or push occurred.
 
+<a id="trajectory-experiment-11"></a>
+
 ## 2026-08-29 — Experiment 11 turnkey consumer-project performance CI
 
 ### Request and approved plan
@@ -1517,6 +1649,8 @@ The optional 49-file historical integration validated successfully. Its Experime
 The first official documentation-skill validator attempt failed because PyYAML is intentionally absent from project dependencies. A sandboxed temporary installation then failed because network access was restricted and its verified temporary directory was removed. With explicit permission, cached PyYAML `6.0.3` was installed only into a new system-temporary directory; the official validator printed `Skill is valid!`, and cleanup confirmed removal. No manifest or persistent Python environment changed.
 
 README retained 17 numbered sections, every checked relative link resolved, and all changed documents ended with final newlines. The configured public fetch/push remote remained correct. `git diff --check` returned `0` with only line-ending notices. Filename-only credential scans found no matches in the working tree, tracked files, staged state, or reachable history, and no private absolute path was found. The temporary consumer directory—including both failed diagnostic attempts and the successful fresh evidence—was removed after measurements and metadata were recorded here. Final status contains only the focused Experiment 11 implementation, tests, license, workflow, skill, and documentation changes; no commit or push was performed.
+
+<a id="trajectory-experiment-11-corrections"></a>
 
 ## 2026-08-29 — Hosted workflow-definition correction
 
@@ -1625,6 +1759,8 @@ No Godot process, benchmark, OpenAI request, fixture or budget change, or consum
 The five focused files were staged after the complete diff and staged whitespace check passed. Commit `0cd6a573d21b5ddd1ffd624be2782d0e9979e3ab` was created with message `Preserve raw performance evidence artifacts` and pushed from `2a2c0e3` to `origin/main`.
 
 GitHub's public REST metadata reported the reusable workflow as `active`. The workflow at commit `0cd6a57` had blob SHA `fba8347337dfa640bf363c9d2c621ea5857bc377`, exactly matching the verified local file. This establishes that the correction is delivered and recognized; it does not prove the next ZIP contains the raw files. The consumer must pin the new full commit, rerun `never`, and inspect the artifact for the three captures, three logs, manifest, and gate report. No consumer repository was changed or dispatched during implementation.
+
+<a id="trajectory-experiment-12"></a>
 
 ## 2026-08-29 — Experiment 12 baseline-aware pull-request regression gate
 
@@ -1749,6 +1885,8 @@ The seven-file focused diff passed staged whitespace inspection and was committe
 
 GitHub's public workflow metadata reported `Reusable Performance Guardian` as `active` at `.github/workflows/reusable-performance-guardian.yml`. This proves delivery and workflow-definition recognition, not successful hosted artifact staging. The consumer must update its `uses:` reference to `248dbcf551e7480b69bffced2ef458adab238e94` and rerun. Absolute-only acceptance requires candidate captures/logs plus available reports in the artifact; paired acceptance additionally requires protected-base evidence and its manifest.
 
+<a id="trajectory-experiment-13"></a>
+
 ## 2026-08-30 — Experiment 13 valid-object-count investigation and implementation
 
 ### Request and approved boundary
@@ -1796,6 +1934,8 @@ The final run requested investigation exactly once. `gpt-4.1-mini` returned an a
 After the final documentation synchronization, the complete Guardian suite again passed 147 tests in 5.135 seconds, byte compilation succeeded, and `pip check` reported no broken requirements. Every local Markdown link resolved, numbered README sections 1 through 17 remained present, and `git diff --check` reported no whitespace error. The updated documentation skill again passed its official validator with PyYAML supplied only through a unique temporary target and removed immediately afterward.
 
 The PluginTest clone, ignored local captures, downloaded hosted ZIP files, and extracted artifacts existed only beneath the dedicated `.experiment-13` workspace directory. Its resolved absolute path was verified as that exact child of the Guardian workspace before recursive removal; no consumer source or hosted evidence was deleted remotely. Final documentation commit, Guardian push, public branch/workflow checks, and the remaining safe credential-pattern scan follow this entry.
+
+<a id="trajectory-experiment-14"></a>
 
 ## 2026-08-30 — Experiment 14 actionable Actions reporting
 
@@ -1853,6 +1993,8 @@ The renderer writes `GITHUB_STEP_SUMMARY` before emitting its log, so the succes
 
 The temporary clone, downloaded log ZIP, artifact ZIP, and extracted evidence were contained beneath the exact `.experiment-14` child directory. That resolved target was verified before recursive removal; remote commits, the workflow run, and its GitHub artifact remain available. The final Guardian suite passed all 160 tests in 4.860 seconds, byte compilation succeeded, `pip check` found no broken requirements, all checked relative links resolved, README retained sections 1 through 17, and `git diff --check` passed. The official documentation-skill validator again printed `Skill is valid!` using temporary PyYAML removed immediately afterward. Final working-tree, tracked-file, and reachable-history credential scans reported no matching filename or commit identifier.
 
+<a id="trajectory-experiment-15"></a>
+
 ## 2026-08-30 — Experiment 15 budget calibration assistant
 
 ### Request and approved boundary
@@ -1901,6 +2043,8 @@ The downloaded Actions log contained the proposal-only warning, the five-capture
 The complete final suite passed 173 tests in 4.994 seconds with one environment-dependent symlink test skipped because directory symlink creation was unavailable. Python byte compilation succeeded, `pip check` reported no broken requirements, both workflows parsed, and the official documentation-skill validator printed `Skill is valid!`. README retained numbered sections 1 through 17, every checked relative Markdown link resolved, all evidence documents had final newlines, and `git diff --check` reported no whitespace error. Key-shaped working-tree and tracked-file scans returned no filename, and no reachable commit identifier matched the key-shape patterns.
 
 The initial dirty temporary consumer, clean local consumer, temporary PyYAML target, PluginTest clone, and downloaded hosted artifact were each resolved beneath the system temporary directory and required an expected unique Guardian prefix before recursive removal. All five exact targets were removed; no remote repository, workflow artifact, committed fixture, or local historical benchmark result was deleted. Final Guardian documentation commit, push, remote SHA check, and Git state follow this entry.
+
+<a id="trajectory-experiment-16"></a>
 
 ## 2026-08-30 — Experiment 16 editor evidence dock
 
@@ -1959,6 +2103,8 @@ The focused dock/addon suite passed 19 tests. The final complete repository suit
 The synchronized Godot 4.5.1 helper produced its ignored `passed` marker, which was immediately removed. A synchronized three-second headless editor lifecycle exited `0`; its temporary stdout/stderr logs contained no `SCRIPT ERROR`, `Parse Error`, invalid-call, or failed-script-load diagnostic and were removed. No performance capture, original synthetic benchmark, hosted workflow, or OpenAI request ran.
 
 The editor process exercised plugin parsing and lifecycle but the current automation environment could not directly inspect the rendered dock visually. Layout appearance and hands-on interaction therefore remain unverified and are documented as the next evaluation step. No commit or push was requested or performed during Experiment 16.
+
+<a id="trajectory-experiment-17"></a>
 
 ## 2026-08-30 — Experiment 17 main-screen evidence workspace
 
@@ -2042,6 +2188,8 @@ The first official skill-validator invocation failed because the repository envi
 
 README retained numbered sections 1 through 17, the judge section occupied the requested position, all checked relative links resolved, and all three evidence documents retained final newlines. The focused key-pattern scan found no matching filename, `IMPROVEMENT_CHANGELOG.md` had no diff, and `git diff --check` reported no whitespace error. Final diff inspection, commit, push, and remote verification followed this pre-delivery checkpoint.
 
+<a id="trajectory-experiment-18"></a>
+
 ## 2026-08-30 — Experiment 18: Final ten-case competition evaluation
 
 ### Original request and approved boundary
@@ -2090,6 +2238,8 @@ The official skill validator initially failed because PyYAML is not a permanent 
 
 All checked Markdown links resolved, README retained numbered sections 1 through 17, every updated evidence/requirements document ended with a newline, and `git diff --check` reported no whitespace error. The workspace plus reachable-history high-confidence key-pattern scan returned no matching filename or commit identifier. Final Git status contained only the intended evaluation implementation, tracked fixtures/result, tests, final report, and synchronized documentation; no commit or push was performed.
 
+<a id="trajectory-experiment-18-integrity"></a>
+
 ## 2026-08-30 — Experiment 18 cross-platform integrity correction
 
 ### Reported failure and diagnosis
@@ -2117,3 +2267,21 @@ The complete repository suite passed 202 tests in `14.962` seconds with one envi
 README and `FINAL_EVALUATION.md` now define the portable UTF-8/LF integrity rule. The Experiment 18 changelog history retains the original result and adds this portability clarification. The repository documentation requirements preserve the schema-v2 contract. Final documentation-skill, link, secret, newline, and whitespace verification follows this entry.
 
 The official documentation-skill validator printed `Skill is valid!` using temporary cached PyYAML 6.0.3, which was removed immediately afterward. Every checked relative Markdown link resolved, README retained numbered sections 1 through 17, all documentation files ended with a newline, and `git diff --check` reported no whitespace error. The workspace and reachable-history high-confidence credential-pattern scan found no matching filename or commit identifier. Final status contained only the eight intended correction files.
+
+## 2026-08-30 — Judge trajectory navigation
+
+### Request and structural decision
+
+The user asked how to make the agent trajectory easy for a competition judge to navigate, then selected the recommended additive top-index design rather than splitting or condensing the audit. The approved plan required a two-minute evidence route, explicit agent/tool authority boundaries, four representative trajectories, a Baseline 0-through-Experiment 18 milestone index, a failure/correction index, a collapsed-but-preserved original request, a README deep link, and a durable documentation-skill contract.
+
+Inspection measured the pre-change trajectory at 2,119 lines and 206,535 bytes. The final evaluation began near line 2,045, and the file had no judge-facing contents map. The chronology contained strong evidence but gave setup, experiments, corrections, and delivery entries equal visual weight.
+
+### Documentation change
+
+The new top layer identifies the shipped **Godot Performance Investigator**, the build-time **Codex development agent**, and the deterministic validator, budget checker, calibration assistant, and unified runner without conflating their authority. It records the investigator's single `validate_benchmark_results` tool and preserves deterministic exit authority. The primary snapshot is derived from canonical evaluation evidence: Baseline 0 `1/10`, final `10/10`, change `+90` percentage points, and deterministic API cost `$0`.
+
+Four short trajectories link accepted investigation, rejected-model fallback and typed redesign, script-invalid evidence correction, and the user-confirmed editor usability change to their detailed history. Explicit stable anchors support all 19 milestone rows and the major correction links. The long original documentation request remains verbatim but is collapsed behind a Markdown disclosure. README now deep-links directly to judge navigation, and the repository documentation requirements preserve the new structure.
+
+This was documentation maintenance rather than a product experiment, so the existing `IMPROVEMENT_CHANGELOG.md` content was inspected and not changed by this navigation task. Verification follows this entry; no Godot process, OpenAI request, or full test-suite rerun is required.
+
+All 33 internal trajectory links resolved against unique headings or explicit anchors, and all checked relative file links existed. The canonical result independently confirmed `1/10`, `10/10`, `+90` percentage points, and API cost `$0`. Source inspection confirmed the investigator's exact name and sole function tool plus the deterministic validator, checker, calibration, and runner boundaries. The official documentation-skill validator printed `Skill is valid!` using temporary cached PyYAML removed immediately afterward. README retained sections 1 through 17, the single disclosure block was balanced, all documentation files ended with a newline, `git diff --check` passed, and working-tree plus reachable-history credential-pattern scans found no matching filename or commit identifier. No product test, Godot process, OpenAI request, commit, or push occurred.
