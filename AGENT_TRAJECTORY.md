@@ -1894,6 +1894,8 @@ The hosted job completed successfully. Protected-base checkout/capture, investig
 
 Hosted aggregate medians were `11.62 ms` process p95, `2,281` peak nodes, and `5,580` peak objects. The proposal contained `17.5 ms` with 20% relative allowance, `2,510` nodes with 5%, and `6,138` objects with 5%. Read-only evaluation of that proposed policy against the same hosted captures passed all three absolute rules. The proposal was not applied or committed to PluginTest.
 
+The downloaded Actions log contained the proposal-only warning, the five-capture validation count, and all three observed/proposed recommendation pairs. It contained no API-request marker. Because the renderer appends `GITHUB_STEP_SUMMARY` before printing those lines and returned success, the hosted summary write also completed; direct signed-in visual inspection of the rendered Markdown body remains a UI-access limitation rather than a workflow failure.
+
 ### Final verification and cleanup
 
 The complete final suite passed 173 tests in 4.994 seconds with one environment-dependent symlink test skipped because directory symlink creation was unavailable. Python byte compilation succeeded, `pip check` reported no broken requirements, both workflows parsed, and the official documentation-skill validator printed `Skill is valid!`. README retained numbered sections 1 through 17, every checked relative Markdown link resolved, all evidence documents had final newlines, and `git diff --check` reported no whitespace error. Key-shaped working-tree and tracked-file scans returned no filename, and no reachable commit identifier matched the key-shape patterns.
