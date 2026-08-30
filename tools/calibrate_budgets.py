@@ -245,24 +245,22 @@ def build_calibration(packet: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
 
 
 def _output_path(root: Path, value: str, label: str) -> tuple[Path, str]:
-    if not isinstance(value, str) or not value.strip():
-        raise CalibrationError(f"{label} path is required")
-    supplied = Path(value)
-    if supplied.is_absolute() or supplied.drive or supplied.anchor or ".." in supplied.parts:
-        raise CalibrationError(f"{label} path must be workspace-relative")
-    if supplied.suffix.lower() != ".json":
-        raise CalibrationError(f"{label} must use the .json extension")
-    parent = (root / supplied.parent).resolve()
     try:
-        parent.relative_to(root)
-    except ValueError as error:
-        raise CalibrationError(f"{label} path must remain inside the workspace") from error
+        target, relative = resolve_workspace_member(
+            root, value, label=label, require_json=True
+        )
+    except WorkspacePathError as error:
+        raise CalibrationError(str(error)) from error
+
+    supplied = Path(value)
+    lexical_target = root / supplied
+    if lexical_target.exists() and lexical_target.is_symlink():
+        raise CalibrationError(f"{label} must not be a symlink")
+
+    parent = target.parent
     if parent.exists() and not parent.is_dir():
         raise CalibrationError(f"{label} parent is not a directory")
-    target = parent / supplied.name
-    if target.exists() and target.is_symlink():
-        raise CalibrationError(f"{label} must not be a symlink")
-    return target, target.relative_to(root).as_posix()
+    return target, relative
 
 
 def _atomic_write_new(path: Path, content: str, *, replace: bool = False) -> None:

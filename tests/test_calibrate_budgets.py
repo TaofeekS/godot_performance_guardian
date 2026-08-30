@@ -7,7 +7,7 @@ from pathlib import Path
 import os
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from tools import calibrate_budgets as calibration
 
@@ -125,6 +125,29 @@ class CalibrationFileTests(unittest.TestCase):
         report_bytes = (self.root / "out/report.json").read_text(encoding="utf-8")
         self.assertEqual(report_bytes, calibration.canonical_json(report))
         self.assertEqual(list((self.root / "out").glob("*.tmp")), [])
+
+    def test_output_path_trusts_shared_identity_containment_for_windows_aliases(self) -> None:
+        short_root = Path("C:/Users/RUNNER~1/AppData/Local/Temp/workspace")
+        long_target = Path(
+            "C:/Users/runneradmin/AppData/Local/Temp/workspace/out/proposal.json"
+        )
+        with patch.object(
+            calibration,
+            "resolve_workspace_member",
+            return_value=(long_target, "out/proposal.json"),
+        ) as resolver:
+            target, relative = calibration._output_path(
+                short_root, "out/proposal.json", "policy output"
+            )
+
+        resolver.assert_called_once_with(
+            short_root,
+            "out/proposal.json",
+            label="policy output",
+            require_json=True,
+        )
+        self.assertEqual(target, long_target)
+        self.assertEqual(relative, "out/proposal.json")
 
     def test_generation_refuses_collisions_and_unsafe_paths(self) -> None:
         (self.root / "existing.json").write_text("keep", encoding="utf-8")

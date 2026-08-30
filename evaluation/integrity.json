@@ -28,7 +28,7 @@
     {"path": "evaluation/fixtures/synthetic/node_leak-20260828T193246205Z-run-01.json", "sha256": "a2b1722c3b2f6c571f849b5fe828cfca7e04fdeb06c82f3c1d44ddca47fdc634"},
     {"path": "evaluation/fixtures/synthetic/node_leak-20260828T193246205Z-run-02.json", "sha256": "8451ae1fd97010dd9a25b135ccecb3c27d3aaa2a96b7fe326b0cdff898caecb0"},
     {"path": "evaluation/fixtures/synthetic/node_leak-20260828T193246205Z-run-03.json", "sha256": "e572536359261a4b88584c43bd5fdfe869b3a66f02a3f31c553ef31b8cd76050"},
-    {"path": "tools/calibrate_budgets.py", "sha256": "9b35b0701f1df6659ef94da49cf2f54bc8375774ada8ba6336f296bbcf59b49c"},
+    {"path": "tools/calibrate_budgets.py", "sha256": "8679dc6807e0525010c1d6314fbb62370d448933cc801065c2cdc56b5f43f93b"},
     {"path": "tools/check_budgets.py", "sha256": "4e772360b377047b97b56170b8393390afd122789439b3ac0f52aa99095ce579"},
     {"path": "tools/comparison_evidence.py", "sha256": "f79c67b691049b0431fff0f50734afc4164c619f5faa9ee30a56a19c8e2139b3"},
     {"path": "tools/run_guardian.py", "sha256": "7cba6ec6d91a2f9fe994592c72b633c550275a8ccb9d6a8529d375ee232e627c"},
