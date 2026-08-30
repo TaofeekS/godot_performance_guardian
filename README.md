@@ -2,15 +2,15 @@
 
 ## 1. Project overview
 
-Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benchmark with a copyable runtime capture addon and read-only editor evidence dock. It preserves raw per-frame evidence, validates calculated results, and applies project-specific budgets so developers can investigate changes instead of relying on a visual impression of performance.
+Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benchmark with a copyable runtime capture addon and read-only editor evidence workspace. It preserves raw per-frame evidence, validates calculated results, and applies project-specific budgets so developers can investigate changes instead of relying on a visual impression of performance.
 
 ## 2. Current status
 
 | Status | Capability |
 | --- | --- |
-| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; a read-only Godot editor dock verified through Godot 4.5.1 helper and editor-lifecycle checks; repeated headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a deterministic five-run calibration assistant verified locally; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
+| Implemented and verified | Deterministic synthetic scenarios; a copyable `PerformanceBudgetProbe`; a read-only Godot main-screen evidence workspace verified through Godot 4.5.1 helper and editor-lifecycle checks; repeated headless capture in local and GitHub-hosted consumer workspaces; schema-specific deterministic validation; v1 scenario, v2 profile, and v3 paired-comparison budgets; a deterministic five-run calibration assistant verified locally; a unified standard-library gate; a reusable consumer workflow; actionable GitHub log/annotation rendering plus successful hosted summary-file writing; and a read-only investigator whose typed contribution, grounding, and fallback paths have been exercised locally and through live API requests. |
 | Partially implemented | Generic policy covers seven aggregate engine metrics and has one tracked live fixture. Synthetic integrity assertions remain embedded in code, and the broader ten-fixture evaluation set is incomplete. |
-| Unverified | Direct visual inspection of the editor dock layout and hosted custom job-summary body remains unavailable from the current automation environment. Synthetic fallback behavior remains locally verified but not live-tested. |
+| Unverified | Direct visual inspection of the **Guardian** main-screen layout and hosted custom job-summary body remains unavailable from the current automation environment. Synthetic fallback behavior remains locally verified but not live-tested. |
 | Planned | Nine additional evaluation fixtures, broader budget coverage, experimental repair and verification, categorized result packages, and the final hackathon submission package. |
 
 This repository is a fresh synthetic project for the Micro1 Agentic Workflows Hackathon. It does not use unrelated private source code, private assets, or proprietary telemetry.
@@ -34,7 +34,7 @@ The current baseline:
 - Optionally compares three protected-base captures with three pull-request candidate captures under a base-controlled schema-v3 policy on the same runner.
 - Generates a reviewable schema-v3 proposal from at least three validated generic captures; hosted calibration defaults to five and never edits or enforces policy automatically.
 - Allows an unrelated project to copy `addons/performance_budget_guardian/`, add a probe node, capture generic engine metrics, validate them, and apply profile-based v2 budgets.
-- Adds a read-only Godot dock that reports active-scene probe readiness, presents recent project-contained captures and canonical reports, and lists deterministic failed rules without running or reimplementing the gate.
+- Adds a read-only Godot main-screen workspace that reports active-scene probe readiness, presents recent project-contained captures and canonical reports, and lists deterministic failed rules without running or reimplementing the gate.
 - Offers an optional investigator that can validate stored evidence and cite opaque IDs selected through semantic packet fields. A deterministic local gate blocks reports that violate its grounding contract and substitutes a fully cited fallback without another API request, but the investigator cannot prove root causes or modify the project.
 
 It is a benchmark, portable capture/evaluation layer, read-only editor evidence surface, and initial read-only reasoning layer, not an automated repair product.
@@ -55,7 +55,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |       |-- plugin.cfg
 |       |-- plugin.gd
 |       |-- evidence_reader.gd
-|       |-- performance_guardian_dock.gd
+|       |-- performance_guardian_main_screen.gd
 |       |-- performance_probe.gd
 |       `-- README.md
 |-- budgets/
@@ -73,7 +73,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |   |   |-- investigator/generic_evidence_packet.json
 |   |   `-- investigator/comparison_evidence_packet.json
 |   |-- test_comparison.py
-|   |-- test_editor_dock.py
+|   |-- test_editor_main_screen.py
 |   |-- test_calibrate_budgets.py
 |   |-- test_check_budgets.py
 |   |-- test_investigator.py
@@ -90,7 +90,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 |       |-- main.tscn
 |       |-- main.gd
 |       |-- test_probe.gd
-|       `-- test_editor_dock.gd
+|       `-- test_editor_main_screen.gd
 |-- .agents/
 |   `-- skills/
 |       `-- godot-performance-guardian-docs/
@@ -131,7 +131,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`.github/workflows/performance-guardian.yml`](.github/workflows/performance-guardian.yml) runs the tracked fixture and policy on pull requests to `main` and through manual dispatch.
 - [`.github/workflows/reusable-performance-guardian.yml`](.github/workflows/reusable-performance-guardian.yml) is the callable consumer-project capture and gate workflow.
 - [`addons/performance_budget_guardian/performance_probe.gd`](addons/performance_budget_guardian/performance_probe.gd) is the reusable runtime capture node.
-- [`addons/performance_budget_guardian/performance_guardian_dock.gd`](addons/performance_budget_guardian/performance_guardian_dock.gd) implements the read-only probe/evidence dock; [`evidence_reader.gd`](addons/performance_budget_guardian/evidence_reader.gd) supplies bounded, schema-specific parsing and ordering.
+- [`addons/performance_budget_guardian/performance_guardian_main_screen.gd`](addons/performance_budget_guardian/performance_guardian_main_screen.gd) implements the read-only probe/evidence workspace; [`evidence_reader.gd`](addons/performance_budget_guardian/evidence_reader.gd) supplies bounded, schema-specific parsing and ordering.
 - [`examples/minimal_project/project.godot`](examples/minimal_project/project.godot) is the independent consumer project; it intentionally requires copying the addon into its ignored `addons/` directory.
 - [`examples/fixtures/main_scene-godot-4.5.1.json`](examples/fixtures/main_scene-godot-4.5.1.json) is the sanitized canonical live capture.
 - [`budgets/example_budgets.json`](budgets/example_budgets.json) demonstrates two passing limits and two intentionally failing regression limits.
@@ -139,7 +139,7 @@ It is a benchmark, portable capture/evaluation layer, read-only editor evidence 
 - [`tests/test_investigator.py`](tests/test_investigator.py) verifies the tool boundary, path containment, subprocess failures, configuration, and no-key behavior without an API request.
 - [`tests/test_check_budgets.py`](tests/test_check_budgets.py) uses fixed evidence fixtures to verify configuration, semantic matching, deterministic output, and exit behavior.
 - [`tests/test_portable_addon.py`](tests/test_portable_addon.py) verifies the addon contract, generic schema, evidence, and v2 budgets against tracked test fixtures.
-- [`tests/test_editor_dock.py`](tests/test_editor_dock.py) verifies the exact Godot 4.5 dock lifecycle, read-only boundary, evidence fixtures, containment, and timestamp policy.
+- [`tests/test_editor_main_screen.py`](tests/test_editor_main_screen.py) verifies the exact Godot 4.5 main-screen lifecycle, read-only boundary, evidence fixtures, containment, and timestamp policy.
 - [`tests/test_run_guardian.py`](tests/test_run_guardian.py) verifies orchestration, containment, exit preservation, output stability, optional-investigation safety, and the workflow contract without an API request.
 - [`tests/test_capture_project.py`](tests/test_capture_project.py) verifies isolated capture commands, collisions, stop-on-failure, sanitized manifests/logs, and the reusable workflow contract.
 - [`tests/test_calibrate_budgets.py`](tests/test_calibrate_budgets.py) verifies calibration formulas, semantic evidence, safe IDs, atomic output, explicit replacement, and deterministic reports.
@@ -294,15 +294,15 @@ Remove-Item -Recurse `
   .\examples\minimal_project\addons\performance_budget_guardian
 ```
 
-### Editor evidence dock
+### Editor evidence workspace
 
-Addon `1.1.0` adds a **Performance Guardian** dock when the editor plugin is enabled. It is deliberately read-only: it does not run a capture, Python, validation, budgets, GitHub Actions, network access, or AI. It shows all probe nodes in the active scene, their frame/output configuration and readiness, the latest matching capture, up to 20 recent recognized evidence files, invalid-file warnings, deterministic failed rules, and calibration proposals labeled as non-authoritative.
+Addon `1.2.0` adds a **Guardian** button beside Godot's 2D, 3D, Script, Game, and AssetLib workspaces when the editor plugin is enabled. Select it to open the full central **Performance Guardian** evidence page; switching back restores the normal editor workspace and leaves the Inspector, Node, and FileSystem docks untouched. It is deliberately read-only: it does not run a capture, Python, validation, budgets, GitHub Actions, network access, or AI. It shows all probe nodes in the active scene, their frame/output configuration and readiness, the latest matching capture, up to 20 recent recognized evidence files, invalid-file warnings, deterministic failed rules, and calibration proposals labeled as non-authoritative.
 
-The dock scans each probe's configured `res://` output, `res://results`, and `res://.performance-guardian`. **Add evidence** can include another JSON file for the current editor session, but the file must remain under `res://`; absolute paths, traversal, and traversed links are rejected. **Locate** selects visible evidence in Godot's FileSystem dock, while **Copy res:// path** copies only the portable project path.
+The workspace scans each probe's configured `res://` output, `res://results`, and `res://.performance-guardian`. **Add evidence** can include another JSON file for the current editor session, but the file must remain under `res://`; absolute paths, traversal, and traversed links are rejected. **Locate** selects visible evidence in Godot's FileSystem dock, while **Copy res:// path** copies only the portable project path.
 
-Evidence time is schema-specific. Generic capture schema v1 requires canonical `ended_at_utc` and is ordered newest first by that field. Guardian report schemas v1/v2 and calibration report schema v1 currently contain no canonical report-generation timestamp, so the dock never substitutes filesystem modification time: those valid reports follow timestamped captures and sort by report type plus normalized `res://` path. A capture with a missing or invalid `ended_at_utc` is invalid. Failed rules are displayed only from canonical Guardian reports; raw captures remain **Not evaluated**, and the dock never duplicates policy calculation.
+Evidence time is schema-specific. Generic capture schema v1 requires canonical `ended_at_utc` and is ordered newest first by that field. Guardian report schemas v1/v2 and calibration report schema v1 currently contain no canonical report-generation timestamp, so the workspace never substitutes filesystem modification time: those valid reports follow timestamped captures and sort by report type plus normalized `res://` path. A capture with a missing or invalid `ended_at_utc` is invalid. Failed rules are displayed only from canonical Guardian reports; raw captures remain **Not evaluated**, and the workspace never duplicates policy calculation.
 
-Historical `1.0.1` captures remain compatible because their capture schema and mandatory memory limitation are unchanged. New captures identify addon `1.1.0`; version `1.0.0` remains unsupported and requires a fresh capture rather than metadata editing.
+Historical `1.0.1` and `1.1.0` captures remain compatible because their capture schema and mandatory memory limitation are unchanged. New captures identify addon `1.2.0`; version `1.0.0` remains unsupported and requires a fresh capture rather than metadata editing.
 
 Create a clean environment and run the complete default suite without generated benchmark results:
 
@@ -683,7 +683,7 @@ Generic captures are explicitly distinguished. This abbreviated example comes fr
 }
 ```
 
-The tracked fixture is historical addon `1.0.1` evidence and remains unchanged. Current addon captures report version `1.1.0`; the JSON schema and measurements shown above are otherwise unchanged.
+The tracked fixture is historical addon `1.0.1` evidence and remains unchanged. Current addon captures report version `1.2.0`; the JSON schema and measurements shown above are otherwise unchanged.
 
 Its complete form includes UTC timestamps, sanitized configuration, memory availability, every global count, all 600 samples, timing/count summaries, environment metadata, and limitations. Because no revision was supplied, it explicitly states that the exact source revision is unknown.
 
@@ -799,6 +799,8 @@ Experiment 15 added deterministic budget calibration without changing validation
 
 Experiment 16 added the read-only editor dock without changing capture or report schemas. The focused suite passed 19 tests and the final complete suite passed 180 tests in 4.932 seconds with one environment-dependent symlink test skipped. A Godot `4.5.1.stable.official.f62fdbde1` helper verified capture timestamp ordering, untimestamped report ordering, failed-rule merging, proposal labeling, and path rejection, then produced a synchronized `passed` marker. A three-second headless editor lifecycle exited `0` with no script parse/load diagnostic. The dock's rendered visual layout and interactive usability were not directly observed, so they remain unverified rather than inferred from the lifecycle check.
 
+Experiment 17 replaced that side dock with a Godot main-screen plugin named **Guardian**. The implementation uses `_has_main_screen()`, `_make_visible()`, `_get_plugin_name()`, `_get_plugin_icon()`, and `EditorInterface.get_editor_main_screen()` and contains no dock-slot registration or automatic workspace selection. The focused 19-test suite and complete 180-test suite passed; byte compilation and both tracked generic validations succeeded. The Godot 4.5.1 helper and a three-second editor lifecycle each exited `0` without script/load diagnostics. Direct visual placement and hands-on workspace switching remain pending confirmation in the updated PluginTest editor rather than inferred from headless execution.
+
 ## 13. Reproducibility notes
 
 - Use unchanged scenarios for baseline and final comparisons.
@@ -821,7 +823,7 @@ Experiment 16 added the read-only editor dock without changing capture or report
 - Configurable policy supports four synthetic metrics and seven generic engine metrics; the validator's synthetic integrity assertions and controller tolerances remain embedded in code.
 - Paired comparison doubles capture work. Same-runner sequential execution reduces variation but does not guarantee identical thermal, scheduling, or system-load conditions.
 - There is no committed golden baseline or baseline/iteration/final result organization.
-- The editor dock is read-only: it cannot launch captures, calculate budgets, access CI artifacts that have not been copied under `res://`, show live capture progress, or repair a project. The investigator receives only validator-produced evidence and cannot establish root cause by itself.
+- The editor workspace is read-only: it cannot launch captures, calculate budgets, access CI artifacts that have not been copied under `res://`, show live capture progress, or repair a project. The investigator receives only validator-produced evidence and cannot establish root cause by itself.
 - Calibration proposes host-specific thresholds from engine-global metrics; it does not identify project-owned objects, measure GPU work, edit policy automatically, or establish that a threshold is appropriate without human review.
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
 - The repository workflow remains locally contract-tested without a completed hosted job. The reusable workflow's absolute-only nine-entry artifact, paired 17-entry PluginTest artifact, and actionable hosted failure log/annotation are verified. Direct visual reading of the custom job-summary body remains pending from a signed-in UI because public/API inspection does not expose it.
@@ -837,7 +839,7 @@ Experiment 16 added the read-only editor dock without changing capture or report
 | 1. Deterministic baseline | Completed | Three synthetic scenarios, raw samples, summaries, repeated runs, and objective validation. |
 | 2. Configurable budgets | Completed (v1/v2/v3) | Apply scenario, profile, or protected-base comparison policies through deterministic human/JSON tools and a unified Windows CI gate with exit codes `0`/`1`/`2`. |
 | 3. Ten evaluation fixtures | Partial | One sanitized live generic fixture is tracked; nine broader objective fixtures remain planned. |
-| 4. Reusable Godot editor dock | Completed (read-only v1) | The addon presents active-scene probe readiness, recent contained evidence, deterministic failed rules, safe details, and local evidence navigation without launching tools or recalculating verdicts. Direct visual layout inspection remains unverified. |
+| 4. Reusable Godot editor workspace | Completed (read-only v2) | The addon presents active-scene probe readiness, recent contained evidence, deterministic failed rules, safe details, and local evidence navigation in a selectable main-screen workspace without occupying a side dock. Direct visual layout inspection remains unverified. |
 | 5. Agent-assisted investigation | Partial | A read-only command-line investigator handles synthetic scenarios, generic profiles, and paired comparisons, filters typed model contributions, and recovers failures with deterministic fallback; limited live Mini responses, including one hosted comparison, have passed, but broader model/report evaluation remains planned. |
 | 6. Temporary experimental fixes and verification | Planned | Apply isolated candidate changes and rerun the same evidence. |
 | 7. Final baseline comparison and submission package | Planned | Package selected baseline, iteration, and final evidence with hackathon documentation. |
@@ -845,7 +847,7 @@ Experiment 16 added the read-only editor dock without changing capture or report
 ## 16. Hackathon evidence
 
 - [`AGENT_TRAJECTORY.md`](AGENT_TRAJECTORY.md) is the chronological audit of documentation and investigator implementation tasks: requests, decisions, inspections, edits, issues, and verification.
-- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, portable-capture, CI, calibration, and editor-dock experiments.
+- [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) is the append-only product experiment record. It establishes Baseline 0 and records the investigator, configurable-budget, portable-capture, CI, calibration, and editor-workspace experiments.
 - Generated benchmark evidence currently exists locally beneath `demo_project/results/` and is ignored by Git.
 - The sanitized [`main_scene` generic capture](examples/fixtures/main_scene-godot-4.5.1.json) is tracked as the first portable integration fixture.
 - The [`Performance Guardian` workflow](.github/workflows/performance-guardian.yml) is the first automated deterministic gate; its tracked fixture output is uploaded as a JSON artifact, while broader categorized evidence packages remain planned.

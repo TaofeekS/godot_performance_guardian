@@ -662,3 +662,23 @@ Evaluation used tracked capture, Guardian, calibration, and invalid-time fixture
 The focused dock/addon suite passed 19 tests. The final complete suite passed 180 tests in 4.932 seconds with one environment-dependent directory-symlink test skipped. The Godot `4.5.1.stable.official.f62fdbde1` helper produced its synchronized `passed` marker, and a three-second headless editor lifecycle completed with exit `0` and no script parse/load diagnostic. An initial sandboxed editor run crashed before parsing because Godot could not create its `user://` directory; rerunning with normal local access exposed two compile errors, both corrected before the successful checks. A later helper check exposed and corrected JSON integral-number handling for `authoritative_exit_code`.
 
 Retain the dock as the first editor-facing product surface. Its rendered visual layout was not directly inspected in the current automation environment, so appearance and interactive usability remain unverified; a human editor walkthrough is the next evaluation step. Live progress, capture launching, policy execution, and repair remain intentionally outside this version.
+
+## 2026-08-30 — Experiment 17: Main-screen Performance Guardian workspace
+
+**Status:** Retained; main-screen lifecycle verified, direct visual placement pending
+
+### Hypothesis and reason
+
+The side dock introduced in Experiment 16 made evidence available inside Godot, but the user observed that it consumed the editor side area and interfered with access to the Inspector and Node tabs. Moving the same read-only surface into Godot's main workspace selector should preserve evidence access while returning the side docks to normal project work.
+
+### Change and evaluation method
+
+Addon `1.2.0` replaces side-dock registration with a main-screen plugin named **Guardian**. The plugin adds its control beneath `EditorInterface.get_editor_main_screen()`, advertises `_has_main_screen()`, supplies its name and built-in icon, starts hidden, and responds to `_make_visible()` when the workspace is selected. It never calls a dock-slot API or automatically changes the selected workspace. The central page retains the Experiment 16 probe, evidence, failed-rule, details, FileSystem-navigation, and path-copying behavior without changing capture or report schemas.
+
+Tests require the exact Godot 4.5 main-screen contract, reject side-dock and automatic-switch APIs, and preserve the existing read-only, schema, containment, ordering, and presentation assertions. Evaluation reused the tracked fixtures and independent Godot 4.5.1 project; no performance capture, benchmark, hosted workflow, or API request ran. Historical addon `1.0.1` and `1.1.0` captures remain accepted while new captures identify `1.2.0`.
+
+### Observed result, decision, and next step
+
+The focused addon/main-screen suite passed 19 tests. The complete suite passed 180 tests in 4.936 seconds with one environment-dependent directory-symlink test skipped. Python byte compilation succeeded, both tracked generic fixtures validated, the Godot evidence helper produced its synchronized pass marker, and a three-second headless editor lifecycle exited `0` without script/load diagnostics.
+
+Retain the main-screen design because the implementation no longer reserves any Inspector/Node/FileSystem dock slot. Headless checks cannot establish the rendered toolbar position or hands-on switching behavior, so direct visual confirmation in the updated PluginTest editor remains the next acceptance step. The workspace remains deliberately read-only.

@@ -1,7 +1,7 @@
 extends SceneTree
 
 const Reader := preload("res://addons/performance_budget_guardian/evidence_reader.gd")
-const PASS_MARKER := "res://.godot/pbg_editor_dock_tests_passed.txt"
+const PASS_MARKER := "res://.godot/pbg_editor_main_screen_tests_passed.txt"
 
 var _failed := false
 
@@ -37,12 +37,12 @@ func _run_tests() -> void:
 	else:
 		var marker := FileAccess.open(PASS_MARKER, FileAccess.WRITE)
 		if marker == null:
-			push_error("could not write editor dock test marker")
+			push_error("could not write editor main-screen test marker")
 			quit(1)
 			return
 		marker.store_string("passed")
 		marker.close()
-		print("PBG_EDITOR_DOCK_TESTS=passed")
+		print("PBG_EDITOR_MAIN_SCREEN_TESTS=passed")
 		quit(0)
 
 

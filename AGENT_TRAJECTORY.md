@@ -1959,3 +1959,41 @@ The focused dock/addon suite passed 19 tests. The final complete repository suit
 The synchronized Godot 4.5.1 helper produced its ignored `passed` marker, which was immediately removed. A synchronized three-second headless editor lifecycle exited `0`; its temporary stdout/stderr logs contained no `SCRIPT ERROR`, `Parse Error`, invalid-call, or failed-script-load diagnostic and were removed. No performance capture, original synthetic benchmark, hosted workflow, or OpenAI request ran.
 
 The editor process exercised plugin parsing and lifecycle but the current automation environment could not directly inspect the rendered dock visually. Layout appearance and hands-on interaction therefore remain unverified and are documented as the next evaluation step. No commit or push was requested or performed during Experiment 16.
+
+## 2026-08-30 — Experiment 17 main-screen evidence workspace
+
+### Original request and approved plan
+
+After installing Experiment 16 in the public PluginTest example, the user reported:
+
+> the dock is covering the whole left side of the scren making it hard to check inspector and and node tab
+>
+> can we make it like dialogic tab that will be in the same place as the 2d 3d script game asselib at the top middle
+>
+> so it will be easy to access without destroying the current workarea
+
+Inspection confirmed that addon `1.1.0` used `add_control_to_dock(DOCK_SLOT_RIGHT_BL, _dock)`, so it necessarily competed with an editor side-dock slot. Godot 4.5's `EditorPlugin` class reference documents main-screen plugins in the workspace selector beside 2D, 3D, Script, Game, and AssetLib. The user selected the compact **Guardian** tab label and requested Experiment 17 delivery to both Guardian and PluginTest. The approved implementation plan replaced the side dock completely, retained the central page title **Performance Guardian**, advanced the addon to `1.2.0`, preserved old capture compatibility, and prohibited captures, workflows, benchmarks, and API requests during this change.
+
+### Skill use and inspection
+
+The complete repository-local `$godot-performance-guardian-docs` skill, its complete README requirements reference, and the complete `$agent-trajectory` skill were read before documentation edits. Inspection covered Git state and the configured public remote, the addon manifest and plugin entrypoint, the evidence presentation and parser scripts, validator version handling, focused addon tests, the included independent project, all three evidence documents, and the official Godot 4.5 main-screen `EditorPlugin` contract.
+
+### Implementation
+
+`performance_guardian_dock.gd` was renamed to `performance_guardian_main_screen.gd`. The existing read-only content and evidence data flow remain intact, while its root now expands across the central editor area. `plugin.gd` creates that control beneath `EditorInterface.get_editor_main_screen()`, hides it initially, reports `_has_main_screen() == true`, exposes the **Guardian** name and a built-in icon, and changes visibility only when Godot calls `_make_visible()`. Disabling the plugin removes the control from its parent before freeing it. All dock-slot APIs and automatic workspace-selection APIs were removed.
+
+The addon and capture metadata advanced to `1.2.0`. The validator accepts historical `1.0.1`, Experiment 16 `1.1.0`, and current `1.2.0` captures while continuing to reject `1.0.0` with the current-version recapture diagnostic. Presentation and helper tests were renamed for the main-screen interface, and contract tests now require the documented main-screen methods and reject side-dock registration.
+
+### Test and operational evidence
+
+No focused or complete Python test failed. The focused addon/main-screen run passed 19 tests. The complete suite passed 180 tests in 4.936 seconds with one environment-dependent directory-symlink test skipped. Python byte compilation completed, and the tracked generic test fixture plus historical canonical fixture each validated successfully.
+
+The canonical addon was copied temporarily into the ignored independent example. Its Godot 4.5.1 evidence helper exited `0`, wrote the synchronized `passed` marker, and the marker was read and removed. A three-second headless editor lifecycle then exited `0` with no `SCRIPT ERROR`, parse error, invalid-call, failed-script-load, or other matched script diagnostic. The temporary copied addon was resolved beneath the example project before removal. No project configuration diff remained.
+
+The automation can verify plugin registration, parsing, lifecycle, and absence of side-dock APIs, but it cannot directly observe the rendered top toolbar or hands-on switching between Guardian and 2D/3D/Script. Those visual interaction claims remain pending confirmation after PluginTest receives the published addon. No performance capture, synthetic benchmark, hosted workflow dispatch, or OpenAI request occurred.
+
+### Documentation verification and operational issue
+
+The first official documentation-skill validation attempt failed because the project environment does not include PyYAML. A temporary-target installation was then attempted under restricted network access and could not reach the package index; that target was removed by the command's cleanup block. The same temporary-only procedure was authorized with normal network access, installed cached PyYAML 6.0.3, printed `Skill is valid!`, and removed the unique temporary target. No permanent dependency was added.
+
+The synchronized documentation describes the main-screen API and read-only boundary, keeps Experiment 16 as historical side-dock evidence, and marks direct visual confirmation as pending. README retained all 17 numbered sections, every checked relative Markdown link resolved, all five evidence/requirements documents ended with a newline, `git diff --check` found no whitespace error, and working-tree, tracked-file, and reachable-history key-pattern scans found no filename or commit identifier to report.
