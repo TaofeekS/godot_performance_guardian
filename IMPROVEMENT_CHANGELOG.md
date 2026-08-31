@@ -757,3 +757,33 @@ The live command first exposed a pre-request SDK integration error: the two-turn
 Retain typed evidence selection plus deterministic rendering as the shipped investigator design and mark the controlled agent-evaluation roadmap target complete. The result supports the limited headline in [AGENT_EVALUATION.md](AGENT_EVALUATION.md), not a claim about all models, prompts, games, or repeated reliability.
 
 The next useful evaluation is repetition on new, independently defined customer failure packets without changing this frozen result. Deterministic validation and budgets remain authoritative; calibration proposes; AI explains.
+
+<a id="experiment-20"></a>
+
+## 2026-08-31 — Experiment 20: Isolated Linux reproduction proof
+
+**Status:** Retained; Ubuntu 24.04 WSL2 headless reproduction verified
+
+### Hypothesis and reason
+
+The repository had extensive Windows evidence but still described Linux as wholly unverified. The hypothesis was that the existing tracked implementation could pass its complete test suite and portable Godot capture path unchanged in a clean Linux-native export.
+
+### Change and evaluation method
+
+No addon, game, tool, test, workflow, schema, fixture, or budget implementation changed. Commit `9a5ed78d853b54892564ac741b621c8603360aa1` was exported into a disposable Ubuntu 24.04 WSL2 directory outside the Windows checkout. A fresh Python 3.12.3 virtual environment installed only `requirements-agent.txt`. The official Godot 4.5.1 Linux x86-64 archive was checked against SHA-512 `5bccbed65a94b82c7c319fdb15719ee8113a6e503976cc54e16f1c61fe95f3d74e5e40b8449b5bb89ff7f424574c20af01a4f5ef08b389e4dc338b245185b0b9` before use.
+
+The evaluation ran `pip check`, byte compilation, all tests, Godot headless editor parsing, both GDScript helpers, three isolated portable captures with 120 warmup frames and 600 measured frames, generic validation, balanced calibration, explicit proposal application to a temporary policy, a fresh-evidence gate, and the tracked fixture gate. Generated logs were checked for script/load diagnostics, captures were checked for temporary or private-path leakage, and the entire disposable directory was removed afterward.
+
+### Observed result
+
+All **223 tests** passed on Ubuntu 24.04 under WSL2 in 5.416 seconds. Godot reported `4.5.1.stable.official.f62fdbde1`; headless parsing and both helpers passed. Three captures each contained 600 samples and validated successfully with clean logs and no remaining temporary file or private absolute path.
+
+The three-run Linux medians were `0.469 ms` process p95, `3` peak nodes, and `1,393` peak objects. Balanced calibration proposed `0.8 ms`, `4` nodes, and `1,533` objects. After explicit application to a temporary policy, every rule passed and the authoritative exit was `0`. The tracked fixture also returned exit `0`. A separate Windows regression run passed all 223 tests with two environment-dependent symlink skips and retained the tracked gate's authoritative exit `0`.
+
+Two environment prerequisites were corrected before the successful run: Ubuntu initially lacked `python3.12-venv`, and its minimal image lacked `unzip`. The standard venv package was installed; Python's standard-library ZIP extractor replaced the unnecessary `unzip` dependency. Neither issue required a repository change.
+
+### Decision and next step
+
+Document Ubuntu 24.04 WSL2 as verified for the existing clean-export Python and headless portable-capture workflow. Keep the Windows reusable workflow and PowerShell synthetic harness unchanged. Do not infer native Linux editor usability, rendering/GPU coverage, macOS support, or portable timing thresholds from this proof.
+
+The next cross-platform step, if justified by customer demand, is a separately scoped native Linux or hosted Ubuntu consumer-workflow evaluation rather than changing the working Windows integration speculatively.

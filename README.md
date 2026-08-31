@@ -6,7 +6,7 @@ Godot Performance Budget Guardian combines a synthetic Godot 4.5 regression benc
 
 ## Judge reproduction
 
-This is the shortest verified path for reproducing the project's deterministic gate and main synthetic benchmark from a clean Windows checkout. The more detailed setup and usage instructions remain in the numbered sections below.
+This section gives the shortest verified Windows path for the deterministic gate and main synthetic benchmark, followed by the verified Ubuntu WSL2 headless path for the portable capture workflow. The more detailed setup and usage instructions remain in the numbered sections below.
 
 ### 1. Required software
 
@@ -80,6 +80,127 @@ The harness runs `healthy`, `node_leak`, and `cpu_spike` three times each, write
 For deterministic policy commands, exit `0` means validation and all applicable budgets passed, exit `1` means valid evidence failed at least one budget, and exit `2` means configuration, validation, evidence, or operational failure.
 
 For a real consumer integration, see the public [PluginTest example](https://github.com/TaofeekS/PluginTest), including its Godot scene, project policy, and reusable-workflow caller.
+
+### Linux headless reproduction
+
+The existing project was reproduced without source changes from a clean Git export on Ubuntu `24.04` under WSL2 (`6.6.87.2-microsoft-standard-WSL2`, `x86_64`) with Python `3.12.3` and Godot `4.5.1.stable.official.f62fdbde1`. This verifies the Python tools, headless addon parsing/helpers, portable capture, validation, calibration, and deterministic gate on that environment. It does not verify the Linux editor UI, GPU measurements, the PowerShell synthetic batch harness, or the Windows-only reusable workflow.
+
+Install the Linux prerequisites, clone the repository, and create the environment:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git curl python3.12-venv
+
+git clone https://github.com/TaofeekS/godot_performance_guardian.git
+cd godot_performance_guardian
+
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements-agent.txt
+python -m pip check
+```
+
+Run the tracked deterministic gate and the complete test suite:
+
+```bash
+python tools/run_guardian.py \
+  --json \
+  --investigate never \
+  tests/fixtures/generic_results \
+  examples/minimal_project/budgets/performance_budgets.json
+
+python -m unittest discover -s tests
+```
+
+Expected results are exit `0` from both commands, a `passed` deterministic status, and 223 passing tests. Environment-dependent symlink tests may be skipped when the host does not permit their setup.
+
+Download the exact official Godot archive and verify it before use. Python's standard-library ZIP extractor avoids requiring a separate `unzip` package:
+
+```bash
+GodotArchive=/tmp/Godot_v4.5.1-stable_linux.x86_64.zip
+GodotDirectory=/tmp/godot-performance-guardian-4.5.1
+GodotExe="$GodotDirectory/Godot_v4.5.1-stable_linux.x86_64"
+
+curl --fail --location \
+  --output "$GodotArchive" \
+  https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+
+printf '%s  %s\n' \
+  '5bccbed65a94b82c7c319fdb15719ee8113a6e503976cc54e16f1c61fe95f3d74e5e40b8449b5bb89ff7f424574c20af01a4f5ef08b389e4dc338b245185b0b9' \
+  "$GodotArchive" | sha512sum --check -
+
+mkdir -p "$GodotDirectory"
+python -m zipfile -e "$GodotArchive" "$GodotDirectory"
+chmod +x "$GodotExe"
+"$GodotExe" --version
+```
+
+Expected version output is `4.5.1.stable.official.f62fdbde1`. Copy the canonical addon into the ignored consumer-project location, parse it, and run both GDScript helpers:
+
+```bash
+mkdir -p examples/minimal_project/addons
+cp -R addons/performance_budget_guardian examples/minimal_project/addons/
+
+"$GodotExe" --headless --editor \
+  --path examples/minimal_project \
+  --quit
+
+"$GodotExe" --headless \
+  --path examples/minimal_project \
+  --script res://test_probe.gd
+
+"$GodotExe" --headless \
+  --path examples/minimal_project \
+  --script res://test_editor_main_screen.gd
+```
+
+The helpers must print `PBG_HELPER_TESTS=passed` and `PBG_EDITOR_MAIN_SCREEN_TESTS=passed` without script/load errors. Produce three fresh 600-sample measurements with a collision-safe UTC run prefix:
+
+```bash
+RunPrefix="judge-linux-$(date -u +%Y%m%dT%H%M%SZ)"
+Results="examples/minimal_project/.performance-guardian/main_scene/$RunPrefix/captures"
+Proposal="examples/minimal_project/.performance-guardian/main_scene/$RunPrefix/proposed-performance-budgets.json"
+CalibrationReport="examples/minimal_project/.performance-guardian/main_scene/$RunPrefix/calibration-report.json"
+AppliedPolicy="examples/minimal_project/.performance-guardian/main_scene/$RunPrefix/applied-performance-budgets.json"
+
+python tools/capture_project.py \
+  --workspace-root . \
+  --godot-executable "$GodotExe" \
+  --project-path examples/minimal_project \
+  --scene-path res://main.tscn \
+  --profile main_scene \
+  --run-prefix "$RunPrefix" \
+  --runs 3 \
+  --warmup-frames 120 \
+  --measured-frames 600 \
+  --sampling-interval 1 \
+  --source-revision "$(git rev-parse HEAD)"
+
+python tools/validate_results.py \
+  --workspace-root . \
+  "$Results"
+
+python tools/calibrate_budgets.py \
+  --workspace-root . \
+  --json \
+  --policy-output "$Proposal" \
+  --report-output "$CalibrationReport" \
+  "$Results"
+
+python tools/calibrate_budgets.py \
+  --workspace-root . \
+  --apply-proposal "$Proposal" \
+  --budget-file "$AppliedPolicy"
+
+python tools/run_guardian.py \
+  --workspace-root . \
+  --json \
+  --investigate never \
+  "$Results" \
+  "$AppliedPolicy"
+```
+
+Expected results are three capture JSON files with 600 samples each, successful validation and proposal generation, and authoritative gate exit `0`. The generated policy is a host-specific proposal for this reproduction run, not a universal recommendation and not an automatic change to the tracked project policy. These deterministic commands require no API key and make no OpenAI request.
 
 ## 2. Current status
 
@@ -253,9 +374,9 @@ Godot-generated `.uid` files are present beside the GDScript sources. The `.godo
 | Requirement | Current evidence |
 | --- | --- |
 | Godot | Exactly tested with `4.5.1.stable.official.f62fdbde1`. Other 4.5.x builds have not been verified. |
-| Python | Python 3.14.6 was used successfully. The validator, budget checker, and unified runner use only the standard library; other Python versions have not been verified in this repository. |
+| Python | Python 3.14.6 was used successfully on Windows. Python 3.12.3 also passed the complete clean-export suite and headless reproduction on Ubuntu 24.04 under WSL2. The validator, budget checker, and unified runner use only the standard library. |
 | PowerShell | PowerShell 7.6.4 was used successfully for the batch harness. |
-| Operating system | Windows 10.0.26200 is the only verified platform. Linux and macOS are unverified, and the supplied batch harness is PowerShell-specific. |
+| Operating system | Windows 10.0.26200 remains the primary and hosted-workflow platform. Ubuntu 24.04 under WSL2 is verified for clean-export tests, headless Godot parsing/helpers, portable capture, validation, calibration, and the deterministic gate. Native Linux editor UI, Linux GPU behavior, macOS, and the PowerShell-specific synthetic batch harness remain unverified. |
 | Debug build | Not required for scenario execution. `Performance.MEMORY_STATIC` is accepted only when a debug build reports a positive value; otherwise memory samples are `null` and explicitly marked unavailable. |
 | External dependencies | The benchmark needs only Godot, PowerShell for the batch harness, and Python's standard library for validation and budget policy. The optional investigator pins `openai-agents==0.22.0` and `openai==3.6.0`; OpenAI installs `httpx2` transitively, but repository tests do not import that transport package directly. |
 | Network or API key | Benchmarking, addon capture, deterministic validation, and budget checking need neither. GitHub Actions needs network access to obtain actions and Godot. A live investigator run additionally requires `OPENAI_API_KEY`; local investigator tests do not. |
@@ -919,6 +1040,7 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 - Headless runs do not produce meaningful rendering or GPU measurements.
 - Keep the recorded Godot version and environment metadata with every result.
 - Generated results are ignored by default, so deliberately copy selected evidence into a future versioned evidence package when required.
+- Experiment 20 reproduced the existing tracked code from a clean Linux-native export on Ubuntu 24.04 under WSL2. This is headless compatibility evidence, not proof of identical timing across operating systems or of native Linux editor/GPU behavior.
 
 ## 14. Known limitations
 
@@ -936,8 +1058,8 @@ Experiment 17 replaced that side dock with a Godot main-screen plugin named **Gu
 - Live generic responses remain nondeterministic. Terra and Sol each required fallback in Experiment 8, while `gpt-4.1-mini` produced directly accepted typed contributions in Experiments 9 and 10. These few responses are insufficient to rank general model quality or establish long-run reliability.
 - The repository workflow is hosted-verified on Windows with both independent jobs green. The reusable workflow's absolute-only nine-entry artifact, paired 17-entry PluginTest artifact, actionable hosted failure reporting, and the `fe72c608...` enforcement canary are verified. Direct visual reading of the custom job-summary body remains pending from a signed-in UI because public/API inspection does not expose it.
 - The current 49-file aggregate mixes historical `160 x 160` and `240 x 240` CPU workloads, and stored results do not identify their source revision.
-- Portable capture and calibration are verified only for the included independent project and PluginTest on Godot 4.5.1. These host-specific runs do not prove universal project, platform, or timing compatibility.
-- Windows is the only verified operating system; the harness is PowerShell-specific.
+- Portable capture and calibration are verified for the included independent project on Windows and Ubuntu 24.04 under WSL2, plus PluginTest on hosted Windows, all with Godot 4.5.1. These host-specific runs do not prove universal project, native-Linux editor, GPU, or timing compatibility.
+- The reusable GitHub workflow and synthetic batch harness remain Windows-specific. Experiment 20 verifies the existing Python and headless portable-capture path on Ubuntu under WSL2; it does not add Linux workflow support.
 - Individual result JSON does not contain a consolidated budget verdict or structured error object.
 
 ## 15. Roadmap

@@ -95,6 +95,7 @@ In [Experiment 16](#trajectory-experiment-16), the first editor surface used a s
 | Experiment 17 | Main-screen Guardian workspace | [Open](#trajectory-experiment-17) |
 | Experiment 18 | Reproducible ten-case Baseline 0/final comparison | [Open](#trajectory-experiment-18) |
 | Experiment 19 | Controlled grounded-agent versus free-form evaluation | [Open](#trajectory-experiment-19) |
+| Experiment 20 | Isolated Ubuntu WSL2 reproduction proof | [Open](#trajectory-experiment-20) |
 
 ## Failure-and-correction index
 
@@ -2433,3 +2434,65 @@ The authoritative report returned exit `1` only because `main-scene-process-p95`
 After verifying the remote canary still targeted `e2db534...` and PluginTest `main` still contained exactly three `80ba5d6...` references, only remote branch `codex/guardian-next-sha-canary` was deleted. PluginTest `main`, addon, scenes, budgets, workflow inputs, and production pin remained unchanged. Guardian `fe72c608...` is therefore certified for new consumers by a green hosted repository run, a local clean-consumer exit-`0` proof, and a hosted PluginTest enforcement canary whose only failure was an expected project-owned budget verdict.
 
 Final documentation changed only README status, immutable caller examples, Windows-alias troubleshooting, the documentation requirements reference, and this trajectory; `IMPROVEMENT_CHANGELOG.md` remained unchanged because the task was compatibility maintenance rather than a product experiment. The official documentation-skill validator printed `Skill is valid!`; all checked Markdown links resolved, README retained numbered sections 1 through 17, maintained evidence documents ended with final newlines, and no high-confidence credential pattern was found. `git diff --check` passed. The exact temporary canary checkout, artifact download, clean export, and PyYAML directories were resolved beneath their approved roots and removed; the remote canary branch was confirmed absent.
+
+<a id="trajectory-experiment-20"></a>
+
+## 2026-08-31 — Experiment 20 isolated Linux reproduction proof
+
+### Request, boundary, and approval
+
+The user asked whether the project could be reproduced on Linux, then clarified:
+
+> this is just to test if this project can also be reproduce on linux too
+>
+> also make sure it doesnt affect the exisiting code negative
+>
+> also update judge reproduction so it has a linux reproduciton section if reproduction is possble on linux
+>
+> dint make changes that will break the game
+
+The approved plan limited Experiment 20 to an isolated Ubuntu 24.04 WSL2 proof. It prohibited changes to the addon, game projects, tools, tests, workflows, schemas, fixtures, and budgets. Linux instructions could be published only after the full proof passed; otherwise the documentation would retain Linux as unverified. The earlier idea of adding an Ubuntu CI job was explicitly removed from scope.
+
+### Skill use and inspection
+
+The complete repository documentation skill, its complete README requirements reference, and the complete agent-trajectory skill were read before documentation work. The three evidence documents, Judge reproduction section, requirements, reproducibility notes, limitations, relevant Python CLI help, GDScript helpers, capture paths, Git state, branch, current commit, and configured public remote were inspected. The working tree began clean on `main` at `9a5ed78d853b54892564ac741b621c8603360aa1`; `origin` fetch and push both used `https://github.com/TaofeekS/godot_performance_guardian.git`.
+
+WSL inspection identified Ubuntu 24.04 on kernel `6.6.87.2-microsoft-standard-WSL2`, architecture `x86_64`, and Python 3.12.3. Docker was not used. The official Godot 4.5.1 Linux archive URL and SHA-512 were fixed before execution.
+
+### Linux execution and operational corrections
+
+The tracked commit was exported with `git archive` into `/tmp/pbg-exp20-9a5ed78/repo`, keeping ignored results, OneDrive state, and the Windows virtual environment outside the proof. A cleanup trap accepted only that resolved exact path and removed it after every attempt.
+
+The first encoded WSL launch failed before creating the directory because PowerShell did not preserve the multiline Bash payload as one argument. The payload was transported as Base64 on later attempts; no repository or test action had occurred.
+
+The next attempt reached `python3 -m venv` and established that Ubuntu's minimal Python lacked `ensurepip`. An initial `sudo` install stalled at the interactive password boundary and was stopped without output. WSL's root user then installed the standard `python3.12-venv` package directly. This changed only the local Ubuntu environment, not the repository.
+
+The first full clean-export run installed the two pinned direct requirements and their transitive packages, reported no broken requirements, passed byte compilation, and passed all 223 tests. The official Godot ZIP then matched its SHA-512, but the minimal Ubuntu image lacked the `unzip` program. Rather than add another permanent package, the proof was restarted using `python -m zipfile`, making the documented reproduction depend only on Python's standard library for extraction.
+
+### Successful Linux evidence
+
+The final clean export installed only `requirements-agent.txt`, passed `pip check`, passed byte compilation, and passed **223 tests in 5.416 seconds** with no skip. The official archive matched SHA-512 `5bccbed65a94b82c7c319fdb15719ee8113a6e503976cc54e16f1c61fe95f3d74e5e40b8449b5bb89ff7f424574c20af01a4f5ef08b389e4dc338b245185b0b9`; the executable reported `4.5.1.stable.official.f62fdbde1`.
+
+Only in the disposable export, the canonical addon was copied into the included independent project. Godot's headless editor parse exited successfully. `test_probe.gd` printed `PBG_HELPER_TESTS=passed`, and `test_editor_main_screen.gd` printed `PBG_EDITOR_MAIN_SCREEN_TESTS=passed`.
+
+`capture_project.py` then ran three isolated `main_scene` captures with 120 warmup frames, 600 measured frames, interval 1, and distinct generated run IDs. The passed manifest listed three capture JSON files and three sanitized logs. Every capture contained exactly 600 samples. Searches found no script/load diagnostic, remaining atomic temporary file, `/tmp` proof path, mounted Windows user path, or Windows private absolute path in the generated evidence.
+
+The generic validator accepted all three files. Their aggregate medians were `0.469 ms` process p95, `3` peak nodes, and `1,393` peak objects. Balanced calibration proposed `0.8 ms`, `4` nodes, and `1,533` objects; the proposal was explicitly applied to a temporary policy, and `run_guardian.py --investigate never` returned authoritative exit `0` with all three rules passing. The tracked one-file fixture and its committed policy also returned authoritative exit `0`. These values are host-specific compatibility evidence, not cross-host performance recommendations.
+
+The cleanup trap removed the exact WSL proof root. A later read-only WSL check printed `TEMP_ROOT_REMOVED`.
+
+### Windows regression and documentation
+
+The unchanged Windows checkout used Python 3.14.6. `pip check` and byte compilation passed; the complete suite passed 223 tests in 19.815 seconds with two expected environment-dependent symlink skips. The tracked deterministic fixture gate retained authoritative exit `0`. The combined verification command's final WSL cleanup check was denied by the sandbox after these Windows checks had already passed; the separate authorized read-only cleanup check supplied the evidence above.
+
+Because every mandatory proof passed, README gained a Linux subsection inside Judge reproduction with copyable dependency, checksum, test, parse/helper, capture, validation, calibration, and gate commands. Requirements, reproducibility notes, and limitations now identify the exact verified WSL2 boundary while keeping the PowerShell synthetic harness and reusable GitHub workflow Windows-specific. Experiment 20 was appended to the improvement changelog, and the documentation requirements now prevent this headless proof from being generalized into native Linux editor/GPU, macOS, or hosted Linux workflow claims.
+
+Final documentation validation, focused documentation-only diff confirmation, commit `Document Linux reproduction proof`, and push follow this entry. No synthetic benchmark, OpenAI request, Docker run, PluginTest action, game edit, or runtime implementation change occurred.
+
+### Final documentation verification
+
+The official documentation-skill validator printed `Skill is valid!` using temporary PyYAML 6.0.3. Its first cleanup guard compared the Windows temporary prefix incorrectly and safely refused removal; the exact resolved `pbg-exp20-pyyaml-20260831` target was then independently verified and removed. No dependency was added to the repository environment.
+
+All relative Markdown links checked across README, final evaluation, agent evaluation, improvement changelog, trajectory, and the README requirements reference resolved successfully. README retained numbered sections 1 through 17; every maintained document and skill file ended with a final newline. High-confidence working-tree and reachable-history credential-pattern scans returned no filename or commit identifier. `git diff --check` passed.
+
+The final protected-path check found no diff beneath `addons/`, `examples/`, `tools/`, `tests/`, `.github/`, `budgets/`, `evaluation/`, or `agent/`, and no requirements file changed. Only README, the append-only Experiment 20 changelog entry, this trajectory, and the documentation requirements reference were prepared for delivery.
